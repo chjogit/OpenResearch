@@ -1,6 +1,6 @@
 """LLM 계층·첨삭 모드 테스트 (가짜 LLM 사용)."""
 from ch_agents.agents import build_agent_data
-from ch_agents.llm import check_output, parse_json, run_agent
+from ch_agents.llm import check_output, normalize_keys, parse_json, run_agent
 from ch_agents.review import check_numbers, extract_numbers, review_report, style_checks
 from conftest import AS_OF, CO, FakeLLM
 from test_compute import _fin_bundle, _sent_bundle
@@ -171,3 +171,15 @@ def test_style_checks():
     assert len([x for x in style_checks(rep) if x["sentence"].startswith("PER(TTM)")]) == 0
     out = review_report(rep, "005930", llm=FakeLLM(TimeoutError()), datas=[_a2()])
     assert "표현 점검" in out["reviews"][0]["analysis"] and "공통 표현 점검" in out["number_check_md"]
+
+
+def test_normalize_bare_keys():
+    valid = {"M7", "F2", "S10"}
+    assert normalize_keys("환율 M7, 이익 [F2], 강도 (S10), 없는 M99, 에이전트 A1, {M7}", valid) == \
+        "환율 {M7}, 이익 {F2}, 강도 {S10}, 없는 M99, 에이전트 A1, {M7}"
+    d = _a2()
+    out_json = _good(d)
+    k = d.facts.key_of("PER(TTM 기준)")
+    out_json["주장"][1]["문장"] = f"PER(TTM)은 {k}이다."
+    out = run_agent(2, data=d, llm=FakeLLM(out_json))
+    assert out["status"] == "완료" and "8.36배" in out["analysis"]

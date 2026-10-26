@@ -152,6 +152,20 @@ def parse_json(text: str) -> dict | None:
     return max(found, key=lambda o: len(json.dumps(o)), default=None)
 
 
+BARE_KEY = re.compile(r"(?<![A-Za-z0-9{])[\[(]?([MFSD]\d{1,3})[\])]?(?![A-Za-z0-9}])")
+
+
+def normalize_keys(obj, valid: set[str]):
+    """문장 안의 'M7', '[M7]', '(M7)' 처럼 쓴 장부 키를 '{M7}'로 맞춥니다. 장부에 있는 키만 바꿉니다."""
+    if isinstance(obj, str):
+        return BARE_KEY.sub(lambda m: "{" + m.group(1) + "}" if m.group(1) in valid else m.group(0), obj)
+    if isinstance(obj, list):
+        return [normalize_keys(x, valid) for x in obj]
+    if isinstance(obj, dict):
+        return {k: (v if k == "근거" else normalize_keys(v, valid)) for k, v in obj.items()}
+    return obj
+
+
 def _valid_keys(data: AgentData) -> set[str]:
     return set(data.facts.items) | {f"D{i + 1}" for i in range(len(data.docs))}
 
@@ -328,6 +342,8 @@ def run_agent(agent_id: int, ticker: str | None = None, mode: str = "expert", ll
         for attempt in range(max_repair + 1):
             raw = model.invoke(msgs).content
             parsed = parse_json(raw)
+            if parsed is not None:
+                parsed = normalize_keys(parsed, _valid_keys(data))
             checks = check_output(parsed, data) if parsed is not None else {"형식": ["JSON 아님"]}
             attempts.append({"raw": raw, "checks": checks})
             if parsed is not None:
