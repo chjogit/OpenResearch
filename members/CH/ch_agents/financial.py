@@ -128,6 +128,10 @@ def compute(b: dict, co: dict, as_of: str) -> dict:
     f = Facts("F")
     t = b.get("ttm") or {}
     is_fin = sector_of(co) in FINANCIAL_SECTORS
+    from .agents import today_kst
+
+    if as_of < today_kst():
+        f.note("과거 기준일 실행: TTM·Peer·연간 PER은 최신 값이라 기준일 시점과 다를 수 있음 (분기 추세·PER 밴드는 기준일까지)")
     if is_fin:
         f.note("금융업: 매출·영업이익률·부채비율은 일반 기업과 의미가 달라 비교에 쓰지 않음. ROE·PBR 중심으로 해석")
 

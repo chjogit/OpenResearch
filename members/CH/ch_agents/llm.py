@@ -105,16 +105,50 @@ def build_messages(data: AgentData, mode: str = "expert") -> tuple[str, str]:
 
 # ---------------------------------------------------------------- 파싱·검사
 
+EXPECTED_KEYS = {"핵심진단", "주장", "빠진논점", "수정제안"}
+
+
+def _json_objects(t: str):
+    """문자열 안의 짝이 맞는 {...} 구간을 앞에서부터 차례로 돌려줍니다 (따옴표 안의 괄호는 무시)."""
+    i = 0
+    while (start := t.find("{", i)) >= 0:
+        depth, in_str, esc = 0, False, False
+        for j in range(start, len(t)):
+            ch = t[j]
+            if in_str:
+                if esc:
+                    esc = False
+                elif ch == "\\":
+                    esc = True
+                elif ch == '"':
+                    in_str = False
+                continue
+            if ch == '"':
+                in_str = True
+            elif ch == "{":
+                depth += 1
+            elif ch == "}":
+                depth -= 1
+                if depth == 0:
+                    yield t[start:j + 1]
+                    break
+        i = start + 1
+
+
 def parse_json(text: str) -> dict | None:
+    """LLM 출력에서 JSON 객체를 찾습니다. 기대 키가 있는 객체를 먼저, 없으면 가장 큰 객체를 고릅니다."""
     t = re.sub(r"```(?:json)?", "", text or "")
-    start, end = t.find("{"), t.rfind("}")
-    if start < 0 or end <= start:
-        return None
-    try:
-        out = json.loads(t[start:end + 1])
-    except json.JSONDecodeError:
-        return None
-    return out if isinstance(out, dict) else None
+    found = []
+    for seg in _json_objects(t):
+        try:
+            obj = json.loads(seg)
+        except json.JSONDecodeError:
+            continue
+        if isinstance(obj, dict):
+            if EXPECTED_KEYS & set(obj):
+                return obj
+            found.append(obj)
+    return max(found, key=lambda o: len(json.dumps(o)), default=None)
 
 
 def _valid_keys(data: AgentData) -> set[str]:

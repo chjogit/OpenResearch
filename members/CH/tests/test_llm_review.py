@@ -129,3 +129,22 @@ def test_review_rejects_placeholder_report():
     import pytest
     with pytest.raises(ValueError):
         review_report("(여기에 첨삭할 보고서를 붙여 넣으세요)", "005930", datas=[_a2()])
+
+
+def test_parse_json_skips_braces_in_preamble():
+    raw = '생각: {설명} 그리고 {"x": 1} 다음이 답입니다 {"핵심진단": "a {b}", "주장": []}'
+    assert parse_json(raw) == {"핵심진단": "a {b}", "주장": []}
+
+
+def test_extract_numbers_man_units_and_shares_match():
+    nums = extract_numbers("외국인은 20일간 2,181만주 순매도, 주가 21.55만원")
+    assert [(n["unit"], n["value"]) for n in nums] == [("만주", 21810000.0), ("만원", 215500.0)]
+    d4 = build_agent_data(4, CO, _sent_bundle(), AS_OF)  # 외국인 20일 = -20,000주
+    rows = check_numbers("외국인 20일 순매수 수량은 -2만주였다.", [d4])
+    assert rows[0]["verdict"] == "일치" and rows[0]["label"] == "외국인 20일 순매수 수량"
+
+
+def test_parse_json_escaped_quotes_and_braces_in_strings():
+    raw = r'{"핵심진단": "따옴표 \" 와 } 괄호", "주장": [{"문장": "\\ 백슬래시", "구분": "예측", "근거": []}]}'
+    out = parse_json(raw)
+    assert out["핵심진단"] == '따옴표 " 와 } 괄호' and out["주장"][0]["문장"] == "\\ 백슬래시"

@@ -15,10 +15,12 @@ from .facts import fmt
 from .llm import BANNED, PLACEHOLDER, get_llm, parse_json, render, sentence_problems
 
 REPORT_MAX_CHARS = 12000
-NUM = re.compile(r"([-+]?\d[\d,]*(?:\.\d+)?)\s*(조\s*\d[\d,]*\s*억\s*원|조\s*원|조|억\s*원|억|%p|%포인트|%|배|원)")
-UNIT_KIND = {"조원": "KRW", "조": "KRW", "억원": "KRW", "억": "KRW", "원": "KRW_or_price", "%p": "pp", "%포인트": "pp",
-             "%": "pct", "배": "x"}
-FACT_KIND = {"KRW": "KRW", "KRW±": "KRW", "%": "pct", "%chg": "pct", "%p": "pp", "배": "x"}
+NUM = re.compile(r"([-+]?\d[\d,]*(?:\.\d+)?)\s*(조\s*\d[\d,]*\s*억\s*원|조\s*원|조|억\s*원|억|만\s*원|"
+                 r"%p|%포인트|%|배|원|만\s*주|억\s*주|주)")
+UNIT_KIND = {"조원": "KRW", "조": "KRW", "억원": "KRW", "억": "KRW", "만원": "KRW_or_price", "원": "KRW_or_price",
+             "%p": "pp", "%포인트": "pp", "%": "pct", "배": "x", "주": "shares", "만주": "shares", "억주": "shares"}
+MULT = {"조원": 1e12, "조": 1e12, "억원": 1e8, "억": 1e8, "만원": 1e4, "만주": 1e4, "억주": 1e8}
+FACT_KIND = {"KRW": "KRW", "KRW±": "KRW", "%": "pct", "%chg": "pct", "%p": "pp", "배": "x", "주": "shares"}
 SYNONYMS = {
     "매출액": "매출", "영업익": "영업이익", "당기순이익": "순이익", "순익": "순이익", "per": "PER", "pbr": "PBR",
     "roe": "ROE", "주가수익비율": "PER", "환율": "원/달러", "달러": "원/달러", "외인": "외국인", "부채": "부채비율",
@@ -44,10 +46,8 @@ def extract_numbers(text: str) -> list[dict]:
         if unit.startswith("조") and "억" in unit:  # 1조 2,345억원
             eok = float(re.search(r"조\s*(\d[\d,]*)", m.group(2)).group(1).replace(",", ""))
             v, unit = v * 1e12 + eok * 1e8, "조원"
-        elif unit in ("조원", "조"):
-            v *= 1e12
-        elif unit in ("억원", "억"):
-            v *= 1e8
+        else:
+            v *= MULT.get(unit, 1)
         ctx = text[max(0, m.start() - 30):m.start()]
         out.append({"text": m.group(0), "value": v, "unit": unit, "kind": UNIT_KIND[unit], "context": ctx,
                     "pos": m.start()})
@@ -57,6 +57,8 @@ def extract_numbers(text: str) -> list[dict]:
 def _close(a: float, b: float, kind: str) -> bool:
     if kind in ("pct", "pp"):
         return abs(a - b) <= 0.15
+    if kind == "shares":
+        return abs(a - b) <= max(abs(b) * 0.01, 1e4 / 2)  # 만주 단위 반올림 허용
     if kind == "x":
         return abs(a - b) <= max(0.1, abs(b) * 0.03)
     return abs(a - b) <= abs(b) * 0.02
