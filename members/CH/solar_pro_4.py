@@ -669,7 +669,299 @@ def run_openresearch_multi_agent(ticker: str = "005930", mode: str = "expert") -
     }
 
 
+# =====================================================================
+# 7. 보고서 첨삭 모드 (사용자 보고서를 6개 관점에서 첨삭·피드백)
+# =====================================================================
+import re
+from decimal import Decimal
+
+REPORT_MAX_CHARS = 12000  # LLM 입력 한도 보호용 (넘으면 앞부분만 첨삭)
+
+
+def load_report(path: str) -> str:
+    """첨삭할 보고서 파일(.md / .txt)을 읽습니다."""
+    with open(path, encoding="utf-8") as f:
+        return f.read()
+
+
+def resolve_ticker(report_text: str, ticker: Optional[str] = None, loader: Optional[KICDataLoader] = None) -> str:
+    """종목코드를 주면 그대로 쓰고, 없으면 보고서 본문에서 KOSPI 종목코드·종목명을 찾아 core.company와 매칭합니다."""
+    if ticker:
+        return ticker
+    loader = loader or KICDataLoader()
+    companies = loader._execute_query("SELECT ticker, name FROM core.company WHERE market = 'KR' AND name IS NOT NULL;")
+    if not companies:
+        raise ValueError("종목코드를 자동 인식하려면 DB 연결이 필요합니다. ticker 인자를 직접 넣어 주세요.")
+    by_ticker = {c["ticker"]: c for c in companies}
+    for code in re.findall(r"(?<!\d)(\d{6})(?!\d)", report_text):
+        if code in by_ticker:
+            return code
+    # 종목명이 가장 많이 등장한 종목. 더 긴 종목명 안에 든 등장은 빼고 셉니다 ('LG에너지솔루션' 속 'LG').
+    found = {c["name"]: (report_text.count(c["name"]), c["ticker"]) for c in companies if c["name"] in report_text}
+    counts = []
+    for name, (n, code) in found.items():
+        n -= sum(m for other, (m, _) in found.items() if other != name and name in other)
+        counts.append((n, len(name), code))
+    best = max(counts, default=(0, 0, None))
+    if best[0] == 0:
+        raise ValueError("보고서에서 KOSPI 종목을 찾지 못했습니다. ticker 인자를 직접 넣어 주세요.")
+    return best[2]
+
+
+class ReportNumberChecker:
+    """
+    보고서 속 숫자를 코드로 추출해 DB 확정값과 대조합니다. (LLM은 이 결과표만 인용)
+    - 지표 키워드(매출, 영업이익률, PER 등)가 숫자 바로 앞에 있으면 해당 DB 값과 비교해 일치/불일치를 판정합니다.
+    - 키워드가 없으면 '대응 지표 미확인'으로 남깁니다.
+    """
+    # (키워드, 지표명, 비교 방식). 긴 키워드를 먼저 검사합니다 (영업이익률 → 영업이익).
+    KEYWORDS = [
+        (("영업이익률", "영업 이익률", "OPM"), "영업이익률(TTM)", "pct"),
+        (("순이익률",), "순이익률(TTM)", "pct"),
+        (("매출액", "매출", "Revenue"), "매출액(TTM)", "krw"),
+        (("영업이익",), "영업이익(TTM)", "krw"),
+        (("순이익",), "순이익(TTM)", "krw"),
+        (("PER", "주가수익비율"), "PER(TTM)", "x"),
+        (("PBR", "주가순자산비율"), "PBR", "x"),
+        (("ROE", "자기자본이익률"), "ROE(TTM)", "pct"),
+        (("부채비율",), "부채비율", "pct"),
+        (("외국인 보유", "외국인 지분", "외국인 보유율", "외국인 지분율"), "외국인 보유율", "pct"),
+        (("RSI",), "RSI(14)", "num"),
+        (("기준금리", "한국은행 기준금리"), "한국 기준금리", "pct"),
+        (("환율", "원/달러", "원·달러"), "원/달러 환율", "num"),
+        (("주가", "종가", "현재가"), "현재 주가", "num"),
+    ]
+    UNIT_SCALE = {"조원": 1e12, "조": 1e12, "억원": 1e8, "억": 1e8, "만원": 1e4, "원": 1}
+    # '302조 2,314억원' 같은 복합 금액 → 단일 금액 → %, 배 순서로 찾습니다.
+    NUM_RE = re.compile(
+        r"(?P<jo>\d[\d,]*(?:\.\d+)?)\s*조\s*(?P<eok>\d[\d,]*)\s*억\s*원?"
+        r"|(?P<num>-?\d[\d,]*(?:\.\d+)?)\s*(?P<unit>%p|%|배|x|조원|조|억원|억|만원|원)"
+    )
+    KIND_UNITS = {"krw": {"조원", "조", "억원", "억", "만원", "원"}, "pct": {"%"}, "x": {"배", "x"}, "num": {"원", ""}}
+
+    @staticmethod
+    def _to_float(v: Any) -> Optional[float]:
+        if isinstance(v, (int, float, Decimal)):
+            return float(v)
+        if isinstance(v, str):
+            try:
+                return float(v.replace(",", ""))
+            except ValueError:
+                return None
+        return None
+
+    @classmethod
+    def reference_metrics(cls, context: Dict[str, Any]) -> Dict[str, Any]:
+        """대조 기준이 되는 DB 확정값 (지표명 → (값, 데이터 키))."""
+        fin = context.get("financial_data", {}).get("ttm_and_5views", {}) or {}
+        tech = context.get("technical_data", {}).get("technical_indicators", {}) or {}
+        sup = context.get("sentiment_supply_data", {}).get("investor_supply_20d", {}) or {}
+        macro = {r.get("series_id"): r.get("value") for r in context.get("macro_data", {}).get("macro_indicators", [])
+                 if isinstance(r, dict)}
+        rev, ni = cls._to_float(fin.get("revenue_ttm")), cls._to_float(fin.get("net_income_ttm"))
+        return {
+            "매출액(TTM)": (fin.get("revenue_ttm"), "financial_data"),
+            "영업이익(TTM)": (fin.get("operating_income_ttm"), "financial_data"),
+            "순이익(TTM)": (fin.get("net_income_ttm"), "financial_data"),
+            "영업이익률(TTM)": (fin.get("op_margin_ttm_pct"), "financial_data"),
+            "순이익률(TTM)": (round(ni / rev * 100, 2) if rev and ni is not None else None, "financial_data"),
+            "PER(TTM)": (fin.get("per_ttm"), "financial_data"),
+            "PBR": (fin.get("pbr"), "financial_data"),
+            "ROE(TTM)": (fin.get("roe_ttm_pct"), "financial_data"),
+            "부채비율": (fin.get("debt_ratio_pct"), "financial_data"),
+            "외국인 보유율": (sup.get("latest_foreign_ownership_pct"), "sentiment_supply_data"),
+            "RSI(14)": (tech.get("rsi_14"), "technical_data"),
+            "한국 기준금리": (macro.get("ECOS_BASE_RATE"), "macro_data"),
+            "원/달러 환율": (macro.get("ECOS_USDKRW"), "macro_data"),
+            "현재 주가": (tech.get("current_price"), "technical_data"),
+        }
+
+    @classmethod
+    def _parse(cls, m: re.Match) -> Any:
+        if m.group("jo"):
+            jo = float(m.group("jo").replace(",", ""))
+            eok = float(m.group("eok").replace(",", ""))
+            return jo * 1e12 + eok * 1e8, "조원"
+        value = float(m.group("num").replace(",", ""))
+        unit = m.group("unit")
+        return value * cls.UNIT_SCALE.get(unit, 1), unit
+
+    @staticmethod
+    def _close(a: float, b: float, kind: str) -> bool:
+        if kind == "pct":
+            return abs(a - b) <= 0.15  # %p 기준 반올림 허용
+        if kind == "x":
+            return abs(a - b) <= max(0.1, abs(b) * 0.03)
+        return abs(a - b) <= abs(b) * 0.02  # 금액·지수: 2% (보고서 반올림 표기 허용)
+
+    @classmethod
+    def check(cls, report_text: str, context: Dict[str, Any]) -> List[Dict[str, Any]]:
+        refs = cls.reference_metrics(context)
+        rows = []
+        for m in cls.NUM_RE.finditer(report_text):
+            value, unit = cls._parse(m)
+            if unit == "%p":
+                continue  # 변화폭(%p)은 대응 DB 값이 없어 건너뜀
+            # 숫자 바로 앞(같은 문장, 최대 30자)에서 가장 가까운 지표 키워드
+            start = max(report_text.rfind(".", 0, m.start()), report_text.rfind("\n", 0, m.start()), m.start() - 30)
+            window = report_text[start + 1:m.start()]
+            found = None
+            for keywords, metric, kind in cls.KEYWORDS:
+                pos = max(window.rfind(k) for k in keywords)
+                if pos >= 0 and unit in cls.KIND_UNITS[kind] and (found is None or pos > found[0]):
+                    found = (pos, metric, kind)
+            row = {"보고서 표기": m.group(0).strip(), "문맥": report_text[start + 1:m.end()].strip()[-60:]}
+            if not found:
+                rows.append({**row, "지표": None, "DB 값": None, "판정": "대응 지표 미확인", "data_key": None})
+                continue
+            _, metric, kind = found
+            db_raw, data_key = refs[metric]
+            db_val = cls._to_float(db_raw)
+            if db_val is None:
+                verdict = "DB 값 없음 (검증 불가)"
+            else:
+                verdict = "일치" if cls._close(value, db_val, kind) else "불일치"
+            rows.append({**row, "지표": metric, "DB 값": db_raw, "판정": verdict, "data_key": data_key})
+        return rows
+
+    @staticmethod
+    def to_markdown(rows: List[Dict[str, Any]]) -> str:
+        if not rows:
+            return "_보고서에서 단위가 붙은 수치를 찾지 못했습니다._"
+        lines = ["| 보고서 표기 | 지표 | DB 확정값 | 판정 |", "|---|---|---|---|"]
+        for r in rows:
+            lines.append(f"| {r['보고서 표기']} | {r['지표'] or '-'} | {r['DB 값'] if r['DB 값'] is not None else '-'} | {r['판정']} |")
+        return "\n".join(lines)
+
+
+def review_with_agent(agent: PerspectiveAgent, context: Dict[str, Any], report_text: str,
+                      number_rows: List[Dict[str, Any]], mode: str = "expert") -> Dict[str, Any]:
+    """6개 관점 에이전트 하나가 자기 관점에서 사용자 보고서를 첨삭합니다."""
+    stock_info = context["stock_info"]
+    domain_data = context[agent.data_key]
+    my_rows = [r for r in number_rows if r["data_key"] in (agent.data_key, None)]
+
+    mode_instruction = (
+        "전문가 모드: 지적 사항을 간결하게, 수정 문장은 바로 붙여 쓸 수 있는 형태로 제시하십시오."
+        if mode == "expert" else
+        "입문자 가이드 모드: 각 지적 사항마다 '왜 이것이 문제인지'와 관련 용어 풀이를 쉬운 말로 덧붙이십시오."
+    )
+    system_msg = f"""당신은 OpenResearch의 [{agent.agent_id}번 에이전트: {agent.name}]이며, 지금은 사용자가 작성한 보고서를 첨삭하는 검토자입니다.
+{agent.role_prompt}
+
+{COMMON_AGENT_RULES}
+4. 보고서 수치의 맞고 틀림은 [코드 수치 대조 결과]의 판정만 인용하십시오. 직접 계산하거나 새 수치를 만들지 마십시오.
+5. 당신의 관점과 관련된 내용만 첨삭하십시오. 다른 관점의 문제는 다루지 않습니다.
+
+[출력 모드 지침]
+{mode_instruction}
+
+반드시 아래 형식으로 작성하십시오:
+- ① 수치 검증: 대조 결과 중 당신 관점의 '불일치'·'검증 불가' 항목과 DB 확정값 (없으면 '해당 없음')
+- ② 빠진 논점: 이 관점에서 보고서가 다루지 않은 핵심 내용 (SQL 데이터 근거와 출처 포함, 최대 3개)
+- ③ 수정 제안: "원문 → 수정안" 형식 (최대 3개)
+- ④ 관점별 완성도 점수 (1~10점) 및 이유
+"""
+    user_msg = f"""
+[대상 종목]: {stock_info['name']} ({stock_info['ticker']}) / 업종: {stock_info['sector']}
+
+[사용자 보고서 원문]:
+{report_text[:REPORT_MAX_CHARS]}
+
+[코드 수치 대조 결과]:
+{json.dumps(my_rows, ensure_ascii=False, indent=2, default=str)}
+
+[SQL 조회 원천 데이터 ({agent.data_key})]:
+{json.dumps(domain_data, ensure_ascii=False, indent=2, default=str)}
+
+위 자료만을 바탕으로 당신의 관점에서 보고서를 첨삭해 주십시오.
+"""
+    response = agent.llm.invoke([SystemMessage(content=system_msg), HumanMessage(content=user_msg)])
+    return {
+        "agent_id": agent.agent_id,
+        "agent_name": agent.name,
+        "analysis": response.content,
+        "source": domain_data.get("source", "Neon DB"),
+    }
+
+
+class ReviewOrchestratorAgent:
+    """6개 관점 첨삭을 우선순위(치명/중요/권장)별 하나의 첨삭 의견서로 합칩니다."""
+    def __init__(self):
+        self.llm = get_solar_llm(temperature=0.15)
+
+    def synthesize(self, context: Dict[str, Any], reviews: List[Dict[str, Any]], mode: str = "expert") -> str:
+        stock_info = context["stock_info"]
+        compiled = "\n\n".join(f"### [{r['agent_id']}. {r['agent_name']}]\n{r['analysis']}" for r in reviews)
+        system_msg = f"""당신은 OpenResearch의 [7. 오케스트레이터]이며, 6개 관점 검토자의 첨삭을 하나의 '보고서 첨삭 의견서'로 정리합니다.
+
+{COMMON_AGENT_RULES}
+
+[필수 수행 과제]
+1. **총평**: 보고서의 강점과 가장 큰 약점을 2~3문장으로 요약하십시오.
+2. **우선순위별 첨삭 목록**: 모든 지적 사항을 '치명(사실 오류·수치 불일치)', '중요(핵심 논점 누락)', '권장(표현·구성 개선)'으로 분류하고, 각 항목에 어느 관점에서 나온 지적인지 표기하십시오. 중복 지적은 합치십시오.
+3. **관점별 완성도 점수표**: 6개 관점 점수를 표로 정리하십시오 (검토자가 준 점수만 인용).
+4. **수정 우선순위 3가지**: 작성자가 가장 먼저 고칠 3가지를 제시하십시오.
+5. 현재 모드({mode})가 'guide'이면, 마지막에 '다음 보고서 작성 시 체크리스트'를 초심자 눈높이로 추가하십시오.
+"""
+        user_msg = f"""
+[분석 대상]: {stock_info['name']} ({stock_info['ticker']}) - {stock_info['sector']}
+
+[6개 관점 첨삭 결과]:
+{compiled}
+
+위 첨삭을 종합해 보고서 첨삭 의견서를 작성해 주십시오.
+"""
+        response = self.llm.invoke([SystemMessage(content=system_msg), HumanMessage(content=user_msg)])
+        return response.content
+
+
+def review_report(report_text: str, ticker: Optional[str] = None, mode: str = "expert") -> Dict[str, Any]:
+    """사용자 보고서를 6개 관점에서 첨삭하고, 오케스트레이터가 첨삭 의견서로 종합합니다."""
+    loader = KICDataLoader()
+    ticker = resolve_ticker(report_text, ticker, loader)
+    print("============================================================")
+    print(f"📝 OpenResearch 보고서 첨삭 시작 | 종목: {ticker} | 모드: {mode}")
+    print(f"🤖 사용 모델: {UPSTAGE_MODEL_NAME}")
+    print("============================================================")
+
+    # Step 1: DB 확정 데이터 로드 (분석 모드와 동일)
+    context = loader.fetch_all_context(ticker)
+
+    # Step 2: 보고서 수치 ↔ DB 확정값 코드 대조
+    print("▶ [Checker] 보고서 수치와 DB 확정값 대조 중...")
+    number_rows = ReportNumberChecker.check(report_text, context)
+
+    # Step 3: 6개 관점 첨삭
+    reviews = []
+    for agent in build_six_agents():
+        print(f"▶ [Agent {agent.agent_id}] {agent.name} 첨삭 중...")
+        reviews.append(review_with_agent(agent, context, report_text, number_rows, mode=mode))
+
+    # Step 4: 오케스트레이터 종합 + 코드 대조표 + 출처 각주
+    print("▶ [Agent 7: Orchestrator] 첨삭 의견서 종합 중...")
+    feedback = ReviewOrchestratorAgent().synthesize(context, reviews, mode=mode)
+    feedback += "\n\n---\n### 🔢 보고서 수치 대조표 (코드 판정)\n" + ReportNumberChecker.to_markdown(number_rows)
+    verified_feedback = FactSourceVerifier.verify(feedback, reviews)
+
+    return {
+        "ticker": ticker,
+        "mode": mode,
+        "number_check": number_rows,
+        "individual_agent_reviews": reviews,
+        "orchestrator_review_report": verified_feedback,
+    }
+
+
 if __name__ == "__main__":
-    result = run_openresearch_multi_agent(ticker="005930", mode="expert")
-    print("\n\n==================== [최종 오케스트레이터 보고서] ====================")
-    print(result["orchestrator_final_report"])
+    import sys
+    if len(sys.argv) > 1:
+        # 보고서 첨삭 모드: python solar_pro_4.py 보고서.md [종목코드] [expert|guide]
+        args = sys.argv[1:] + [None, "expert"][len(sys.argv) - 2:]
+        result = review_report(load_report(args[0]), ticker=args[1], mode=args[2])
+        print("\n\n==================== [보고서 첨삭 의견서] ====================")
+        print(result["orchestrator_review_report"])
+    else:
+        result = run_openresearch_multi_agent(ticker="005930", mode="expert")
+        print("\n\n==================== [최종 오케스트레이터 보고서] ====================")
+        print(result["orchestrator_final_report"])
