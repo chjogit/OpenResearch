@@ -183,3 +183,16 @@ def test_normalize_bare_keys():
     out_json["주장"][1]["문장"] = f"PER(TTM)은 {k}이다."
     out = run_agent(2, data=d, llm=FakeLLM(out_json))
     assert out["status"] == "완료" and "8.36배" in out["analysis"]
+
+
+def test_snapshot_roundtrip(tmp_path, monkeypatch):
+    from ch_agents import db, evaluate
+
+    monkeypatch.setattr(db, "company", lambda t: dict(CO))
+    monkeypatch.setattr(evaluate, "fetch_bundle", lambda a, co, as_of: {2: _fin_bundle(), 4: _sent_bundle()}[a])
+    path = evaluate.capture_snapshot("005930", str(tmp_path / "s.json"), as_of=AS_OF, agent_ids=(2, 4))
+    datas = evaluate.load_snapshot(path)
+    k = datas[2].facts.key_of("PER(TTM 기준)")
+    assert datas[2].facts.items[k]["value"] == 8.36 and set(datas) == {2, 4}
+    out = run_agent(2, data=datas[2], llm=FakeLLM(TimeoutError()))
+    assert out["status"] == "규칙 기반 대체"

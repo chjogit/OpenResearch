@@ -12,7 +12,7 @@ from collections import Counter
 from pathlib import Path
 
 from . import db
-from .agents import fetch_agent_data, today_kst
+from .agents import AGENTS, build_agent_data, fetch_agent_data, fetch_bundle, today_kst
 from .llm import run_agent
 
 DEFAULT_TICKERS = ["005930", "000660", "035420", "105560", "005380", "051910", "068270", "017670"]
@@ -121,3 +121,22 @@ def cross_check(ticker: str, as_of: str | None = None) -> list[dict]:
         out.append({"항목": name, "파이썬": py, "SQL": sq, "허용 오차": tol,
                     "판정": "일치" if ok else "불일치" if ok is False else "비교 불가"})
     return out
+
+
+# ---------------------------------------------------------------- 스냅샷 (DB 없이 재현)
+
+def capture_snapshot(ticker: str, path: str | None = None, as_of: str | None = None, agent_ids=(1, 2, 4)) -> str:
+    """실제 DB 묶음을 JSON 파일로 저장합니다. 회귀 테스트나 DB 접속이 어려운 데모에서 재현용으로 씁니다."""
+    as_of = as_of or today_kst()
+    co = db.company(ticker)
+    snap = {"as_of": as_of, "company": co, "bundles": {str(a): fetch_bundle(a, co, as_of) for a in agent_ids}}
+    path = path or f"snapshot_{ticker}_{as_of}.json"
+    Path(path).write_text(json.dumps(snap, ensure_ascii=False, default=str), encoding="utf-8")
+    return path
+
+
+def load_snapshot(path: str) -> dict:
+    """저장한 스냅샷에서 관점별 AgentData 를 만듭니다: {1: AgentData, 2: ..., 4: ...}"""
+    snap = json.loads(Path(path).read_text(encoding="utf-8"))
+    return {int(a): build_agent_data(int(a), snap["company"], b, snap["as_of"])
+            for a, b in snap["bundles"].items() if int(a) in AGENTS}
