@@ -2,7 +2,7 @@
 
 | 폴더 | 담당 |
 |---|---|
-| [CH](CH/) | CH |
+| [CH](CH/) | CH (@chjogit) |
 | [SW](SW/) | SW |
 | [SH](SH/) | SH |
 | [JT](JT/) | JT |
