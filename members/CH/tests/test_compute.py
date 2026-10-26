@@ -102,7 +102,7 @@ def test_macro_regimes_exports_and_comovement(rng):
     assert 0.6 < beta < 1.0
     assert any("주가-코스피: 뚜렷한 동조" in x for x in f.flags)
     assert any("주가-원/달러: 약한 동조" in x for x in f.flags)
-    assert "주가-필라델피아 반도체지수 동조성" in [g["label"] for g in f.gaps]  # SOX 없음 → 무자료
+    assert "주가-필라델피아 반도체지수 동조성" in [g["label"] for g in f.gaps]  # 반도체인데 SOX 없음 → 무자료
     assert out["sector"] == "반도체"
     assert any(n.startswith("전달 경로") for n in f.notes)
 
@@ -354,3 +354,13 @@ def test_financial_peer_names_note():
     f = financial.compute(_fin_bundle(), CO, AS_OF)["facts"]
     note = next(n for n in f.notes if n.startswith("Peer 영업이익률 상위"))
     assert note.startswith("Peer 영업이익률 상위: p0, p3, p1")
+
+
+def test_macro_drivers_follow_sector(rng):
+    bank = {**CO, "name": "KB금융", "peer_method": None, "krx_sector": None}
+    b = _macro_bundle(rng)
+    b["series"]["ECOS_KTB3Y"] = [{"d": p["d"], "v": 3 + i * 0.001} for i, p in enumerate(b["price"])]
+    f = macro.compute(b, bank, AS_OF)["facts"]
+    labels = [v["label"] for v in f.items.values()] + [g["label"] for g in f.gaps]
+    assert any("국고채 3년 금리 상관" in x for x in labels)
+    assert not any("필라델피아" in x for x in labels)

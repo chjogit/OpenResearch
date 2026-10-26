@@ -137,6 +137,8 @@ DEFAULT_TRANSMISSION = ["원/달러: 수출·수입 비중에 따라 매출·비
 NAME_HINTS = (("증권", "증권"), ("생명", "보험"), ("화재", "보험"), ("손해보험", "보험"), ("은행", "은행"),
               ("금융", "기타금융"), ("카드", "기타금융"))
 FINANCIAL_SECTORS = {"은행", "증권", "보험", "기타금융"}
+SEMI_SECTORS = {"반도체", "전기·전자"}
+OIL_SECTORS = {"화학", "운송·창고", "전기·가스", "운송장비·부품"}
 
 
 def sector_of(co: dict) -> str:
@@ -269,8 +271,16 @@ def compute(b: dict, co: dict, as_of: str) -> dict:
         ("코스피", daily_returns(idx.get("^KS11") or []), False, "코스피 1% 변화당 주가 변화(%) (시장 베타)"),
         ("미국 10년 국채금리", daily_diffs(series.get("DGS10") or []), True,
          "미국 금리 1%p 변화당 다음 거래일 주가 변화(비율)"),
-        ("필라델피아 반도체지수", daily_returns(idx.get("^SOX") or []), True, "SOX 1% 변화당 다음 거래일 주가 변화(%)"),
     ]
+    if sector in SEMI_SECTORS:
+        drivers.append(("필라델피아 반도체지수", daily_returns(idx.get("^SOX") or []), True,
+                        "SOX 1% 변화당 다음 거래일 주가 변화(%)"))
+    if sector in OIL_SECTORS:
+        drivers.append(("WTI 유가", daily_returns(series.get("DCOILWTICO") or []), True,
+                        "WTI 1% 변화당 다음 거래일 주가 변화(%)"))
+    if sector in FINANCIAL_SECTORS:
+        drivers.append(("국고채 3년 금리", daily_diffs(series.get("ECOS_KTB3Y") or []), False,
+                        "국고채 3년 1%p 변화당 같은 날 주가 변화(비율)"))
     trade_days = sorted(stock_r)
     period = "-"
     for name, chg, lag, unit_note in drivers:
