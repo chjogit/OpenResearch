@@ -1,0 +1,6 @@
+langchain>=0.3
+langchain-upstage>=0.6
+psycopg[binary]>=3.2
+python-dotenv>=1.0
+pydantic>=2.7
+pandas>=2.0
