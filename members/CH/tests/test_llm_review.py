@@ -148,3 +148,11 @@ def test_parse_json_escaped_quotes_and_braces_in_strings():
     raw = r'{"핵심진단": "따옴표 \" 와 } 괄호", "주장": [{"문장": "\\ 백슬래시", "구분": "예측", "근거": []}]}'
     out = parse_json(raw)
     assert out["핵심진단"] == '따옴표 " 와 } 괄호' and out["주장"][0]["문장"] == "\\ 백슬래시"
+
+
+def test_guide_mode_self_questions_rendered_and_checked():
+    d = _a2()
+    out_json = _good(d)
+    out_json["스스로질문"] = ["이익 증가가 일시적인가?", "PER 8배면 싼가?"]
+    out = run_agent(2, data=d, llm=FakeLLM(out_json, out_json), mode="guide")
+    assert "스스로 확인해 볼 질문" in out["analysis"] and "PER 8배면 싼가?" in out["removed"]

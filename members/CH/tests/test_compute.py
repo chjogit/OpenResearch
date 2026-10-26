@@ -338,3 +338,19 @@ def test_macro_new_series_cpi_spread_and_oil(rng):
     assert any("한국 장단기 금리 역전" in x for x in f.flags)
     assert f.items[f.key_of("WTI 유가")]["text"].endswith("달러/배럴")
     assert "브렌트 유가" in [g["label"] for g in f.gaps]  # 없는 시리즈는 무자료
+
+
+def test_sentiment_foreign_avg_price_proxy():
+    rows = _flow_rows(fq=1000)
+    for i, r in enumerate(rows):
+        r["close"] = 200000 if i else 180000  # 오늘만 180,000
+    f = sentiment.compute(_sent_bundle(flows=rows), CO, AS_OF)["facts"]
+    k = f.key_of("외국인 순매수일 평균 가격(60일, 근사)")
+    assert f.items[k]["kind"] == "대용치" and 199000 < f.items[k]["value"] < 200000
+    assert any("외국인 순매수일 평균 가격(근사)보다 낮음" in x for x in f.flags)
+
+
+def test_financial_peer_names_note():
+    f = financial.compute(_fin_bundle(), CO, AS_OF)["facts"]
+    note = next(n for n in f.notes if n.startswith("Peer 영업이익률 상위"))
+    assert note.startswith("Peer 영업이익률 상위: p0, p3, p1")

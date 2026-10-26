@@ -101,6 +101,17 @@ def compute(b: dict, co: dict, as_of: str) -> dict:
                           group=g)
                 if who != "개인" and abs(s) >= 5 and k:
                     f.flag(f"{who} {abs(s)}거래일 연속 순{'매수' if s > 0 else '매도'} ({{{k}}})")
+        # 외국인 순매수일 평균 가격(근사) 대비 현재가: 최근 60일 중 외국인이 순매수한 날의 수량 가중 종가
+        win = [r for r in rows[:60] if (r["fq"] or 0) > 0 and r.get("close")]
+        if len(win) >= 10 and rows[0].get("close"):
+            avg_px = sum(r["fq"] * r["close"] for r in win) / sum(r["fq"] for r in win)
+            k_ap = f.add("외국인 순매수일 평균 가격(60일, 근사)", avg_px, "KRW", d0, SRC_FLOW + " × 종가", kind="proxy",
+                         group=g, note=f"순매수한 {len(win)}일의 순매수 수량 가중 종가. 실제 매입 단가가 아님")
+            k_gap = f.add("현재가의 외국인 순매수 평균 가격 대비", pct_change(rows[0]["close"], avg_px), "%chg", d0,
+                          SRC_FLOW + " × 종가", kind="proxy", group=g)
+            if k_ap and k_gap:
+                above = rows[0]["close"] >= avg_px
+                f.flag(f"현재가가 외국인 순매수일 평균 가격(근사)보다 {'높음' if above else '낮음'} ({{{k_gap}}})")
         holds = [r["hold"] for r in rows if r.get("hold") is not None]
         if holds:
             f.add("외국인 지분율", holds[0], "%", d0, SRC_FLOW, group=g)

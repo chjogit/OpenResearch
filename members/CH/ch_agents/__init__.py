@@ -11,7 +11,7 @@
 - evaluate.py  여러 종목 일괄 점검 성적표
 """
 from .agents import AGENTS, AgentData, fetch_agent_data
-from .llm import run_agent
+from .llm import run_agent, run_my_agents
 from .review import review_report
 
-__all__ = ["AGENTS", "AgentData", "fetch_agent_data", "review_report", "run_agent"]
+__all__ = ["AGENTS", "AgentData", "fetch_agent_data", "review_report", "run_agent", "run_my_agents"]

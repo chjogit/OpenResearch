@@ -266,6 +266,9 @@ def compute(b: dict, co: dict, as_of: str) -> dict:
                 pr = percentile_rank(vals, mine)
                 f.add(f"{label}의 Peer 내 위치", pr, "pctile", None, src, kind="calc", group=g,
                       note="높을수록 Peer보다 값이 큼 (PER·PBR은 비쌈, 이익률·ROE는 우수)")
+        ranked = sorted(peers, key=lambda p: p["op_margin_ttm"], reverse=True)
+        f.note("Peer 영업이익률 상위: " + ", ".join(p["name"] for p in ranked[:3])
+               + " / 하위: " + ", ".join(p["name"] for p in ranked[-3:]))
     else:
         f.gap("Peer 비교", "Peer 그룹 없음 또는 TTM 있는 Peer 3개 미만")
 

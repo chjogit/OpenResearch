@@ -49,7 +49,8 @@ EXAMPLE = """[출력 예시 — 형식만 참고, 키와 내용은 실제 장부
 MODE_GUIDE = {
     "expert": "전문가 모드: 핵심 지표와 인과 경로 위주로 간결하게 쓰십시오.",
     "guide": ("입문자 모드: 문장을 짧고 쉽게 쓰고, 전문 용어가 처음 나오면 괄호로 풀이하십시오. "
-              "'왜 이 지표를 보는지'를 주장 하나 이상에 담으십시오."),
+              "'왜 이 지표를 보는지'를 주장 하나 이상에 담으십시오. "
+              "JSON에 \"스스로질문\": [\"독자가 이 관점에서 스스로 확인해 볼 질문\" 2~3개]를 추가하십시오."),
 }
 
 PLACEHOLDER = re.compile(r"\{([A-Z]\d+)\}")
@@ -158,7 +159,7 @@ def _valid_keys(data: AgentData) -> set[str]:
 def _texts(result: dict) -> list[str]:
     out = [str(result.get("핵심진단", "")), str(result.get("점수이유", ""))]
     out += [str(c.get("문장", "")) for c in result.get("주장", []) if isinstance(c, dict)]
-    for k in ("긍정요인", "리스크요인", "미확인", "다음점검"):
+    for k in ("긍정요인", "리스크요인", "미확인", "다음점검", "스스로질문"):
         out += [str(x) for x in result.get(k) or []]
     return out
 
@@ -228,7 +229,7 @@ def sanitize(result: dict, data: AgentData) -> tuple[dict, list[str]]:
             continue
         claims.append({"문장": text, "구분": c["구분"], "근거": refs})
     out["주장"] = claims
-    for k in ("긍정요인", "리스크요인", "미확인", "다음점검"):
+    for k in ("긍정요인", "리스크요인", "미확인", "다음점검", "스스로질문"):
         kept = []
         for x in out.get(k) or []:
             (removed if sentence_problems(str(x), valid) else kept).append(str(x))
@@ -283,7 +284,7 @@ def to_markdown(data: AgentData, result: dict, status: str, checks: dict, remove
     for c in result.get("주장", []):
         out.append(f"- [{c.get('구분')}] {r(c.get('문장', ''))} (근거: {', '.join(c.get('근거') or []) or '-'})")
     for title, key in (("긍정 요인", "긍정요인"), ("리스크 요인", "리스크요인"), ("미확인", "미확인"),
-                       ("다음 점검", "다음점검")):
+                       ("다음 점검", "다음점검"), ("스스로 확인해 볼 질문", "스스로질문")):
         items = result.get(key) or []
         if items:
             out += ["", f"**{title}**", ""] + [f"- {r(x)}" for x in items]
@@ -356,3 +357,12 @@ def run_agent(agent_id: int, ticker: str | None = None, mode: str = "expert", ll
         "analysis": md,
         "source": "Neon " + ", ".join(sorted({v["source"].split(" (")[0] for v in facts.items.values()})),
     }
+
+
+def run_my_agents(ticker: str, mode: str = "expert", agent_ids=(1, 2, 4), as_of: str | None = None,
+                  llm=None) -> list[dict]:
+    """CH 담당 관점을 한 번에 실행해 오케스트레이터에 넘길 리스트를 돌려줍니다."""
+    from . import db
+
+    co = db.company(ticker)
+    return [run_agent(a, mode=mode, llm=llm, data=fetch_agent_data(a, ticker, as_of, co=co)) for a in agent_ids]
