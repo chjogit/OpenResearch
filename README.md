@@ -49,7 +49,7 @@ pytest
 
 ## 일하는 방식
 
-[CONTRIBUTING.md](CONTRIBUTING.md) 를 먼저 읽어 주세요. 요약하면 main에 직접 push하지 않고, 브랜치를 만들어 PR을 올린 뒤 팀원 1명 리뷰를 받고 합칩니다.
+Git 사용 순서는 [docs/GIT_GUIDE.md](docs/GIT_GUIDE.md)(팀원용 따라하기)를 보세요. 협업 규칙은 [CONTRIBUTING.md](CONTRIBUTING.md) 에 있습니다. 요약하면 각자 자기 브랜치에서 작업하고, main 에는 PR 로만 합칩니다.
 
 ## 일정
 
