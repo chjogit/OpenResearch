@@ -122,8 +122,8 @@ def compute(b: dict, co: dict, as_of: str) -> dict:
             if len(holds) >= 120:
                 lo, hi = min(holds), max(holds)
                 pos = None if hi == lo else (holds[0] - lo) / (hi - lo) * 100
-                f.add(f"외국인 지분율 {len(holds)}일 범위 내 위치", pos, "pctile", d0, SRC_FLOW, kind="calc", group=g,
-                      note="0=기간 최저, 100=기간 최고")
+                f.add(f"외국인 지분율 {len(holds)}일 범위 내 위치(최저 0 ~ 최고 100)", pos, "pos", d0, SRC_FLOW, kind="calc",
+                      group=g, note="백분위가 아니라 기간 최저~최고 사이의 위치")
 
     # 2) 가격·시장
     g = "가격·시장"

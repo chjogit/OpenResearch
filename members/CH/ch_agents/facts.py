@@ -46,6 +46,8 @@ def fmt(value: float | None, unit: str) -> str:
         return f"{v:+.3f}"
     if unit == "coef":
         return f"{v:+.2f}"
+    if unit == "pos":
+        return f"{v:,.0f}/100"
     if unit == "pctile":
         return f"{v:,.0f}백분위"
     if unit == "USD/bbl":
