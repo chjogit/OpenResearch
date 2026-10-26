@@ -75,7 +75,9 @@ def test_run_agent_removes_unverified_sentences_after_failed_repair():
 def test_run_agent_fallback_on_error_and_on_all_removed():
     d = _a2()
     out = run_agent(2, data=d, llm=FakeLLM(TimeoutError("solar")))
-    assert out["status"] == "규칙 기반 대체" and out["result"]["주장"] == []  # 삼성 재무엔 경고 판정 없음
+    assert out["status"] == "규칙 기반 대체"
+    groups = {d.facts.items[c["근거"][0]]["group"] for c in out["result"]["주장"]}
+    assert {"TTM 실적", "밸류에이션", "분기 추세"} <= groups  # 판정이 없어도 그룹별 대표 숫자로 채움
     d4 = build_agent_data(4, CO, _sent_bundle(), AS_OF)
     junk = {"핵심진단": "외국인 1,000주", "주장": [{"문장": "강도 3%", "구분": "사실", "근거": ["S1"]}], "자체점수": 5}
     out = run_agent(4, data=d4, llm=FakeLLM(junk, junk))
@@ -196,3 +198,13 @@ def test_snapshot_roundtrip(tmp_path, monkeypatch):
     assert datas[2].facts.items[k]["value"] == 8.36 and set(datas) == {2, 4}
     out = run_agent(2, data=datas[2], llm=FakeLLM(TimeoutError()))
     assert out["status"] == "규칙 기반 대체"
+
+
+def test_run_agent_keeps_better_attempt():
+    d = _a2()
+    first = _good(d)
+    first["주장"].append({"문장": "영업이익 89조원", "구분": "사실", "근거": ["F2"]})  # 문제 1건
+    worse = {"핵심진단": "매출 171조원", "주장": [{"문장": "x 1%", "구분": "추정", "근거": []}], "자체점수": 0}
+    out = run_agent(2, data=d, llm=FakeLLM(first, worse))
+    assert out["status"] == "완료 (일부 문장 제외)"  # 첫 시도 채택 → '수정 1회' 아님
+    assert out["removed"] == ["영업이익 89조원"]

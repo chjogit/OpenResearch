@@ -190,7 +190,7 @@ def compute(b: dict, co: dict, as_of: str) -> dict:
                       kind="calc", group=g)
             last4 = [m for _, m in margins[-4:]]
             ups = sum(1 for a, b2 in pairwise(last4) if b2 > a)
-            f.add("최근 4개 분기 중 영업이익률이 전 분기보다 오른 횟수", ups, "개", now["pe"], SRC_Q, kind="calc", group=g)
+            f.add("최근 4개 분기 중 영업이익률이 전 분기보다 오른 횟수(최대 3)", ups, "개", now["pe"], SRC_Q, kind="calc", group=g)
         run, later = 0, None
         for q in reversed(qs):
             base = by_pe.get(_year_before(q["pe"]))

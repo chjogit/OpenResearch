@@ -260,6 +260,13 @@ def fallback_result(data: AgentData) -> dict:
     spec = AGENTS[data.agent_id]
     claims = [{"문장": fl, "구분": "사실", "근거": PLACEHOLDER.findall(fl)} for fl in f.flags]
     claims = [c for c in claims if c["근거"]]
+    seen_groups = set()
+    for k, v in f.items.items():  # 판정이 적으면 그룹별 대표 숫자를 사실로 덧붙임
+        if len(claims) >= 6:
+            break
+        if v["group"] and v["group"] not in seen_groups and v["unit"] != "doc":
+            seen_groups.add(v["group"])
+            claims.append({"문장": f"{v['label']}: {{{k}}}", "구분": "사실", "근거": [k]})
     head = " / ".join(c["문장"] for c in claims[:2]) or "규칙 판정 결과가 없습니다."
     return {
         "핵심진단": head,
@@ -332,7 +339,7 @@ def run_agent(agent_id: int, ticker: str | None = None, mode: str = "expert", ll
         data = fetch_agent_data(agent_id, ticker, as_of)
     system, user = build_messages(data, mode)
     attempts: list[dict] = []
-    result, checks, status = None, {}, "실패"
+    result, checks, status, best_at, best_n = None, {}, "실패", -1, None
     t0 = time.monotonic()
     try:
         from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
@@ -346,8 +353,9 @@ def run_agent(agent_id: int, ticker: str | None = None, mode: str = "expert", ll
                 parsed = normalize_keys(parsed, _valid_keys(data))
             checks = check_output(parsed, data) if parsed is not None else {"형식": ["JSON 아님"]}
             attempts.append({"raw": raw, "checks": checks})
-            if parsed is not None:
-                result = parsed
+            n_prob = sum(len(v) for v in checks.values())
+            if parsed is not None and (best_n is None or n_prob <= best_n):  # 문제가 더 적은 출력을 채택
+                result, best_at, best_n = parsed, attempt, n_prob
             if not checks or attempt == max_repair:
                 break
             problems = "\n".join(f"- {k}: {x}" for k, v in checks.items() for x in v[:8])
@@ -363,7 +371,8 @@ def run_agent(agent_id: int, ticker: str | None = None, mode: str = "expert", ll
         if not result["주장"]:
             result, status = fallback_result(data), "규칙 기반 대체"
         else:
-            status = "완료" + (" (수정 1회)" if len(attempts) > 1 else "") + (" (일부 문장 제외)" if removed else "")
+            checks = attempts[best_at]["checks"]
+            status = "완료" + (" (수정 1회)" if best_at > 0 else "") + (" (일부 문장 제외)" if removed else "")
     md = to_markdown(data, result, status, checks, removed, mode)
     facts = data.facts
     return {
