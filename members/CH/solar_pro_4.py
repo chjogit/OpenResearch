@@ -487,15 +487,20 @@ class PerspectiveAgent:
 
 위 Neon DB 확정 데이터만을 바탕으로 당신의 전문 관점에서 심층 분석을 수행해 주십시오.
 """
-        response = self.llm.invoke([
-            SystemMessage(content=system_msg),
-            HumanMessage(content=user_msg)
-        ])
+        try:
+            response = self.llm.invoke([
+                SystemMessage(content=system_msg),
+                HumanMessage(content=user_msg)
+            ])
+            analysis, status = response.content, "완료"
+        except Exception as e:  # 한 에이전트 실패가 전체를 멈추지 않도록 상태로 기록
+            analysis, status = f"(분석 실패: {type(e).__name__}: {e})", "실패"
 
         return {
             "agent_id": self.agent_id,
             "agent_name": self.name,
-            "analysis": response.content,
+            "status": status,
+            "analysis": analysis,
             "source": domain_data.get("source", "Neon DB")
         }
 
@@ -579,7 +584,7 @@ class OrchestratorAgent:
         stock_info = context["stock_info"]
         
         compiled_reports = "\n\n".join([
-            f"### [{item['agent_id']}. {item['agent_name']}]\n{item['analysis']}"
+            f"### [A{item['agent_id']}. {item['agent_name']}] (상태: {item.get('status', '완료')})\n{item['analysis']}"
             for item in agent_outputs
         ])
 
@@ -589,6 +594,11 @@ class OrchestratorAgent:
 {COMMON_AGENT_RULES}
 
 [오케스트레이터 필수 수행 과제]
+0. **에이전트별 핵심 의견 요약표 (보고서 맨 앞)**:
+   - 표 열: 에이전트(A1~A6) | 핵심 진단(1문장) | 긍정 요인 | 리스크 요인 | 자체 중요도 점수.
+   - 각 에이전트가 쓴 내용과 점수만 옮기고, 새 판단이나 수치를 만들지 마십시오.
+   - 상태가 '실패'인 에이전트는 '분석 실패'로 표기하고, 종합에서 제외했다고 밝히십시오.
+   - 이후 모든 종합 문장 끝에는 근거가 된 에이전트를 [A1], [A3·A5]처럼 표기하십시오. 근거 에이전트가 없는 문장은 쓰지 마십시오.
 1. **관점별 중요도(Weight & Priority) 산정 표 제시**:
    - 현재 이 종목을 판단할 때 6개 관점 중 무엇이 가장 결정적인지 중요도 비중(합계 100%)과 등급(High/Medium/Low)을 매기고, 왜 그렇게 가중치를 두었는지 설명하십시오.
 2. **6대 관점 교차 분석 및 상충 의견(Conflict) 조율**:
@@ -605,13 +615,49 @@ class OrchestratorAgent:
 [6개 전문 에이전트 분석 결과]:
 {compiled_reports}
 
-위 6개 에이전트의 의견을 종합하여 중요도 평가, 상충 의견 조율, 그리고 오케스트레이터의 추가적인 심층 의견을 포함한 최종 보고서를 작성해 주십시오.
+위 6개 에이전트의 의견을 먼저 요약표로 정리한 뒤, 중요도 평가, 상충 의견 조율, 오케스트레이터의 추가 의견 순서로 종합해 주십시오.
 """
         response = self.llm.invoke([
             SystemMessage(content=system_msg),
             HumanMessage(content=user_msg)
         ])
         return response.content
+
+
+def _demote_headings(text: str, levels: int = 2) -> str:
+    """에이전트 원문 안의 '#' 제목을 한 단계 아래로 내려 보고서 목차가 섞이지 않게 합니다."""
+    import re
+    return re.sub(r"^(#{1,6})(?=\s)", lambda m: "#" * min(6, len(m.group(1)) + levels), text, flags=re.M)
+
+
+def compose_full_report(stock_info: Dict[str, Any], agent_outputs: List[Dict[str, Any]],
+                        synthesis: str, kind: str = "분석") -> str:
+    """Part 1(6개 에이전트 의견 원문) + Part 2(오케스트레이터 종합)를 하나의 보고서로 묶습니다."""
+    done = sum(1 for o in agent_outputs if o.get("status", "완료") == "완료")
+    lines = [
+        f"# {stock_info['name']}({stock_info['ticker']}) 6+1 멀티 에이전트 {kind} 보고서",
+        "",
+        f"- 에이전트 수행 결과: {done}/{len(agent_outputs)} 완료",
+        "- 구성: Part 1 관점별 에이전트 의견(원문) → Part 2 오케스트레이터 종합",
+        "",
+        "---",
+        "",
+        "## Part 1. 관점별 에이전트 의견",
+        "",
+        "> 6개 에이전트가 각자 작성한 원문입니다. Part 2의 종합은 이 원문만을 근거로 하며, [A번호]로 연결됩니다.",
+        "",
+    ]
+    for o in agent_outputs:
+        lines += [
+            f"### [A{o['agent_id']}] {o['agent_name']} · {o.get('status', '완료')}",
+            "",
+            _demote_headings(o["analysis"].strip()),
+            "",
+            f"_데이터 출처: {o['source']}_",
+            "",
+        ]
+    lines += ["---", "", "## Part 2. 오케스트레이터 종합 (Agent 7)", "", _demote_headings(synthesis.strip(), levels=1)]
+    return "\n".join(lines)
 
 
 # =====================================================================
@@ -651,6 +697,7 @@ def run_openresearch_multi_agent(ticker: str = "005930", mode: str = "expert") -
         print(f"▶ [Agent {agent.agent_id}] {agent.name} 분석 수행 중...")
         res = agent.analyze(context, mode=mode)
         agent_outputs.append(res)
+        print(f"   └ {res['status']} ({len(res['analysis'])}자)")
 
     # Step 3: 7번 오케스트레이터 종합 및 중요도/추가 의견 도출
     print("▶ [Agent 7: Orchestrator] 6개 에이전트 의견 종합 및 중요도 산정 중...")
@@ -660,12 +707,17 @@ def run_openresearch_multi_agent(ticker: str = "005930", mode: str = "expert") -
     # Step 4: Fact & Source Verifier 검증
     print("▶ [Verifier] 수치 및 출처 정합성 최종 검증 중...")
     verified_final_report = FactSourceVerifier.verify(raw_final_report, agent_outputs)
+    full_report = FactSourceVerifier.verify(
+        compose_full_report(context["stock_info"], agent_outputs, raw_final_report, kind="분석"),
+        agent_outputs,
+    )
 
     return {
         "ticker": ticker,
         "mode": mode,
         "individual_agent_reports": agent_outputs,
-        "orchestrator_final_report": verified_final_report
+        "orchestrator_final_report": verified_final_report,  # 종합만 (기존 키 유지)
+        "full_report": full_report,  # 에이전트 의견 원문 + 종합
     }
 
 
@@ -876,11 +928,16 @@ def review_with_agent(agent: PerspectiveAgent, context: Dict[str, Any], report_t
 
 위 자료만을 바탕으로 당신의 관점에서 보고서를 첨삭해 주십시오.
 """
-    response = agent.llm.invoke([SystemMessage(content=system_msg), HumanMessage(content=user_msg)])
+    try:
+        response = agent.llm.invoke([SystemMessage(content=system_msg), HumanMessage(content=user_msg)])
+        analysis, status = response.content, "완료"
+    except Exception as e:  # 한 에이전트 실패가 전체를 멈추지 않도록 상태로 기록
+        analysis, status = f"(첨삭 실패: {type(e).__name__}: {e})", "실패"
     return {
         "agent_id": agent.agent_id,
         "agent_name": agent.name,
-        "analysis": response.content,
+        "status": status,
+        "analysis": analysis,
         "source": domain_data.get("source", "Neon DB"),
     }
 
@@ -892,14 +949,17 @@ class ReviewOrchestratorAgent:
 
     def synthesize(self, context: Dict[str, Any], reviews: List[Dict[str, Any]], mode: str = "expert") -> str:
         stock_info = context["stock_info"]
-        compiled = "\n\n".join(f"### [{r['agent_id']}. {r['agent_name']}]\n{r['analysis']}" for r in reviews)
+        compiled = "\n\n".join(
+            f"### [A{r['agent_id']}. {r['agent_name']}] (상태: {r.get('status', '완료')})\n{r['analysis']}" for r in reviews
+        )
         system_msg = f"""당신은 OpenResearch의 [7. 오케스트레이터]이며, 6개 관점 검토자의 첨삭을 하나의 '보고서 첨삭 의견서'로 정리합니다.
 
 {COMMON_AGENT_RULES}
 
 [필수 수행 과제]
-1. **총평**: 보고서의 강점과 가장 큰 약점을 2~3문장으로 요약하십시오.
-2. **우선순위별 첨삭 목록**: 모든 지적 사항을 '치명(사실 오류·수치 불일치)', '중요(핵심 논점 누락)', '권장(표현·구성 개선)'으로 분류하고, 각 항목에 어느 관점에서 나온 지적인지 표기하십시오. 중복 지적은 합치십시오.
+0. **관점별 첨삭 요약표 (의견서 맨 앞)**: 표 열은 에이전트(A1~A6) | 가장 중요한 지적 1개 | 빠진 논점 수 | 수정 제안 수 | 완성도 점수. 검토자가 쓴 내용과 점수만 옮기십시오. 상태가 '실패'인 검토자는 '첨삭 실패'로 표기하고 종합에서 제외했다고 밝히십시오.
+1. **총평**: 보고서의 강점과 가장 큰 약점을 2~3문장으로 요약하고, 근거가 된 검토자를 [A번호]로 표기하십시오.
+2. **우선순위별 첨삭 목록**: 모든 지적 사항을 '치명(사실 오류·수치 불일치)', '중요(핵심 논점 누락)', '권장(표현·구성 개선)'으로 분류하고, 각 항목 끝에 출처 검토자를 [A2], [A3·A5]처럼 표기하십시오. 여러 검토자가 같은 지적을 했으면 하나로 합치고 번호를 모두 적으십시오.
 3. **관점별 완성도 점수표**: 6개 관점 점수를 표로 정리하십시오 (검토자가 준 점수만 인용).
 4. **수정 우선순위 3가지**: 작성자가 가장 먼저 고칠 3가지를 제시하십시오.
 5. 현재 모드({mode})가 'guide'이면, 마지막에 '다음 보고서 작성 시 체크리스트'를 초심자 눈높이로 추가하십시오.
@@ -918,6 +978,10 @@ class ReviewOrchestratorAgent:
 
 def review_report(report_text: str, ticker: Optional[str] = None, mode: str = "expert") -> Dict[str, Any]:
     """사용자 보고서를 6개 관점에서 첨삭하고, 오케스트레이터가 첨삭 의견서로 종합합니다."""
+    body = (report_text or "").strip()
+    if not body or "여기에 첨삭할 보고서를 붙여 넣으세요" in body:
+        raise ValueError("첨삭할 보고서 원문이 비어 있습니다. report_text에 보고서를 붙여 넣거나 load_report()로 파일을 읽어 주세요.")
+
     loader = KICDataLoader()
     ticker = resolve_ticker(report_text, ticker, loader)
     print("============================================================")
@@ -937,19 +1001,25 @@ def review_report(report_text: str, ticker: Optional[str] = None, mode: str = "e
     for agent in build_six_agents():
         print(f"▶ [Agent {agent.agent_id}] {agent.name} 첨삭 중...")
         reviews.append(review_with_agent(agent, context, report_text, number_rows, mode=mode))
+        print(f"   └ {reviews[-1]['status']} ({len(reviews[-1]['analysis'])}자)")
 
     # Step 4: 오케스트레이터 종합 + 코드 대조표 + 출처 각주
     print("▶ [Agent 7: Orchestrator] 첨삭 의견서 종합 중...")
     feedback = ReviewOrchestratorAgent().synthesize(context, reviews, mode=mode)
-    feedback += "\n\n---\n### 🔢 보고서 수치 대조표 (코드 판정)\n" + ReportNumberChecker.to_markdown(number_rows)
-    verified_feedback = FactSourceVerifier.verify(feedback, reviews)
+    number_table = "\n\n---\n### 🔢 보고서 수치 대조표 (코드 판정)\n" + ReportNumberChecker.to_markdown(number_rows)
+    verified_feedback = FactSourceVerifier.verify(feedback + number_table, reviews)
+    full_report = FactSourceVerifier.verify(
+        compose_full_report(context["stock_info"], reviews, feedback, kind="첨삭") + number_table,
+        reviews,
+    )
 
     return {
         "ticker": ticker,
         "mode": mode,
         "number_check": number_rows,
         "individual_agent_reviews": reviews,
-        "orchestrator_review_report": verified_feedback,
+        "orchestrator_review_report": verified_feedback,  # 종합만 (기존 키 유지)
+        "full_report": full_report,  # 관점별 첨삭 원문 + 종합 의견서
     }
 
 
@@ -960,8 +1030,8 @@ if __name__ == "__main__":
         args = sys.argv[1:] + [None, "expert"][len(sys.argv) - 2:]
         result = review_report(load_report(args[0]), ticker=args[1], mode=args[2])
         print("\n\n==================== [보고서 첨삭 의견서] ====================")
-        print(result["orchestrator_review_report"])
+        print(result["full_report"])
     else:
         result = run_openresearch_multi_agent(ticker="005930", mode="expert")
-        print("\n\n==================== [최종 오케스트레이터 보고서] ====================")
-        print(result["orchestrator_final_report"])
+        print("\n\n==================== [최종 보고서: 에이전트 의견 + 오케스트레이터 종합] ====================")
+        print(result["full_report"])
