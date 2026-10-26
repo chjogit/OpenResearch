@@ -6,3 +6,6 @@ __pycache__/
 .ruff_cache/
 outputs/
 *.zip
+
+# CH 에이전트 평가 결과 (로컬 생성물)
+members/CH/eval_results*.json
