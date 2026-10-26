@@ -66,6 +66,28 @@ def get_llm(temperature: float = 0.0):
     return ChatUpstage(model=MODEL, temperature=temperature)
 
 
+# JSON 출력 모드: 지원하면 형식 오류가 줄어듦. 매개변수 오류가 나면 이번 실행 동안 끄고 일반 호출로 진행
+_JSON_MODE = {"on": os.getenv("CH_JSON_MODE", "on") == "on"}
+
+
+def _is_param_error(e: Exception) -> bool:
+    msg = f"{type(e).__name__} {e}".lower()
+    return any(w in msg for w in ("response_format", "unsupported", "not supported", "invalid parameter",
+                                  "badrequest", "400", "unexpected keyword"))
+
+
+def invoke(model, msgs):
+    """LLM 호출. JSON 모드를 먼저 시도하고, 지원하지 않으면 일반 호출로 바꿉니다."""
+    if _JSON_MODE["on"] and hasattr(model, "bind"):
+        try:
+            return model.bind(response_format={"type": "json_object"}).invoke(msgs)
+        except Exception as e:
+            if not _is_param_error(e):
+                raise
+            _JSON_MODE["on"] = False
+    return model.invoke(msgs)
+
+
 # ---------------------------------------------------------------- 프롬프트
 
 def build_messages(data: AgentData, mode: str = "expert") -> tuple[str, str]:
@@ -138,7 +160,8 @@ def _json_objects(t: str):
 
 def parse_json(text: str) -> dict | None:
     """LLM 출력에서 JSON 객체를 찾습니다. 기대 키가 있는 객체를 먼저, 없으면 가장 큰 객체를 고릅니다."""
-    t = re.sub(r"```(?:json)?", "", text or "")
+    t = re.sub(r"<(think|thinking|reasoning)>.*?</\1>", "", text or "", flags=re.DOTALL)  # 추론 블록 제거
+    t = re.sub(r"```(?:json)?", "", t)
     found = []
     for seg in _json_objects(t):
         try:
@@ -347,7 +370,7 @@ def run_agent(agent_id: int, ticker: str | None = None, mode: str = "expert", ll
         model = llm or get_llm()
         msgs = [SystemMessage(content=system), HumanMessage(content=user)]
         for attempt in range(max_repair + 1):
-            raw = model.invoke(msgs).content
+            raw = invoke(model, msgs).content
             parsed = parse_json(raw)
             if parsed is not None:
                 parsed = normalize_keys(parsed, _valid_keys(data))

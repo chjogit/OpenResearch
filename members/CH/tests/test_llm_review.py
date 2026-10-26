@@ -208,3 +208,29 @@ def test_run_agent_keeps_better_attempt():
     out = run_agent(2, data=d, llm=FakeLLM(first, worse))
     assert out["status"] == "완료 (일부 문장 제외)"  # 첫 시도 채택 → '수정 1회' 아님
     assert out["removed"] == ["영업이익 89조원"]
+
+
+def test_json_mode_falls_back_when_unsupported():
+    from ch_agents import llm as L
+
+    class Bound:
+        def __init__(self, ok):
+            self.ok = ok
+
+        def invoke(self, msgs):
+            if not self.ok:
+                raise ValueError("400 BadRequest: response_format is not supported")
+
+            class R:
+                content = "<think>{생각}</think>" + __import__("json").dumps(_good(_a2()), ensure_ascii=False)
+            return R()
+
+    class Model(Bound):
+        def bind(self, **kw):
+            assert kw == {"response_format": {"type": "json_object"}}
+            return Bound(False)
+
+    L._JSON_MODE["on"] = True
+    out = run_agent(2, data=_a2(), llm=Model(True))
+    assert out["status"] == "완료" and L._JSON_MODE["on"] is False
+    L._JSON_MODE["on"] = True

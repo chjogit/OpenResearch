@@ -12,7 +12,7 @@ import time
 
 from .agents import AGENTS, AgentData, fetch_agent_data
 from .facts import fmt
-from .llm import BANNED, PLACEHOLDER, get_llm, normalize_keys, parse_json, render, sentence_problems
+from .llm import BANNED, PLACEHOLDER, get_llm, invoke, normalize_keys, parse_json, render, sentence_problems
 
 REPORT_MAX_CHARS = 12000
 NUM = re.compile(r"([-+]?\d[\d,]*(?:\.\d+)?)\s*(조\s*\d[\d,]*\s*억\s*원|조\s*원|조|억\s*원|억|만\s*원|"
@@ -253,8 +253,8 @@ def review_report(report: str, ticker: str, mode: str = "expert", agent_ids=(1, 
             from langchain_core.messages import HumanMessage, SystemMessage
 
             system, user = _review_messages(data, body, rows, mode)
-            parsed = parse_json((llm or get_llm()).invoke([SystemMessage(content=system),
-                                                           HumanMessage(content=user)]).content)
+            parsed = parse_json(invoke(llm or get_llm(), [SystemMessage(content=system),
+                                                          HumanMessage(content=user)]).content)
             if parsed is not None:
                 res, removed = _sanitize_review(normalize_keys(parsed, set(data.facts.items)), data)
                 status = "완료" + (" (일부 문장 제외)" if removed else "")
