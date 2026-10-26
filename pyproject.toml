@@ -4,3 +4,5 @@ testpaths = ["tests"]
 [tool.ruff]
 line-length = 110
 target-version = "py312"
+# members/ 는 팀원 개인 실험 공간이라 린트에서 제외 (공용 코드는 agent/ 로 옮기며 맞춥니다)
+extend-exclude = ["members"]
