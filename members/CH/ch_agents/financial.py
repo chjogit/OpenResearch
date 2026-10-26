@@ -17,7 +17,7 @@ from __future__ import annotations
 
 from itertools import pairwise
 
-from .facts import Facts, median, pct_change, percentile_rank
+from .facts import Facts, check_freshness, median, pct_change, percentile_rank
 from .macro import FINANCIAL_SECTORS, sector_of
 
 SQL = """
@@ -139,6 +139,7 @@ def compute(b: dict, co: dict, as_of: str) -> dict:
     if not t:
         f.gap("TTM 실적·멀티플", "core.v_ttm 에 이 종목 없음 (DART 재무 미수집 종목)")
     else:
+        check_freshness(f, "TTM 실적(최근 분기말)", t.get("ttm_end"), as_of, 200)
         g = "TTM 실적"
         f.add("매출(TTM)", t.get("revenue_ttm"), "KRW", t.get("ttm_end"), SRC_TTM, group=g)
         f.add("영업이익(TTM)", t.get("operating_income_ttm"), "KRW", t.get("ttm_end"), SRC_TTM, group=g)

@@ -13,7 +13,7 @@
 """
 from __future__ import annotations
 
-from .facts import Facts, daily_returns, pct_change, percentile_rank, series_points, streak
+from .facts import Facts, check_freshness, daily_returns, pct_change, percentile_rank, series_points, streak
 
 SQL = """
 SELECT json_build_object(
@@ -79,6 +79,7 @@ def compute(b: dict, co: dict, as_of: str) -> dict:
         f.gap("투자자별 수급", "수집 데이터 없음")
     else:
         period = f"수급 {rows[-1]['d']}~{rows[0]['d']} ({len(rows)}거래일)"
+        check_freshness(f, "투자자별 수급", rows[0]["d"], as_of, 5)
         d0 = rows[0]["d"]
         for who, col in WHO:
             for n in (5, 20, 60):

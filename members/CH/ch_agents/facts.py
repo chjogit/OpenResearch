@@ -211,3 +211,18 @@ def streak(values: list[float]) -> int:
         else:
             break
     return sign * n
+
+
+def days_between(a: str, b: str) -> int:
+    from datetime import date
+
+    return (date.fromisoformat(str(b)[:10]) - date.fromisoformat(str(a)[:10])).days
+
+
+def check_freshness(f: Facts, label: str, last_day: str | None, as_of: str, max_days: int) -> None:
+    """자료의 마지막 날짜가 기준일보다 max_days 넘게 오래되면 판정으로 남깁니다."""
+    if not last_day:
+        return
+    gap = days_between(last_day, as_of)
+    if gap > max_days:
+        f.flag(f"자료 지연: {label} 마지막 자료가 {str(last_day)[:10]} (기준일보다 오래됨, 해석 주의)")

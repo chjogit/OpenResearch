@@ -1,7 +1,7 @@
 """LLM 계층·첨삭 모드 테스트 (가짜 LLM 사용)."""
 from ch_agents.agents import build_agent_data
 from ch_agents.llm import check_output, parse_json, run_agent
-from ch_agents.review import check_numbers, extract_numbers, review_report
+from ch_agents.review import check_numbers, extract_numbers, review_report, style_checks
 from conftest import AS_OF, CO, FakeLLM
 from test_compute import _fin_bundle, _sent_bundle
 
@@ -156,3 +156,18 @@ def test_guide_mode_self_questions_rendered_and_checked():
     out_json["스스로질문"] = ["이익 증가가 일시적인가?", "PER 8배면 싼가?"]
     out = run_agent(2, data=d, llm=FakeLLM(out_json, out_json), mode="guide")
     assert "스스로 확인해 볼 질문" in out["analysis"] and "PER 8배면 싼가?" in out["removed"]
+
+
+def test_style_checks():
+    rep = ("PER은 9.5배로 저평가다. PER(TTM)은 Peer 중앙값 대비 낮다.\n"
+           "환율과의 상관이 높기 때문에 실적이 오른다. 외국인이 정보를 알고 사는 듯하다. 매수 추천한다.")
+    got = [(x["agent_id"], x["message"]) for x in style_checks(rep)]
+
+    def has(aid, prefix):
+        return any(a == aid and m.startswith(prefix) for a, m in got)
+
+    assert has(2, "PER의 기준") and has(2, "비교 기준 없이")
+    assert has(1, "통계적 동조성을 원인") and has(4, "순매수 기록만으로") and has(0, "투자 권유 표현")
+    assert len([x for x in style_checks(rep) if x["sentence"].startswith("PER(TTM)")]) == 0
+    out = review_report(rep, "005930", llm=FakeLLM(TimeoutError()), datas=[_a2()])
+    assert "표현 점검" in out["reviews"][0]["analysis"] and "공통 표현 점검" in out["number_check_md"]

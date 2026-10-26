@@ -14,9 +14,11 @@ from __future__ import annotations
 
 from .facts import (
     Facts,
+    check_freshness,
     corr_beta,
     daily_diffs,
     daily_returns,
+    days_between,
     pct_change,
     series_points,
     shift_months,
@@ -191,6 +193,9 @@ def compute(b: dict, co: dict, as_of: str) -> dict:
         if sid == "ECOS_BASE_RATE" and (lc := _last_change(pts)):
             f.note(f"한국 기준금리 마지막 변경 관측월: {lc[:7]}")
     usd = series.get("ECOS_USDKRW") or []
+    check_freshness(f, "원/달러 환율", usd[-1][0] if usd else None, as_of, 7)
+    check_freshness(f, "미국 10년 국채금리", (series.get("DGS10") or [("", 0)])[-1][0] or None, as_of, 10)
+    check_freshness(f, "한국 기준금리", (series.get("ECOS_BASE_RATE") or [("", 0)])[-1][0] or None, as_of, 75)
     if usd:
         k3 = f.key_of("원/달러 환율 3개월 변화율")
         chg = f.items[k3]["value"] if k3 else None
@@ -316,12 +321,6 @@ def compute(b: dict, co: dict, as_of: str) -> dict:
 
     docs = [{"title": d["title"], "published": str(d["published"])[:10]} for d in (b.get("docs") or [])]
     return {"facts": f, "docs": docs, "period": f"거시 지표 최근 12개월 · 동조성 {period}", "sector": sector}
-
-
-def days_between(a: str, b: str) -> int:
-    from datetime import date
-
-    return (date.fromisoformat(b) - date.fromisoformat(a)).days
 
 
 def bisect_left_days(days: list[str], d: str) -> int:

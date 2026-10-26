@@ -89,6 +89,38 @@ def check_numbers(report: str, datas: list[AgentData]) -> list[dict]:
     return rows
 
 
+# ---------------------------------------------------------------- 표현 규칙 점검 (코드)
+# (관점 번호 또는 0=공통, 찾을 패턴, 함께 있으면 통과하는 패턴, 지적 문구)
+STYLE_RULES = [
+    (0, r"매수\s*추천|매도\s*추천|목표\s*주가|비중\s*(확대|축소)|사야\s*한다|팔아야\s*한다", None,
+     "투자 권유 표현입니다. '투자 검토 참고치와 리스크 요약'으로 바꾸세요."),
+    (2, r"PER|주가수익비율", r"TTM|12개월|연간|FY|20\d\d|선행|트레일링|추정",
+     "PER의 기준(TTM·연간·선행)이 없습니다. 기준에 따라 값이 크게 다를 수 있습니다."),
+    (2, r"저평가|고평가|싸다|비싸다", r"밴드|Peer|피어|업종|동종|과거|대비|평균|중앙값",
+     "비교 기준 없이 저평가·고평가를 단정했습니다. 자기 PER 밴드나 Peer 중앙값과 비교하세요."),
+    (1, r"(상관|동조|민감|베타).{0,25}(때문|덕분|원인|결과로)", None,
+     "통계적 동조성을 원인으로 표현했습니다. 기업의 실제 노출(수출 비중·헤지) 근거가 필요합니다."),
+    (1, r"환율.{0,15}(수혜|이익이\s*늘|실적이\s*좋아)", r"노출|비중|헤지|달러\s*매출|달러\s*비용",
+     "환율 수혜를 말하려면 달러 매출·비용 비중이나 헤지 정보가 필요합니다."),
+    (4, r"(외국인|기관|개인).{0,20}(의도|노리|알고\s*있|정보를|작전)", None,
+     "순매수 기록만으로 매수 의도나 정보 보유를 추정했습니다."),
+    (4, r"(감성|긍정적\s*여론|부정적\s*여론|분위기)", r"키워드|사전|한계|참고",
+     "감성 점수는 키워드 사전 기반 근사치라는 한계를 함께 적으세요."),
+]
+
+
+def style_checks(report: str) -> list[dict]:
+    out = []
+    for sent in re.split(r"(?<=[.!?。])\s+|\n+", report):
+        sent = sent.strip()
+        if not sent:
+            continue
+        for aid, pat, ok, msg in STYLE_RULES:
+            if re.search(pat, sent, re.IGNORECASE) and not (ok and re.search(ok, sent, re.IGNORECASE)):
+                out.append({"agent_id": aid, "sentence": sent[:120], "message": msg})
+    return out
+
+
 def numbers_md(rows: list[dict]) -> str:
     if not rows:
         return "_보고서에서 단위가 붙은 숫자를 찾지 못했습니다._"
@@ -184,12 +216,16 @@ def _fallback_review(data: AgentData, report: str) -> dict:
             "점수이유": "LLM 없이 코드 판정 중 보고서에 없는 항목만 표시"}
 
 
-def review_md(data: AgentData, res: dict, rows: list[dict], status: str, removed: list[str]) -> str:
+def review_md(data: AgentData, res: dict, rows: list[dict], status: str, removed: list[str],
+              styles: list[dict] | None = None) -> str:
     r = lambda t: render(t, data)
     mine = [x for x in rows if x.get("agent_id") == data.agent_id]
+    my_styles = [x for x in styles or [] if x["agent_id"] == data.agent_id]
     out = [f"- **상태**: {status}", "", "**① 수치 검증 (코드 판정)**", ""]
     out += [f"- '{x['text']}' → **{x['verdict']}**" + (f" (장부 {x['label']} = {x['db_text']} `[{x['key']}]`)"
                                                         if x["verdict"] == "불일치" else "") for x in mine] or ["- 해당 없음"]
+    if my_styles:
+        out += ["", "**표현 점검 (코드)**", ""] + [f"- \"{x['sentence']}\" → {x['message']}" for x in my_styles]
     out += ["", "**② 빠진 논점**", ""] + ([f"- {r(x['내용'])}" for x in res["빠진논점"]] or ["- 없음"])
     out += ["", "**③ 수정 제안**", ""] + ([f"- \"{x['원문']}\" → {r(x['수정안'])}" for x in res["수정제안"]] or ["- 없음"])
     if res["잘한점"]:
@@ -208,6 +244,7 @@ def review_report(report: str, ticker: str, mode: str = "expert", agent_ids=(1, 
         raise ValueError("첨삭할 보고서 원문이 비어 있습니다.")
     datas = datas or [fetch_agent_data(a, ticker, as_of) for a in agent_ids]
     rows = check_numbers(body, datas)
+    styles = style_checks(body)
     reviews = []
     for data in datas:
         t0 = time.monotonic()
@@ -227,11 +264,15 @@ def review_report(report: str, ticker: str, mode: str = "expert", agent_ids=(1, 
             res, status = _fallback_review(data, body), "규칙 기반 대체"
         reviews.append({"agent_id": data.agent_id, "agent_name": data.name, "status": status, "result": res,
                         "removed": removed, "seconds": round(time.monotonic() - t0, 1),
-                        "analysis": review_md(data, res, rows, status, removed),
+                        "analysis": review_md(data, res, rows, status, removed, styles),
                         "source": "Neon " + ", ".join(sorted({v["source"].split(" (")[0]
                                                               for v in data.facts.items.values()}))})
-    return {"ticker": ticker, "mode": mode, "number_check": rows, "number_check_md": numbers_md(rows),
+    common = [x for x in styles if x["agent_id"] == 0]
+    md = numbers_md(rows)
+    if common:
+        md += "\n\n**공통 표현 점검**\n\n" + "\n".join(f"- \"{x['sentence']}\" → {x['message']}" for x in common)
+    return {"ticker": ticker, "mode": mode, "number_check": rows, "number_check_md": md, "style_check": styles,
             "reviews": reviews}
 
 
-__all__ = ["check_numbers", "extract_numbers", "fmt", "numbers_md", "review_report"]
+__all__ = ["check_numbers", "extract_numbers", "fmt", "numbers_md", "review_report", "style_checks"]
