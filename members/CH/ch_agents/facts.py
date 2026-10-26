@@ -48,6 +48,8 @@ def fmt(value: float | None, unit: str) -> str:
         return f"{v:+.2f}"
     if unit == "pctile":
         return f"{v:,.0f}백분위"
+    if unit == "USD/bbl":
+        return f"{v:,.2f}달러/배럴"
     if unit == "idx":
         return f"{v:,.2f}"
     return f"{v:,.4g}{unit}"

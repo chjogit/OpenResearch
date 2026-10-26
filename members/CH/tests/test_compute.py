@@ -322,3 +322,19 @@ def test_macro_lag_skips_stale_us_data(rng):
     last_us = b["series"]["DGS10"][-1]["d"]
     last_pair = f.items[f.key_of("주가-미국 10년 국채금리 상관(250일)")]["as_of"].split(" ~ ")[1]
     assert (date.fromisoformat(last_pair) - date.fromisoformat(last_us)).days <= 4  # 늦은 구간은 짝짓지 않음
+
+
+def test_macro_new_series_cpi_spread_and_oil(rng):
+    b = _macro_bundle(rng)
+    ms = months(26)
+    days = [p["d"] for p in b["price"]]
+    b["series"]["ECOS_CPI"] = [{"d": d, "v": 110 * (1.002 ** i)} for i, d in enumerate(ms)]
+    b["series"]["ECOS_KTB3Y"] = [{"d": d, "v": 3.0} for d in days]
+    b["series"]["ECOS_KTB10Y"] = [{"d": d, "v": 3.5 if i < 200 else 2.8} for i, d in enumerate(days)]
+    b["series"]["DCOILWTICO"] = [{"d": d, "v": 70.0 + i * 0.01} for i, d in enumerate(days)]
+    f = macro.compute(b, CO, AS_OF)["facts"]
+    assert f.key_of("한국 소비자물가 전년 대비")
+    assert math.isclose(f.items[f.key_of("국고채 장단기 금리차(10년 − 3년)")]["value"], -0.2)
+    assert any("한국 장단기 금리 역전" in x for x in f.flags)
+    assert f.items[f.key_of("WTI 유가")]["text"].endswith("달러/배럴")
+    assert "브렌트 유가" in [g["label"] for g in f.gaps]  # 없는 시리즈는 무자료

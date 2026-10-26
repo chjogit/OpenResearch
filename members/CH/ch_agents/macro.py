@@ -29,11 +29,17 @@ SRC = "core.macro_obs"
 # series_id: (이름, 단위, 변화 방식)  pp=%p 차이, pct=증감률
 MACRO_SERIES = {
     "ECOS_BASE_RATE": ("한국 기준금리", "%", "pp"),
+    "ECOS_KTB3Y": ("국고채 3년 금리", "%", "pp"),
+    "ECOS_KTB10Y": ("국고채 10년 금리", "%", "pp"),
     "FEDFUNDS": ("미국 기준금리(실효)", "%", "pp"),
     "DGS10": ("미국 10년 국채금리", "%", "pp"),
     "ECOS_USDKRW": ("원/달러 환율", "KRW", "pct"),
+    "DEXJPUS": ("엔/달러 환율", "idx", "pct"),
+    "DEXCHUS": ("위안/달러 환율", "idx", "pct"),
     "DEXUSEU": ("달러/유로 환율", "idx", "pct"),
     "DEXTAUS": ("대만달러/달러 환율", "idx", "pct"),
+    "DCOILWTICO": ("WTI 유가", "USD/bbl", "pct"),
+    "DCOILBRENTEU": ("브렌트 유가", "USD/bbl", "pct"),
     "IPG3344S": ("미국 반도체·전자부품 산업생산지수", "idx", "pct"),
     "PCU33443344": ("미국 반도체·전자부품 생산자물가지수", "idx", "pct"),
 }
@@ -41,7 +47,8 @@ EXPORT_SERIES = {
     "KCS_EXP_854232_USD": "반도체 메모리 수출",
     "KCS_EXP_854231_USD": "반도체 프로세서·컨트롤러 수출",
 }
-ALL_SERIES = list(MACRO_SERIES) + ["CPIAUCSL"] + list(EXPORT_SERIES)
+CPI_SERIES = {"CPIAUCSL": "미국 CPI", "ECOS_CPI": "한국 소비자물가"}
+ALL_SERIES = list(MACRO_SERIES) + list(CPI_SERIES) + list(EXPORT_SERIES)
 
 SQL = """
 WITH s AS (
@@ -84,6 +91,7 @@ def params(co: dict, as_of: str) -> dict:
 TRANSMISSION = {
     "반도체": [
         "원/달러: 달러로 받는 수출 대금의 원화 환산액을 바꿈. 달러 비용·헤지에 따라 순효과는 달라짐",
+        "엔/달러·위안/달러: 일본·중국 경쟁사와의 상대 가격경쟁력",
         "미국 금리·필라델피아 반도체지수: 글로벌 IT 수요 기대와 성장주 할인율 경로",
         "메모리·프로세서 수출: 업황(물량·가격)의 직접 지표",
         "대만달러/달러: 경쟁국 통화. 원화와 함께 움직이는지가 상대 가격경쟁력에 영향",
@@ -96,27 +104,29 @@ TRANSMISSION = {
     ],
     "운송장비·부품": [
         "원/달러: 수출 차량·부품 가격경쟁력과 원화 환산 매출",
+        "엔/달러: 일본 경쟁사 대비 가격경쟁력",
+        "유가: 차량 수요(연비 선호)와 원가",
         "미국 금리: 할부 금융 비용을 통한 차량 수요",
         "관세·통상정책: 수출 단가와 물량 ※",
     ],
     "은행": [
         "한국 기준금리: 대출·예금 금리 차이(순이자마진)",
-        "국고채 금리 곡선: 조달·운용 수익 ※",
+        "국고채 금리 곡선(장단기 금리차): 조달·운용 수익",
         "경기·부동산: 대손비용 ※",
     ],
     "증권": ["기준금리·시장금리: 채권 운용 손익", "주식 거래대금: 수수료 수익 ※"],
-    "보험": ["장기 국고채 금리: 자산운용 수익과 부채 평가 ※", "한국 기준금리: 단기 운용 수익"],
+    "보험": ["장기 국고채 금리: 자산운용 수익과 부채 평가", "한국 기준금리: 단기 운용 수익"],
     "기타금융": ["자회사 업종의 거시 경로를 따름. 은행 자회사가 있으면 기준금리·순이자마진 경로가 중요",
              "한국 기준금리: 조달 비용"],
-    "화학": ["유가: 원재료 비용과 제품 가격 ※", "원/달러: 원재료 수입 비용과 수출 대금", "중국 경기: 제품 수요 ※"],
+    "화학": ["유가: 원재료 비용과 제품 가격", "원/달러: 원재료 수입 비용과 수출 대금", "중국 경기: 제품 수요 ※"],
     "금속": ["원/달러: 원재료 수입과 수출 대금", "중국 경기·원자재 가격 ※"],
-    "음식료·담배": ["원/달러: 곡물 등 원재료 수입 비용", "국내 물가: 판매가 전가 여력 ※"],
+    "음식료·담배": ["원/달러: 곡물 등 원재료 수입 비용", "국내 물가: 판매가 전가 여력"],
     "건설": ["한국 기준금리: 분양 수요와 자금 조달 비용", "부동산 경기 ※"],
-    "전기·가스": ["유가·LNG 가격: 연료비 ※", "원/달러: 연료 수입 비용", "요금 규제 ※"],
+    "전기·가스": ["유가: 연료비 (LNG 가격 ※)", "원/달러: 연료 수입 비용", "요금 규제 ※"],
     "통신": ["한국 기준금리: 배당주 할인율·차입 비용", "경기 민감도는 낮은 편"],
     "IT 서비스": ["미국·한국 금리: 성장주 할인율", "기업 IT 투자 경기 ※"],
     "제약": ["원/달러: 수출과 원료 수입", "금리: 연구개발형 기업의 할인율"],
-    "유통": ["국내 소비·물가 ※", "한국 기준금리: 가계 구매력"],
+    "유통": ["국내 물가: 가계 구매력", "한국 기준금리: 가계 구매력"],
 }
 DEFAULT_TRANSMISSION = ["원/달러: 수출·수입 비중에 따라 매출·비용 양방향", "한국·미국 금리: 조달 비용과 할인율",
                         "물가: 원가와 판매가 전가 여력"]
@@ -188,8 +198,11 @@ def compute(b: dict, co: dict, as_of: str) -> dict:
             state = "원화 약세(달러 강세)" if chg > 3 else "원화 강세(달러 약세)" if chg < -3 else "환율 보합권"
             f.flag(f"원/달러 3개월: {state} ({{{k3}}})")
 
-    cpi = series.get("CPIAUCSL") or []
-    if len(cpi) >= 16:
+    for sid, name in CPI_SERIES.items():
+        cpi = series.get(sid) or []
+        if len(cpi) < 16:
+            f.gap(f"{name} 전년 대비", "관측 16개월 미만 (수집 전이거나 과거분 부족)")
+            continue
         d, v = cpi[-1]
         yoy = pct_change(v, (value_on_or_before(cpi, shift_months(d, 12)) or (None, None))[1])
         d3 = value_on_or_before(cpi, shift_months(d, 3))
@@ -197,15 +210,28 @@ def compute(b: dict, co: dict, as_of: str) -> dict:
         if d3:
             base = value_on_or_before(cpi, shift_months(d3[0], 12))
             yoy3 = pct_change(d3[1], base and base[1])
-        k = f.add("미국 CPI 전년 대비", yoy, "%chg", d, f"{SRC} CPIAUCSL", kind="calc", group="거시 지표")
-        k2 = f.add("미국 CPI 전년 대비(3개월 전)", yoy3, "%chg", d3 and d3[0], f"{SRC} CPIAUCSL", kind="calc",
+        k = f.add(f"{name} 전년 대비", yoy, "%chg", d, f"{SRC} {sid}", kind="calc", group="거시 지표")
+        k2 = f.add(f"{name} 전년 대비(3개월 전)", yoy3, "%chg", d3 and d3[0], f"{SRC} {sid}", kind="calc",
                    group="거시 지표")
         if k and k2 and yoy is not None and yoy3 is not None:
-            f.flag(f"미국 물가: {'가속' if yoy > yoy3 + 0.2 else '둔화' if yoy < yoy3 - 0.2 else '횡보'} "
+            f.flag(f"{name}: {'가속' if yoy > yoy3 + 0.2 else '둔화' if yoy < yoy3 - 0.2 else '횡보'} "
                    f"({{{k2}}} → {{{k}}})")
-    else:
-        f.gap("미국 CPI 전년 대비", "관측 16개월 미만")
-    f.gap("한국 소비자물가·국고채 금리·유가", "ECOS·원자재 시계열 미수집")
+
+    # 한국 장단기 금리차 (10년 − 3년)
+    k10, k3 = series.get("ECOS_KTB10Y") or [], series.get("ECOS_KTB3Y") or []
+    if k10 and k3:
+        d = min(k10[-1][0], k3[-1][0])
+        a10, a3 = value_on_or_before(k10, d), value_on_or_before(k3, d)
+        spread = a10[1] - a3[1]
+        k_sp = f.add("국고채 장단기 금리차(10년 − 3년)", spread, "%p", d, f"{SRC} ECOS_KTB10Y − ECOS_KTB3Y",
+                     kind="calc", group="거시 지표")
+        old = shift_months(d, 12)
+        o10, o3 = value_on_or_before(k10, old), value_on_or_before(k3, old)
+        if o10 and o3:
+            k_sc = f.add("국고채 장단기 금리차 12개월 변화", spread - (o10[1] - o3[1]), "%p", d,
+                         f"{SRC} ECOS_KTB10Y − ECOS_KTB3Y", kind="calc", group="거시 지표")
+            if k_sp and k_sc and spread < 0:
+                f.flag(f"한국 장단기 금리 역전 ({{{k_sp}}})")
 
     # 2) 반도체 수출 (월별, 관세청)
     for sid, name in EXPORT_SERIES.items():
