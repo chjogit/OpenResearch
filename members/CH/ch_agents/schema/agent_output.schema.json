@@ -1,0 +1,126 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/chjogit/OpenResearch/members/CH/ch_agents/schema/agent_output.schema.json",
+  "title": "OpenResearch 관점 에이전트 출력 계약 (기초기획서 R4, 교재 제2판)",
+  "description": "에이전트 1(거시경제)·에이전트 3(투자심리·수급) 공통 출력. 수치는 evidence[] 의 DB 값만 인용하고, 주장은 claimId, 근거는 evidenceId 로 연결한다.",
+  "type": "object",
+  "required": ["schemaVersion", "reportId", "agent", "target", "mode", "asOf", "generatedAt", "status", "summary",
+               "claims", "downsideRisks", "unverified", "evidence", "verification", "disclaimer"],
+  "properties": {
+    "schemaVersion": {"type": "string", "enum": ["r4-1.0"]},
+    "reportId": {"type": "string", "pattern": "^RPT-\\d+-[0-9A-Za-z.]+-\\d{8}-[0-9a-f]{8}$"},
+    "agent": {
+      "type": "object", "required": ["id", "module", "name"],
+      "properties": {
+        "id": {"type": "integer", "enum": [1, 2, 3, 4, 5, 6, 7]},
+        "module": {"type": "string", "pattern": "^agent\\d_"},
+        "name": {"type": "string"}
+      }
+    },
+    "target": {
+      "type": "object", "required": ["ticker", "name"],
+      "properties": {"ticker": {"type": "string"}, "name": {"type": "string"}, "market": {"type": ["string", "null"]}}
+    },
+    "mode": {"type": "string", "enum": ["expert", "guide"]},
+    "asOf": {"type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$", "description": "분석 기준일"},
+    "observationPeriod": {"type": "string"},
+    "generatedAt": {"type": "string", "description": "생성 시각 (KST, ISO 8601)"},
+    "status": {"type": "string"},
+    "userInput": {"type": "object"},
+    "summary": {
+      "type": "object", "required": ["text", "evidenceIds"],
+      "properties": {"text": {"type": "string"}, "evidenceIds": {"type": "array", "items": {"type": "string", "pattern": "^E\\d+$"}}}
+    },
+    "claims": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["claimId", "role", "text", "type", "typeLabel", "evidenceIds", "sourceTags", "verification"],
+        "properties": {
+          "claimId": {"type": "string", "pattern": "^C\\d{2,}$"},
+          "role": {"type": "string", "enum": ["main", "counter"], "description": "counter = 반대 근거"},
+          "text": {"type": "string", "description": "값을 채운 문장"},
+          "template": {"type": "string", "description": "장부 키가 남아 있는 원문 ({M7})"},
+          "type": {"type": "string", "enum": ["fact", "interpretation", "forecast"]},
+          "typeLabel": {"type": "string", "enum": ["사실", "해석", "예측"]},
+          "evidenceIds": {"type": "array", "items": {"type": "string", "pattern": "^E\\d+$"}},
+          "sourceTags": {"type": "array", "items": {"type": "string"}},
+          "verification": {
+            "type": "object", "required": ["status", "checkedBy"],
+            "properties": {"status": {"type": "string", "enum": ["passed", "failed"]}, "checkedBy": {"type": "string"},
+                           "unmatched": {"type": "array"}}
+          }
+        }
+      }
+    },
+    "upsideFactors": {"type": "array", "items": {"$ref": "#/$defs/linkedText"}},
+    "downsideRisks": {"type": "array", "items": {"$ref": "#/$defs/linkedText"}, "description": "하방 위험"},
+    "unverified": {
+      "type": "array",
+      "items": {
+        "type": "object", "required": ["item", "reason", "category", "status", "evidenceIds"],
+        "properties": {
+          "item": {"type": "string"}, "reason": {"type": "string"},
+          "category": {"type": "string", "enum": ["무자료", "미확인 전제", "판단 보류"]},
+          "status": {"type": "string", "enum": ["미확인", "일부 확인"]},
+          "evidenceIds": {"type": "array", "items": {"type": "string"}}
+        }
+      }
+    },
+    "nextChecks": {"type": "array", "items": {"type": "string"}},
+    "evidence": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["evidenceId", "ledgerKey", "kind", "label", "dataDate", "publishedAt", "source", "sourceTag", "cited"],
+        "properties": {
+          "evidenceId": {"type": "string", "pattern": "^E\\d+$"},
+          "ledgerKey": {"type": "string", "pattern": "^[A-Z]\\d+$"},
+          "kind": {"type": "string", "enum": ["number", "document", "disclosure"]},
+          "label": {"type": ["string", "null"]},
+          "value": {"type": ["number", "null"]},
+          "unit": {"type": ["string", "null"]},
+          "display": {"type": ["string", "null"]},
+          "valueType": {"type": ["string", "null"], "description": "실측·계산·대용치·회사 공시 / 문서 종류"},
+          "dataDate": {"type": ["string", "null"], "description": "자료 기준일"},
+          "publishedAt": {"type": ["string", "null"], "description": "공개시각 (문서·공시)"},
+          "source": {"type": ["string", "null"]},
+          "sourceTag": {"type": "string"},
+          "url": {"type": ["string", "null"]},
+          "cited": {"type": "boolean"}
+        }
+      }
+    },
+    "codeFindings": {"type": "array", "items": {"$ref": "#/$defs/linkedText"}},
+    "verification": {
+      "type": "object", "required": ["checker", "checked", "passed", "results"],
+      "properties": {
+        "checker": {"type": "string"}, "checked": {"type": "integer"}, "passed": {"type": "integer"},
+        "removedSentences": {"type": "integer"},
+        "results": {"type": "array", "items": {"type": "object", "required": ["ok"],
+                    "properties": {"claimId": {"type": ["string", "null"]}, "ok": {"type": "boolean"}}}}
+      }
+    },
+    "dataQuality": {"type": "array"},
+    "selfScore": {"type": ["integer", "null"]},
+    "disclaimer": {"type": "string"},
+    "exposure": {"type": "array", "description": "에이전트 1 노출 점검표",
+                 "items": {"type": "object", "required": ["variable", "level", "evidenceIds"],
+                           "properties": {"level": {"type": "string", "enum": ["낮음", "중간", "높음"]}}}},
+    "premises": {"type": "array", "description": "에이전트 1 미확인 전제 목록",
+                 "items": {"type": "object", "required": ["item", "status", "detail", "evidenceIds"],
+                           "properties": {"status": {"type": "string", "enum": ["확인", "일부 확인", "미확인"]}}}},
+    "anomalies": {"type": "array", "items": {"$ref": "#/$defs/linkedText"}},
+    "baseline": {"type": "array", "description": "에이전트 3 규칙·사전 기준선 비교",
+                 "items": {"type": "object", "required": ["signal", "method", "status", "evidenceIds"]}},
+    "duplicateSignals": {"type": "array", "description": "에이전트 3 중복 신호(사건 묶음)",
+                         "items": {"type": "object", "required": ["clusterId", "signals", "evidenceIds", "rule"]}},
+    "sentimentModel": {"type": ["string", "null"]}
+  },
+  "$defs": {
+    "linkedText": {
+      "type": "object", "required": ["text", "evidenceIds"],
+      "properties": {"text": {"type": "string"}, "evidenceIds": {"type": "array", "items": {"type": "string"}}}
+    }
+  }
+}

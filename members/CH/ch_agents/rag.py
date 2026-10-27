@@ -15,9 +15,9 @@
   코드 검사(키 밖 숫자)가 그대로 걸러냅니다.
 - 블로그·카페·댓글은 '개인 의견'으로 표시합니다.
 
-팀원 사용법 (A3·A5·A6 포함, 관점 번호만 바꾸면 됨)
+팀원 사용법 (교재 번호: 1 거시, 2 산업·사업모델, 3 투자심리·수급, 4 기술적, 5 경영진·대주주, 7 가치평가·위험(재무))
     from ch_agents.rag import retrieve, docs_for_prompt
-    docs = retrieve(6, "005930", as_of="2026-10-26")
+    docs = retrieve(5, "005930", as_of="2026-10-26")
     print(docs_for_prompt(docs))
 """
 from __future__ import annotations
@@ -41,6 +41,7 @@ class Preset:
     disclosure_days: int = 365
     k_docs: int = 6
     k_disclosures: int = 4
+    long_days: dict[str, int] = field(default_factory=dict)  # 연 1회 문서(사업보고서)는 기간을 길게, 최신성 감점 없음
     min_base: float = 2                           # 이 점수 미만 문서는 제외 (약한 용어 하나만 걸린 문서 거르기)
     per_source: dict[str, int] = field(default_factory=dict)
 
@@ -55,9 +56,10 @@ PRESETS: dict[int, Preset] = {
         {"환율": 2, "원/달러": 2, "원·달러": 2, "원화": 2, "달러 강세": 2, "달러 약세": 2, "기준금리": 2,
          "금리 인하": 2, "금리 인상": 2, "관세": 2, "수출": 1.5, "물가": 2, "인플레이션": 2, "연준": 2, "fomc": 2,
          "국제유가": 2, "유가 상승": 2, "유가 하락": 2, "wti": 2, "브렌트": 2, "국채": 1.5, "금리": 1, "경기 둔화": 2, "경기 침체": 2, "경기 회복": 1.5, "경기 부양": 1.5, "무역": 1, "수입": 0.5,
-         "tariff": 2, "federal reserve": 2, "the fed": 1.5, "interest rate": 2, "inflation": 2, "dollar": 1.5, "export": 1.5, "oil price": 1.5, "crude": 1.5},
-        NEWS, days=30),
-    2: Preset(
+         "tariff": 2, "federal reserve": 2, "the fed": 1.5, "interest rate": 2, "inflation": 2, "dollar": 1.5, "export": 1.5, "oil price": 1.5, "crude": 1.5,
+         "환위험": 2, "통화선도": 2, "통화스왑": 2, "헷지": 1.5, "위험회피": 1.5},
+        {**NEWS, "dart_report": 1.2}, days=30, long_days={"dart_report": 500}),
+    7: Preset(
         "재무·밸류에이션·건전성",
         {"실적": 1.5, "영업이익": 2, "매출": 1, "순이익": 2, "어닝": 2, "컨센서스": 2, "가이던스": 2, "잠정": 1.5,
          "배당": 2, "자사주": 2, "소각": 2, "주주환원": 2, "밸류업": 2, "부채": 2, "차입": 2, "회사채": 2,
@@ -68,7 +70,7 @@ PRESETS: dict[int, Preset] = {
                 "rights_issue", "convertible_bond", "capital_reduction", "value_up_plan", "quarterly_report",
                 "half_year_report", "annual_report", "guidance", "loan_decision", "earnings"),
         k_disclosures=5),
-    3: Preset(
+    2: Preset(
         "산업·경쟁강도",
         {"점유율": 3, "경쟁": 1, "경쟁사": 2, "수주": 2, "공급계약": 2, "고객사": 2, "신제품": 2, "증설": 2,
          "양산": 2, "업황": 2, "판가": 2, "가격 인상": 2, "가격 인하": 2, "공급 과잉": 3, "재고": 1.5, "규제": 1,
@@ -78,7 +80,7 @@ PRESETS: dict[int, Preset] = {
         events=("supply_contract", "capex", "investment_acquisition", "merger", "business_transfer", "spin_off",
                 "share_exchange", "material_agreement", "guidance", "acquisition_completed"),
         report_re="거래처|공급계약|영업양수"),
-    4: Preset(
+    3: Preset(
         "투자심리·수급",
         {"외국인": 2, "기관": 1.5, "개인 투자자": 1.5, "개인은": 1, "순매수": 2, "순매도": 2, "수급": 2, "공매도": 2, "대차": 2,
          "투자심리": 2, "개미": 1.5, "급등": 1.5, "급락": 1.5, "매물": 1.5, "차익실현": 2, "쏠림": 1.5,
@@ -87,14 +89,14 @@ PRESETS: dict[int, Preset] = {
         {**NEWS, **OPINION}, days=20,
         events=("rumor_clarification", "rumor_inquiry", "conversion_exercise"), disclosure_days=120,
         k_docs=7, k_disclosures=3, per_source=OPINION_CAP),
-    5: Preset(
+    4: Preset(
         "기술적 분석",
         {"신고가": 2, "신저가": 2, "이동평균": 2, "이평선": 2, "골든크로스": 3, "데드크로스": 3, "지지선": 2,
          "저항선": 2, "거래량": 1.5, "전고점 돌파": 2, "저항선 돌파": 2, "기술적 반등": 2, "반등": 1, "박스권": 2, "차트": 1.5, "과매수": 2, "과매도": 2,
          "rsi": 2, "상한가": 2, "하한가": 2, "갭": 1,
          "52-week": 2, "all-time high": 2, "support": 1, "resistance": 1.5},
         {**NEWS, **OPINION}, days=20, k_docs=6, per_source=OPINION_CAP, min_base=3),
-    6: Preset(
+    5: Preset(
         "대주주·경영진",
         {"최대주주": 3, "경영권": 3, "지배구조": 3, "승계": 3, "상속": 2, "증여": 2, "오너": 2, "지주사": 2,
          "횡령": 3, "배임": 3, "행동주의": 3, "주주제안": 3, "대표이사": 2, "사외이사": 2, "이사회": 2,
@@ -107,7 +109,7 @@ PRESETS: dict[int, Preset] = {
         k_disclosures=5),
 }
 
-SOURCE_LABEL = {"naver_news": "뉴스", "finnhub_news": "해외뉴스", "naver_blog": "블로그(개인 의견)",
+SOURCE_LABEL = {"naver_news": "뉴스", "finnhub_news": "해외뉴스", "dart_report": "사업보고서(회사 공시)", "naver_blog": "블로그(개인 의견)",
                 "naver_cafe": "카페(개인 의견)", "youtube_comment": "유튜브 댓글(개인 의견)"}
 EVENT_LABEL = {
     "earnings_prelim": "잠정실적", "earnings_change": "손익구조 변경", "audit_report": "감사보고서",
@@ -136,7 +138,9 @@ c AS (
     SELECT doc_id, source, title, coalesce(summary, '') AS summary, published_at, url
     FROM rag.document
     WHERE company_id = %(cid)s AND source = ANY(%(sources)s::text[])
-      AND published_at <= %(as_of)s::date AND published_at > %(as_of)s::date - %(days)s::int
+      AND published_at <= %(as_of)s::date
+      AND published_at > %(as_of)s::date - CASE WHEN source = ANY(%(long_src)s::text[]) THEN %(long_days)s::int
+                                                ELSE %(days)s::int END
 ),
 m AS (
     SELECT c.doc_id,
@@ -147,7 +151,7 @@ m AS (
 )
 SELECT json_build_object(
     'news', (SELECT json_agg(x) FROM (
-        SELECT c.doc_id, c.source, c.title, left(c.summary, 240) AS summary, c.published_at::date AS published,
+        SELECT c.doc_id, c.source, c.title, left(c.summary, 240) AS summary, c.published_at::date AS published, c.published_at AS published_at,
                c.url, coalesce(m.tt, '{}') AS tt, coalesce(m.st, '{}') AS st
         FROM m JOIN c USING (doc_id)
         ORDER BY coalesce(cardinality(m.tt), 0) * 2 + coalesce(cardinality(m.st), 0) DESC, c.published_at DESC
@@ -168,6 +172,7 @@ def params(agent_id: int, co: dict, as_of: str) -> dict:
     p = PRESETS[agent_id]
     return {"cid": co["company_id"], "as_of": as_of, "terms": [t.lower() for t in p.terms],
             "sources": list(p.sources), "days": p.days, "events": list(p.events),
+            "long_src": list(p.long_days), "long_days": max(p.long_days.values(), default=p.days),
             "report_re": p.report_re, "ddays": p.disclosure_days}
 
 
@@ -227,7 +232,7 @@ def score_doc(row: dict, preset: Preset, co: dict, as_of: str) -> tuple[float, l
         return 0.0, []
     s = base * preset.sources.get(row.get("source"), 0.3)
     names = _short_names(co)
-    if row.get("source") != "finnhub_news" and names:  # 영문 뉴스는 티커로 수집되어 한글 이름이 없음
+    if row.get("source") not in ("finnhub_news", "dart_report") and names:  # 영문 뉴스·사업보고서는 종목별로 수집되어 이름 검사 불필요
         if _mentions(title, names):
             s += 1.0                   # 제목에 종목명: 이 종목에 관한 문서
         elif _mentions(summary, names):
@@ -236,7 +241,8 @@ def score_doc(row: dict, preset: Preset, co: dict, as_of: str) -> tuple[float, l
             return 0.0, []             # 종목명이 없으면 다른 종목 기사로 보고 제외
     if PHOTO_RE.search(row.get("title") or ""):
         s *= 0.3                       # 사진 기사는 정보가 적음
-    s *= 1 / (1 + _age(row.get("published"), as_of) / HALF_LIFE_DAYS)
+    if row.get("source") not in preset.long_days:
+        s *= 1 / (1 + _age(row.get("published"), as_of) / HALF_LIFE_DAYS)
     return round(s, 3), sorted(set(tt) | set(st), key=lambda t: -weights[t])
 
 
@@ -260,6 +266,7 @@ def select_docs(rows: list[dict], preset: Preset, co: dict, as_of: str) -> list[
         per_src[src] = per_src.get(src, 0) + 1
         kept.append({
             "kind": SOURCE_LABEL.get(src, src), "source": src, "published": str(r.get("published"))[:10],
+            "published_at": str(r.get("published_at") or r.get("published")),  # 최초 공개시각 (R4 데이터 계약)
             "title": _clean(r.get("title")), "summary": _clean(r.get("summary"), 110),
             "url": r.get("url"), "terms": terms[:4], "score": s, "doc_id": r.get("doc_id"),
         })

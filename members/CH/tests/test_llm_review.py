@@ -15,7 +15,7 @@ from test_compute import _fin_bundle, _sent_bundle
 
 
 def _a2():
-    return build_agent_data(2, CO, _fin_bundle(), AS_OF)
+    return build_agent_data(7, CO, _fin_bundle(), AS_OF)
 
 
 def _good(d):
@@ -53,7 +53,7 @@ def test_check_output_catches_violations():
 
 def test_run_agent_success_renders_values():
     d = _a2()
-    out = run_agent(2, data=d, llm=FakeLLM(_good(d)))
+    out = run_agent(7, data=d, llm=FakeLLM(_good(d)))
     assert out["status"] == "완료"
     assert "조원" not in out["result"]["핵심진단"]  # 결과(JSON)에는 키만
     assert "%" in out["analysis"] and "[F" in out["analysis"]  # 렌더링에서 값으로 바뀜
@@ -65,7 +65,7 @@ def test_run_agent_repairs_once():
     bad = _good(d)
     bad["주장"][0]["문장"] = "분기 매출은 171조원이다."
     llm = FakeLLM(bad, _good(d))
-    out = run_agent(2, data=d, llm=llm)
+    out = run_agent(7, data=d, llm=llm)
     assert out["status"] == "완료 (수정 1회)"
     assert len(llm.calls) == 2 and "문제" in llm.calls[1][-1].content
 
@@ -74,7 +74,7 @@ def test_run_agent_removes_unverified_sentences_after_failed_repair():
     d = _a2()
     bad = _good(d)
     bad["주장"].append({"문장": "영업이익은 89조원이다.", "구분": "사실", "근거": ["F2"]})
-    out = run_agent(2, data=d, llm=FakeLLM(bad, bad))
+    out = run_agent(7, data=d, llm=FakeLLM(bad, bad))
     assert out["status"].endswith("(일부 문장 제외)")
     assert out["removed"] == ["영업이익은 89조원이다."]
     assert "89조원" not in out["analysis"]
@@ -82,13 +82,13 @@ def test_run_agent_removes_unverified_sentences_after_failed_repair():
 
 def test_run_agent_fallback_on_error_and_on_all_removed():
     d = _a2()
-    out = run_agent(2, data=d, llm=FakeLLM(TimeoutError("solar")))
+    out = run_agent(7, data=d, llm=FakeLLM(TimeoutError("solar")))
     assert out["status"] == "규칙 기반 대체 (LLM 호출 실패: TimeoutError)"
     groups = {d.facts.items[c["근거"][0]]["group"] for c in out["result"]["주장"]}
     assert {"TTM 실적", "밸류에이션", "분기 추세"} <= groups  # 판정이 없어도 그룹별 대표 숫자로 채움
-    d4 = build_agent_data(4, CO, _sent_bundle(), AS_OF)
+    d4 = build_agent_data(3, CO, _sent_bundle(), AS_OF)
     junk = {"핵심진단": "외국인 1,000주", "주장": [{"문장": "강도 3%", "구분": "사실", "근거": ["S1"]}], "자체점수": 5}
-    out = run_agent(4, data=d4, llm=FakeLLM(junk, junk))
+    out = run_agent(3, data=d4, llm=FakeLLM(junk, junk))
     assert out["status"] == "규칙 기반 대체"
     assert out["result"]["주장"] and all(c["근거"] for c in out["result"]["주장"])
     assert "외국인 1,000주" not in out["analysis"]
@@ -96,7 +96,7 @@ def test_run_agent_fallback_on_error_and_on_all_removed():
 
 def test_run_agent_guide_mode_adds_glossary():
     d = _a2()
-    out = run_agent(2, data=d, llm=FakeLLM(_good(d)), mode="guide")
+    out = run_agent(7, data=d, llm=FakeLLM(_good(d)), mode="guide")
     assert "**용어 풀이**" in out["analysis"] and "**PER**" in out["analysis"]
 
 
@@ -113,7 +113,7 @@ def test_extract_numbers_units():
 
 
 def test_check_numbers_verdicts():
-    datas = [_a2(), build_agent_data(4, CO, _sent_bundle(), AS_OF)]
+    datas = [_a2(), build_agent_data(3, CO, _sent_bundle(), AS_OF)]
     rows = {r["text"]: r for r in check_numbers(REPORT, datas)}
     assert rows["171.5조원"]["verdict"] == "일치"
     assert rows["130.0%"]["verdict"] == "일치"  # 171.50 / 74.57 − 1 = 130.0%
@@ -149,7 +149,7 @@ def test_parse_json_skips_braces_in_preamble():
 def test_extract_numbers_man_units_and_shares_match():
     nums = extract_numbers("외국인은 20일간 2,181만주 순매도, 주가 21.55만원")
     assert [(n["unit"], n["value"]) for n in nums] == [("만주", 21810000.0), ("만원", 215500.0)]
-    d4 = build_agent_data(4, CO, _sent_bundle(), AS_OF)  # 외국인 20일 = -20,000주
+    d4 = build_agent_data(3, CO, _sent_bundle(), AS_OF)  # 외국인 20일 = -20,000주
     rows = check_numbers("외국인 20일 순매수 수량은 -2만주였다.", [d4])
     assert rows[0]["verdict"] == "일치" and rows[0]["label"] == "외국인 20일 순매수 수량"
 
@@ -164,7 +164,7 @@ def test_guide_mode_self_questions_rendered_and_checked():
     d = _a2()
     out_json = _good(d)
     out_json["스스로질문"] = ["이익 증가가 일시적인가?", "PER 8배면 싼가?"]
-    out = run_agent(2, data=d, llm=FakeLLM(out_json, out_json), mode="guide")
+    out = run_agent(7, data=d, llm=FakeLLM(out_json, out_json), mode="guide")
     assert "스스로 확인해 볼 질문" in out["analysis"] and "PER 8배면 싼가?" in out["removed"]
 
 
@@ -176,8 +176,8 @@ def test_style_checks():
     def has(aid, prefix):
         return any(a == aid and m.startswith(prefix) for a, m in got)
 
-    assert has(2, "PER의 기준") and has(2, "비교 기준 없이")
-    assert has(1, "통계적 동조성을 원인") and has(4, "순매수 기록만으로") and has(0, "투자 권유 표현")
+    assert has(7, "PER의 기준") and has(7, "비교 기준 없이")
+    assert has(1, "통계적 동조성을 원인") and has(3, "순매수 기록만으로") and has(0, "투자 권유 표현")
     assert len([x for x in style_checks(rep) if x["sentence"].startswith("PER(TTM)")]) == 0
     out = review_report(rep, "005930", llm=FakeLLM(TimeoutError()), datas=[_a2()])
     assert "표현 점검" in out["reviews"][0]["analysis"] and "공통 표현 점검" in out["number_check_md"]
@@ -191,7 +191,7 @@ def test_normalize_bare_keys():
     out_json = _good(d)
     k = d.facts.key_of("PER(TTM 기준)")
     out_json["주장"][1]["문장"] = f"PER(TTM)은 {k}이다."
-    out = run_agent(2, data=d, llm=FakeLLM(out_json))
+    out = run_agent(7, data=d, llm=FakeLLM(out_json))
     assert out["status"] == "완료" and "8.36배" in out["analysis"]
 
 
@@ -199,12 +199,12 @@ def test_snapshot_roundtrip(tmp_path, monkeypatch):
     from ch_agents import db, evaluate
 
     monkeypatch.setattr(db, "company", lambda t: dict(CO))
-    monkeypatch.setattr(evaluate, "fetch_bundle", lambda a, co, as_of: {2: _fin_bundle(), 4: _sent_bundle()}[a])
-    path = evaluate.capture_snapshot("005930", str(tmp_path / "s.json"), as_of=AS_OF, agent_ids=(2, 4))
+    monkeypatch.setattr(evaluate, "fetch_bundle", lambda a, co, as_of: {7: _fin_bundle(), 3: _sent_bundle()}[a])
+    path = evaluate.capture_snapshot("005930", str(tmp_path / "s.json"), as_of=AS_OF, agent_ids=(7, 3))
     datas = evaluate.load_snapshot(path)
-    k = datas[2].facts.key_of("PER(TTM 기준)")
-    assert datas[2].facts.items[k]["value"] == 8.36 and set(datas) == {2, 4}
-    out = run_agent(2, data=datas[2], llm=FakeLLM(TimeoutError()))
+    k = datas[7].facts.key_of("PER(TTM 기준)")
+    assert datas[7].facts.items[k]["value"] == 8.36 and set(datas) == {7, 3}
+    out = run_agent(7, data=datas[7], llm=FakeLLM(TimeoutError()))
     assert out["status"].startswith("규칙 기반 대체 (LLM 호출 실패")
 
 
@@ -213,7 +213,7 @@ def test_run_agent_keeps_better_attempt():
     first = _good(d)
     first["주장"].append({"문장": "영업이익 89조원", "구분": "사실", "근거": ["F2"]})  # 문제 1건
     worse = {"핵심진단": "매출 171조원", "주장": [{"문장": "x 1%", "구분": "추정", "근거": []}], "자체점수": 0}
-    out = run_agent(2, data=d, llm=FakeLLM(first, worse))
+    out = run_agent(7, data=d, llm=FakeLLM(first, worse))
     assert out["status"] == "완료 (일부 문장 제외)"  # 첫 시도 채택 → '수정 1회' 아님
     assert out["removed"] == ["영업이익 89조원"]
 
@@ -239,7 +239,7 @@ def test_json_mode_falls_back_when_unsupported():
             return Bound(False)
 
     L._JSON_MODE["on"] = True
-    out = run_agent(2, data=_a2(), llm=Model(True))
+    out = run_agent(7, data=_a2(), llm=Model(True))
     assert out["status"] == "완료" and L._JSON_MODE["on"] is False
     L._JSON_MODE["on"] = True
 
@@ -248,8 +248,8 @@ def test_scorecard_reports_llm_errors(monkeypatch, tmp_path):
     from ch_agents import evaluate
 
     d = _a2()
-    monkeypatch.setattr(evaluate, "run_agent", lambda a, t, mode, llm: run_agent(2, data=d, llm=llm))
-    summary = evaluate.llm_scorecard(["005930"], agent_ids=(2,), llm=FakeLLM(ImportError("no langchain_upstage")),
+    monkeypatch.setattr(evaluate, "run_agent", lambda a, t, mode, llm: run_agent(7, data=d, llm=llm))
+    summary = evaluate.llm_scorecard(["005930"], agent_ids=(7,), llm=FakeLLM(ImportError("no langchain_upstage")),
                                      save_to=str(tmp_path / "e.json"))
     assert summary["llm_errors"] == {"ImportError: no langchain_upstage": 1}
 
@@ -306,5 +306,5 @@ def test_run_agent_passes_first_try_when_values_copied_exactly():
     out_json = _good(d)
     out_json["주장"][0]["문장"] = "분기 매출 증가율은 +130.00%이다."
     llm = FakeLLM(out_json)
-    out = run_agent(2, data=d, llm=llm)
+    out = run_agent(7, data=d, llm=llm)
     assert out["status"] == "완료" and len(llm.calls) == 1 and "+130.00%" in out["analysis"]

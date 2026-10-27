@@ -69,7 +69,7 @@ def test_claim_refs_link_key_without_placeholder():
 
 
 def _data():
-    return AgentData(4, "A4", {"name": "삼성전자", "ticker": "005930"}, "2026-10-26", _facts(), [], "기간")
+    return AgentData(3, "에이전트 3", {"name": "삼성전자", "ticker": "005930"}, "2026-10-26", _facts(), [], "기간")
 
 
 def test_pipeline_repairs_then_removes_direction_errors():
@@ -80,7 +80,7 @@ def test_pipeline_repairs_then_removes_direction_errors():
            "자체점수": 6}
     assert "방향" in check_output(bad, d)
     llm = FakeLLM(bad, bad)
-    out = run_agent(4, data=d, llm=llm)
+    out = run_agent(3, data=d, llm=llm)
     assert len(llm.calls) == 2 and "판정 방향 불일치" in llm.calls[1][-1].content  # 수정 요청에 이유 포함
     assert out["status"] == "완료 (수정 1회) (일부 문장 제외)"
     assert out["removed"] == ["코스피 대비 초과 손실은 {S1}로 제한적이다."]
@@ -89,7 +89,7 @@ def test_pipeline_repairs_then_removes_direction_errors():
 
 def test_fallback_claims_from_flags_pass_direction_check():
     d = _data()
-    out = run_agent(4, data=d, llm=FakeLLM(TimeoutError()))
+    out = run_agent(3, data=d, llm=FakeLLM(TimeoutError()))
     assert out["status"].startswith("규칙 기반 대체")
     for c in out["result"]["주장"]:
         assert direction_problems(c["문장"], d.facts, c["근거"]) == [], c

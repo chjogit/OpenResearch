@@ -11,7 +11,7 @@ from collections.abc import Iterable
 from itertools import pairwise
 from typing import Any
 
-KIND_LABEL = {"obs": "실측", "calc": "계산", "proxy": "대용치"}
+KIND_LABEL = {"report": "회사 공시", "obs": "실측", "calc": "계산", "proxy": "대용치"}
 
 
 def fmt(value: float | None, unit: str) -> str:
@@ -110,11 +110,13 @@ class Facts:
             lines += [f"- {g['label']}: {g['reason']}" for g in self.gaps]
         return "\n".join(lines)
 
-    def table_md(self) -> str:
+    def table_md(self, evidence: dict[str, str] | None = None) -> str:
+        """evidence: 장부 키 → 근거 ID (데이터 계약). 주면 첫 열에 'E03·M3' 처럼 함께 표시."""
         if not self.items:
             return "_인용 가능한 숫자가 없습니다._"
         rows = ["| 키 | 항목 | 값 | 기준일 | 구분 | 출처 |", "| --- | --- | --- | --- | --- | --- |"]
-        rows += [f"| {k} | {v['label']} | {v['text']} | {v['as_of'] or '-'} | {v['kind']} | {v['source']} |"
+        rows += [f"| {(evidence[k] + '·') if evidence and k in evidence else ''}{k} | {v['label']} | {v['text']} | "
+                 f"{v['as_of'] or '-'} | {v['kind']} | {v['source']} |"
                  for k, v in self.items.items() if v["unit"] != "doc"]
         return "\n".join(rows)
 

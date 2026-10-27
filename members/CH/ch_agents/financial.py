@@ -1,4 +1,4 @@
-"""A2 재무·밸류에이션·건전성.
+"""(이관 참고) 재무·밸류에이션·건전성.
 
 계산하는 것
 - TTM 실적·이익률·ROE·부채비율, PER(TTM)과 PER(연간 FY)을 서로 다른 키로 분리
@@ -18,7 +18,7 @@ from __future__ import annotations
 from itertools import pairwise
 
 from .facts import Facts, check_freshness, median, pct_change, percentile_rank
-from .macro import FINANCIAL_SECTORS, sector_of
+from .agent1_macro import FINANCIAL_SECTORS, sector_of
 
 SQL = """
 WITH pg AS (

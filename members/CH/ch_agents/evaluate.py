@@ -37,11 +37,11 @@ def data_scorecard(tickers: list[str] | None = None, agent_ids=MY_AGENTS, as_of:
             t0 = time.monotonic()
             try:
                 d = fetch_agent_data(a, t, as_of, co=co)
-                out.append({"ticker": t, "name": co["name"], "agent": f"A{a}", "facts": len(d.facts.items),
+                out.append({"ticker": t, "name": co["name"], "agent": f"에이전트 {a}", "facts": len(d.facts.items),
                             "gaps": len(d.facts.gaps), "flags": len(d.facts.flags),
                             "seconds": round(time.monotonic() - t0, 1), "error": ""})
             except Exception as e:  # noqa: BLE001
-                out.append({"ticker": t, "name": co["name"], "agent": f"A{a}", "error": f"{type(e).__name__}: {e}"})
+                out.append({"ticker": t, "name": co["name"], "agent": f"에이전트 {a}", "error": f"{type(e).__name__}: {e}"})
     return out
 
 
@@ -104,8 +104,8 @@ def cross_check(ticker: str, as_of: str | None = None) -> list[dict]:
     co = db.company(ticker)
     sql = db.q(SQL_XCHECK, {"cid": co["company_id"], "as_of": as_of})[0]
     a1 = fetch_agent_data(1, ticker, as_of, co=co).facts
-    a2 = fetch_agent_data(2, ticker, as_of, co=co).facts
-    a4 = fetch_agent_data(4, ticker, as_of, co=co).facts
+    a2 = fetch_agent_data(7, ticker, as_of, co=co).facts
+    a4 = fetch_agent_data(3, ticker, as_of, co=co).facts
 
     def val(f, label):
         k = f.key_of(label)
@@ -138,7 +138,7 @@ def capture_snapshot(ticker: str, path: str | None = None, as_of: str | None = N
 
 
 def load_snapshot(path: str) -> dict:
-    """저장한 스냅샷에서 관점별 AgentData 를 만듭니다: {1: AgentData, 2: ..., 4: ...}"""
+    """저장한 스냅샷에서 관점별 AgentData 를 만듭니다: {1: AgentData, 3: AgentData}"""
     snap = json.loads(Path(path).read_text(encoding="utf-8"))
     return {int(a): build_agent_data(int(a), snap["company"], b, snap["as_of"])
             for a, b in snap["bundles"].items() if int(a) in AGENTS}
