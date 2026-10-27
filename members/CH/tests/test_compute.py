@@ -273,7 +273,7 @@ def test_sentiment_docs_weighting_and_gaps():
     f = sentiment.compute(_sent_bundle(), CO, AS_OF)["facts"]
     assert f.items[f.key_of("뉴스 감성(최근 7일)")]["value"] == 0.5
     assert f.items[f.key_of("뉴스 감성 변화(최근 7일 − 직전 8~30일)")]["value"] == 0.5
-    assert any("뉴스 논조 개선" in x for x in f.flags)
+    assert any("이상 징후: 뉴스 논조 급격한 개선" in x for x in f.flags)  # 변화 0.5 ≥ 0.15
     labels = [g["label"] for g in f.gaps]
     assert "블로그 감성(최근 7일)" in labels  # 3건 < 최소 5건
     assert "주식대차 잔고(공매도 대용)" in labels

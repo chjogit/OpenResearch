@@ -26,10 +26,10 @@ SELECT json_build_object(
         ORDER BY f.trade_date DESC LIMIT 260) x),
     'price', (SELECT json_agg(json_build_object('d', trade_date, 'v', close) ORDER BY trade_date)
               FROM core.price_daily WHERE company_id = %(cid)s AND trade_date <= %(as_of)s::date
-                AND trade_date > %(as_of)s::date - INTERVAL '120 days'),
+                AND trade_date > %(as_of)s::date - INTERVAL '200 days'),
     'kospi', (SELECT json_agg(json_build_object('d', trade_date, 'v', close) ORDER BY trade_date)
               FROM core.market_index_daily WHERE symbol = '^KS11' AND trade_date <= %(as_of)s::date
-                AND trade_date > %(as_of)s::date - INTERVAL '120 days'),
+                AND trade_date > %(as_of)s::date - INTERVAL '200 days'),
     'vix', (SELECT json_agg(json_build_object('d', trade_date, 'v', close) ORDER BY trade_date)
             FROM core.market_index_daily WHERE symbol = '^VIX' AND trade_date <= %(as_of)s::date
               AND trade_date > %(as_of)s::date - INTERVAL '400 days'),
@@ -54,6 +54,11 @@ SRC_DOC = "rag.document × core.doc_sentiment (키워드 사전)"
 WHO = (("외국인", "fq"), ("기관", "iq"), ("개인", "pq"))
 MIN_DOCS = 5
 MIN_PRIOR_DOCS = 20
+DEFAULT_PERIOD = 20
+MAX_PERIOD = 120
+Z_ALERT = 2.0          # 최근 5일 순매수 강도가 직전 60일 분포에서 이만큼 벗어나면 '집중 매매'
+SENT_JUMP = 0.15       # 감성 점수 변화가 이 이상이면 '논조 급변'
+LEND_JUMP = 20.0       # 대차잔고 20일 변화율(%)이 이 이상이면 '대차잔고 급증'
 
 
 def params(co: dict, as_of: str) -> dict:
@@ -66,8 +71,26 @@ def _days_back(day: str, n: int) -> str:
     return (date.fromisoformat(day) - timedelta(days=n)).isoformat()
 
 
-def compute(b: dict, co: dict, as_of: str) -> dict:
+def _intensity_z(rows: list[dict], col: str) -> tuple[float, float, int] | None:
+    """최근 5거래일 평균 순매수 강도(거래대금 대비 %)와, 직전 60거래일 분포 대비 표준점수."""
+    daily = [(r[col] or 0) * r["close"] / r["tv"] * 100 for r in rows[:65] if r.get("close") and r.get("tv")]
+    if len(daily) < 65:
+        return None
+    recent, base = daily[:5], daily[5:65]
+    mu = sum(base) / len(base)
+    sd = (sum((x - mu) ** 2 for x in base) / (len(base) - 1)) ** 0.5
+    m5 = sum(recent) / 5
+    if not sd:
+        return None
+    return m5, (m5 - mu) / (sd / 5 ** 0.5), len(base)
+
+
+def compute(b: dict, co: dict, as_of: str, period: int | None = None, **_) -> dict:
+    """period: 사용자가 정한 관찰 기간(거래일). 기본 20일. 5·20·60일은 항상 계산하고 period 를 더합니다."""
     f = Facts("S")
+    P = max(5, min(int(period or DEFAULT_PERIOD), MAX_PERIOD))
+    windows = sorted({5, 20, 60, P})
+    anomalies: list[str] = []
     rows = b.get("flows") or []  # 최신순
     for r in rows:
         r["d"] = str(r["d"])[:10]
@@ -82,20 +105,36 @@ def compute(b: dict, co: dict, as_of: str) -> dict:
         check_freshness(f, "투자자별 수급", rows[0]["d"], as_of, 5)
         d0 = rows[0]["d"]
         for who, col in WHO:
-            for n in (5, 20, 60):
+            for n in windows:
                 if len(rows) < n:
                     continue
                 win = rows[:n]
                 f.add(f"{who} {n}일 순매수 수량", sum(r[col] or 0 for r in win), "주", d0, SRC_FLOW, kind="calc", group=g)
-                if n == 20 and all(r.get("close") for r in win):
+                if n in (20, P) and all(r.get("close") for r in win):
                     amt = sum((r[col] or 0) * r["close"] for r in win)
-                    f.add(f"{who} 20일 순매수 금액(근사)", amt, "KRW±", d0, SRC_FLOW + " × 종가", kind="proxy", group=g,
+                    f.add(f"{who} {n}일 순매수 금액(근사)", amt, "KRW±", d0, SRC_FLOW + " × 종가", kind="proxy", group=g,
                           note="일별 순매수 수량 × 종가")
                     tv = sum(r["tv"] or 0 for r in win)
                     if tv and all(r.get("tv") for r in win):
-                        f.add(f"{who} 20일 순매수 강도(거래대금 대비)", amt / tv * 100, "%", d0,
+                        f.add(f"{who} {n}일 순매수 강도(거래대금 대비)", amt / tv * 100, "%", d0,
                               SRC_FLOW + " × core.price_daily", kind="proxy", group=g,
                               note="순매수 금액 근사 ÷ 같은 기간 거래대금. 종목 간 비교용")
+            if who != "개인":  # 이상 징후: 집중 매매
+                z = _intensity_z(rows, col)
+                if z:
+                    m5, zz, nb = z
+                    k5 = f.add(f"{who} 최근 5일 순매수 강도 평균(거래대금 대비)", m5, "%", d0,
+                               SRC_FLOW + " × core.price_daily", kind="proxy", group=g)
+                    kz = f.add(f"{who} 최근 5일 강도의 직전 60일 대비 표준점수", zz, "coef", d0,
+                               SRC_FLOW + " × core.price_daily", kind="calc", group=g,
+                               note=f"직전 {nb}거래일 일별 강도의 평균·표준편차 기준. 절댓값 {Z_ALERT:g} 이상이면 이례적")
+                    if k5 and kz and abs(zz) >= Z_ALERT:
+                        text = (f"이상 징후: {who} 집중 순{'매수' if zz > 0 else '매도'} "
+                                f"(최근 5일 강도 {{{k5}}}, 표준점수 {{{kz}}})")
+                        f.flag(text)
+                        anomalies.append(text)
+                else:
+                    f.gap(f"{who} 집중 매매 점검", "강도 계산에 필요한 65거래일 미만")
             s = streak([r[col] for r in rows])
             if s:
                 k = f.add(f"{who} 연속 순{'매수' if s > 0 else '매도'} 일수", abs(s), "일", d0, SRC_FLOW, kind="calc",
@@ -130,7 +169,7 @@ def compute(b: dict, co: dict, as_of: str) -> dict:
     px = series_points(b.get("price"))
     ks = series_points(b.get("kospi"))
     ret = {}
-    for n in (20, 60):
+    for n in sorted({20, 60, P}):
         if len(px) > n:
             ret[n] = (px[-1][1] / px[-1 - n][1] - 1) * 100
             f.add(f"{n}일 주가 수익률", ret[n], "%chg", px[-1][0], "core.price_daily", kind="calc", group=g)
@@ -188,7 +227,11 @@ def compute(b: dict, co: dict, as_of: str) -> dict:
                 ps = sum(n * s for n, s, _ in part["prior"]) / pn
                 kd = f.add(f"{name} 감성 변화(최근 7일 − 직전 8~30일)", rs - ps, "score", as_of, SRC_DOC, kind="calc",
                            group=g)
-                if kd and abs(rs - ps) >= 0.1:
+                if kd and abs(rs - ps) >= SENT_JUMP:
+                    text = f"이상 징후: {name} 논조 급격한 {'개선' if rs > ps else '악화'} ({{{kd}}})"
+                    f.flag(text)
+                    anomalies.append(text)
+                elif kd and abs(rs - ps) >= 0.1:
                     f.flag(f"{name} 논조 {'개선' if rs > ps else '악화'} ({{{kd}}})")
             else:
                 f.gap(f"{name} 감성 변화", f"직전 기간 문서 {pn}건·{days_prior}일뿐 (수집 기간 짧음)")
@@ -210,7 +253,9 @@ def compute(b: dict, co: dict, as_of: str) -> dict:
         f.add("검색 관심도 1년 내 위치(최근 7일 평균)", percentile_rank([v for _, v in sr], sum(last7) / 7), "pctile",
               sr[-1][0], "core.search_trend (네이버 데이터랩)", kind="calc", group=g)
         if k_s and avg90 and (sum(last7) / 7) / avg90 >= 2:
-            f.flag(f"검색 관심 급증 ({{{k_s}}})")
+            text = f"이상 징후: 검색 관심 급증 ({{{k_s}}})"
+            f.flag(text)
+            anomalies.append(text)
     else:
         f.gap("검색 관심도", "관측 97일 미만")
 
@@ -218,9 +263,41 @@ def compute(b: dict, co: dict, as_of: str) -> dict:
     lend = series_points(b.get("lending"))
     if len(lend) >= 20:
         f.add("대차잔고(주식 수)", lend[-1][1], "주수", lend[-1][0], "core.stock_lending_daily", group="수급")
-        f.add("대차잔고 20일 변화율", pct_change(lend[-1][1], lend[-20][1]), "%chg", lend[-1][0],
-              "core.stock_lending_daily", kind="calc", group="수급", note="공매도 선행 지표로 쓰는 대용치")
+        chg = pct_change(lend[-1][1], lend[-20][1])
+        k_l = f.add("대차잔고 20일 변화율", chg, "%chg", lend[-1][0],
+                    "core.stock_lending_daily", kind="calc", group="수급", note="공매도 선행 지표로 쓰는 대용치")
+        if k_l and chg is not None and chg >= LEND_JUMP:
+            text = f"이상 징후: 대차잔고 급증 ({{{k_l}}})"
+            f.flag(text)
+            anomalies.append(text)
     else:
         f.gap("주식대차 잔고(공매도 대용)", "core.stock_lending_daily 20일 미만 (금융위 서버 접속 문제로 수집 지연)")
     f.note("근거 계열: 수급 / 논조 / 관심 / 가격·시장. 같은 계열 안의 지표는 하나의 근거로 센다.")
-    return {"facts": f, "docs": [], "period": period}
+    if P not in (5, 20, 60):
+        f.note(f"사용자 관찰 기간: {P}거래일")
+    return {"facts": f, "docs": [], "period": period, "anomalies": anomalies, "summary": summary_rows(f, P),
+            "obs_period": P}
+
+
+SUMMARY = (  # (계열, 장부 항목 이름 틀) — 기간 P 는 사용자 입력
+    ("수급", "외국인 {P}일 순매수 수량"), ("수급", "외국인 {P}일 순매수 강도(거래대금 대비)"),
+    ("수급", "기관 {P}일 순매수 수량"), ("수급", "개인 {P}일 순매수 수량"),
+    ("수급", "외국인 지분율 20일 변화"), ("수급", "대차잔고 20일 변화율"),
+    ("논조", "뉴스 감성(최근 7일)"), ("논조", "뉴스 감성 변화(최근 7일 − 직전 8~30일)"),
+    ("논조", "블로그 감성(최근 7일)"), ("논조", "카페 감성(최근 7일)"),
+    ("관심", "검색 관심도 배율(최근 7일 ÷ 직전 90일)"),
+    ("가격·시장", "{P}일 주가 수익률"), ("가격·시장", "{P}일 코스피 대비 초과 수익률"),
+    ("가격·시장", "VIX(미국 시장 변동성 지수)"),
+)
+
+
+def summary_rows(f: Facts, P: int) -> list[dict]:
+    """심리·수급 요약표의 행 (코드가 만든 표, LLM 무관). 판정은 그 키가 들어간 코드 판정 문장."""
+    out = []
+    for group, label in SUMMARY:
+        k = f.key_of(label.format(P=P))
+        if not k:
+            continue
+        verdict = next((fl for fl in f.flags if "{" + k + "}" in fl), "")
+        out.append({"group": group, "key": k, "label": f.items[k]["label"], "verdict": verdict})
+    return out

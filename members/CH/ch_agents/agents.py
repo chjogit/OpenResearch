@@ -6,7 +6,7 @@ from datetime import datetime, timedelta, timezone
 from types import ModuleType
 from typing import Any
 
-from . import db, financial, macro, rag, sentiment
+from . import db, financial, macro, quality, rag, sentiment
 from .facts import Facts
 
 KST = timezone(timedelta(hours=9))
@@ -111,13 +111,26 @@ def fetch_bundle(agent_id: int, co: dict, as_of: str, use_rag: bool = True) -> d
             out["rag"] = rag.fetch(agent_id, co, as_of)
         except Exception as e:  # noqa: BLE001  문서 검색이 실패해도 숫자 분석은 진행
             out["rag"] = {"error": f"{type(e).__name__}: {e}"}
+    if agent_id in quality.SOURCES:
+        try:
+            out["quality"] = db.q(quality.SQL)
+        except Exception:  # noqa: BLE001  품질 표가 없거나 권한이 없으면 품질 점검만 건너뜀
+            out["quality"] = None
     return out
 
 
-def build_agent_data(agent_id: int, co: dict, bundle: dict, as_of: str) -> AgentData:
+def build_agent_data(agent_id: int, co: dict, bundle: dict, as_of: str, opts: dict | None = None) -> AgentData:
+    """opts: 사용자 입력. A1 은 focus(관심 거시 변수 목록), A4 는 period(기간, 거래일 수)."""
     spec = AGENTS[agent_id]
-    out = spec.module.compute(bundle, co, as_of)
+    opts = {k: v for k, v in (opts or {}).items() if v not in (None, [], "")}
+    out = spec.module.compute(bundle, co, as_of, **opts) if opts else spec.module.compute(bundle, co, as_of)
     extra = {k: v for k, v in out.items() if k not in ("facts", "docs", "period")}
+    extra["opts"] = opts
+    warn = quality.check(agent_id, bundle.get("quality"))
+    if warn:
+        extra["quality"] = warn
+        for w in warn:
+            out["facts"].note(f"데이터 품질 주의 · {w['name']}: {w['reason']}")
     docs = out["docs"]
     raw = bundle.get("rag")
     if raw is not None and agent_id in rag.PRESETS:
@@ -128,7 +141,10 @@ def build_agent_data(agent_id: int, co: dict, bundle: dict, as_of: str) -> Agent
     return AgentData(agent_id, spec.name, co, as_of, out["facts"], docs, out["period"], extra)
 
 
-def fetch_agent_data(agent_id: int, ticker: str, as_of: str | None = None, co: dict | None = None) -> AgentData:
+def fetch_agent_data(agent_id: int, ticker: str, as_of: str | None = None, co: dict | None = None,
+                     focus: list[str] | None = None, period: int | None = None) -> AgentData:
+    """focus: A1 관심 거시 변수(예: ["환율", "금리"]), period: A4 기간(거래일, 예: 20)."""
     as_of = normalize_as_of(as_of)
     co = co or db.company(ticker)
-    return build_agent_data(agent_id, co, fetch_bundle(agent_id, co, as_of), as_of)
+    opts = {"focus": focus} if agent_id == 1 else {"period": period} if agent_id == 4 else {}
+    return build_agent_data(agent_id, co, fetch_bundle(agent_id, co, as_of), as_of, opts)

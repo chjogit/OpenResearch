@@ -12,7 +12,10 @@ import time
 from typing import Any
 
 from .agents import AGENTS, MY_AGENTS, AgentData, fetch_agent_data
+from . import exposure as exposure_mod
+from . import verify as verifier
 from .glossary import terms_for
+from .prompts import mode_guide
 from .rag import PROMPT_RULE as RAG_RULE
 from .rag import docs_for_prompt, docs_markdown
 from .semantic import direction_problems, flag_directions
@@ -112,7 +115,8 @@ def build_messages(data: AgentData, mode: str = "expert") -> tuple[str, str]:
 [반드시 다룰 점검 항목]
 """ + "\n".join(f"- {c}" for c in spec.checklist) + f"""
 
-[출력 모드] {MODE_GUIDE[mode]}
+[출력 모드]
+{mode_guide(mode, data.agent_id)}
 
 {OUTPUT_SCHEMA}
 
@@ -120,7 +124,14 @@ def build_messages(data: AgentData, mode: str = "expert") -> tuple[str, str]:
     docs = docs_for_prompt(data.docs)
     flags = "\n".join(f"- {x}" for x in f.flags) or "- (없음)"
     notes = "\n".join(f"- {x}" for x in f.notes) or "- (없음)"
+    opts = data.extra.get("opts") or {}
+    asked = []
+    if opts.get("focus"):
+        asked.append("관심 거시 변수: " + ", ".join(opts["focus"]))
+    if opts.get("period"):
+        asked.append(f"관찰 기간: {data.extra.get('obs_period', opts['period'])}거래일")
     user = f"""[대상] {data.company['name']} ({data.company['ticker']}) · 기준일 {data.as_of}
+[사용자 입력] {' / '.join(asked) or '없음'}
 [관측 기간] {data.period}
 
 [숫자 장부] (값을 쓰려면 키를 중괄호로)
@@ -394,14 +405,39 @@ def render(text: Any, data: AgentData) -> str:
 DUP_UNIT = re.compile(r"(\*\*[^*]*?(개|일|배|원|주|%p|%)\*\*`\[[A-Z]\d+\]`)\2")
 
 
+def _tables(data: AgentData) -> list[str]:
+    """코드가 만든 표 (LLM 무관): A1 노출 점검표, A4 이상 징후·심리·수급 요약표."""
+    r = lambda t: render(t, data)
+    out: list[str] = []
+    rows = data.extra.get("exposure")
+    if rows:
+        out += ["", "**노출 점검표 (규칙 기반: 업종 기본값 → 통계 근거 → 재무 구조)**", "",
+                exposure_mod.table_md(rows, r)]
+    if data.agent_id == 4:
+        an = data.extra.get("anomalies") or []
+        out += ["", "**이상 징후**", ""] + ([f"- {r(x)}" for x in an] or ["- 없음 (코드 기준에 걸린 항목 없음)"])
+    summary = data.extra.get("summary")
+    if summary:
+        P = data.extra.get("obs_period")
+        out += ["", f"**심리·수급 요약표 (관찰 기간 {P}거래일)**", "", "| 계열 | 지표 | 값 | 코드 판정 |",
+                "| --- | --- | --- | --- |"]
+        for s in summary:
+            out.append(f"| {s['group']} | {s['label']} | {r('{' + s['key'] + '}')} | {r(s['verdict']) or '-'} |")
+    return out
+
+
 def to_markdown(data: AgentData, result: dict, status: str, checks: dict, removed: list[str],
-                mode: str = "expert") -> str:
+                mode: str = "expert", vlog: list[dict] | None = None) -> str:
     r = lambda t: render(t, data)
     f = data.facts
     out = [f"- **상태**: {status}", f"- **관측 기간**: {data.period}",
-           f"- **핵심 진단**: {r(result.get('핵심진단', ''))}", "", "**주장과 근거**", ""]
+           f"- **핵심 진단**: {r(result.get('핵심진단', ''))}"]
+    out += _tables(data)
+    out += ["", "**주장과 근거**", ""]
     for c in result.get("주장", []):
-        out.append(f"- [{c.get('구분')}] {r(c.get('문장', ''))} (근거: {', '.join(c.get('근거') or []) or '-'})")
+        tag = " ".join(f"[출처: {s}]" for s in c.get("출처") or [])
+        out.append(f"- [{c.get('구분')}] {r(c.get('문장', ''))} (근거: {', '.join(c.get('근거') or []) or '-'})"
+                   + (f" {tag}" if tag else ""))
     for title, key in (("긍정 요인", "긍정요인"), ("리스크 요인", "리스크요인"), ("미확인", "미확인"),
                        ("다음 점검", "다음점검"), ("스스로 확인해 볼 질문", "스스로질문")):
         items = result.get(key) or []
@@ -426,16 +462,26 @@ def to_markdown(data: AgentData, result: dict, status: str, checks: dict, remove
         out += ["", "**코드 검사 기록**: " + "; ".join(f"{k} {len(v)}건" for k, v in checks.items())]
     if removed:
         out += [f"- 검증되지 않아 최종 출력에서 뺀 문장 {len(removed)}개"]
+    if vlog is not None:
+        n_ok = sum(1 for v in vlog if v.get("ok"))
+        bad = [v for v in vlog if not v.get("ok")]
+        out += [f"- **Verifier (fact_source_verifier)**: 문장 {len(vlog)}개 수치 대조, 통과 {n_ok}개"
+                + (f", 불일치 {len(bad)}개 제외 ({'; '.join(', '.join(v['unmatched']) for v in bad)[:120]})" if bad else "")]
+    q = data.extra.get("quality")
+    if q:
+        out += ["", "**데이터 품질 주의**", ""] + [f"- {w['name']} ({w['api']}): {w['reason']}" for w in q]
     return "\n".join(out)
 
 
 # ---------------------------------------------------------------- 실행
 
 def run_agent(agent_id: int, ticker: str | None = None, mode: str = "expert", llm=None,
-              data: AgentData | None = None, as_of: str | None = None, max_repair: int = 1) -> dict:
-    """에이전트 하나를 실행해 팀 공통 출력 계약 dict 를 돌려줍니다."""
+              data: AgentData | None = None, as_of: str | None = None, max_repair: int = 1,
+              focus: list[str] | None = None, period: int | None = None) -> dict:
+    """에이전트 하나를 실행해 팀 공통 출력 계약 dict 를 돌려줍니다.
+    focus: A1 관심 거시 변수(예: ["환율", "금리"]), period: A4 관찰 기간(거래일). data 를 넘기면 무시됩니다."""
     if data is None:
-        data = fetch_agent_data(agent_id, ticker, as_of)
+        data = fetch_agent_data(agent_id, ticker, as_of, focus=focus, period=period)
     system, user = build_messages(data, mode)
     attempts: list[dict] = []
     result, checks, status, best_at, best_n = None, {}, "실패", -1, None
@@ -463,18 +509,23 @@ def run_agent(agent_id: int, ticker: str | None = None, mode: str = "expert", ll
     except Exception as e:  # noqa: BLE001  호출 실패도 결과로 남김
         attempts.append({"error": f"{type(e).__name__}: {e}"})
     removed: list[str] = []
+    vlog: list[dict] = []
     if result is None:
         err = next((a["error"] for a in attempts if "error" in a), None)
-        result = fallback_result(data)
+        result, vlog, _ = verifier.apply(fallback_result(data), data)
         status = "규칙 기반 대체" + (f" (LLM 호출 실패: {err.split(':')[0]})" if err else " (JSON 형식 아님)")
     else:
         result, removed = sanitize(result, data)
+        if result["주장"]:  # 두 번째 관문: 팀 공용 fact_source_verifier 로 수치 1:1 대조 + 출처 태그
+            result, vlog, vremoved = verifier.apply(result, data)
+            removed += vremoved
         if not result["주장"]:
-            result, status = fallback_result(data), "규칙 기반 대체"
+            result, vlog, _ = verifier.apply(fallback_result(data), data)
+            status = "규칙 기반 대체"
         else:
             checks = attempts[best_at]["checks"]
             status = "완료" + (" (수정 1회)" if best_at > 0 else "") + (" (일부 문장 제외)" if removed else "")
-    md = to_markdown(data, result, status, checks, removed, mode)
+    md = to_markdown(data, result, status, checks, removed, mode, vlog)
     facts = data.facts
     return {
         "agent_id": agent_id, "agent_name": data.name, "status": status, "period": data.period,
@@ -483,14 +534,18 @@ def run_agent(agent_id: int, ticker: str | None = None, mode: str = "expert", ll
         "analysis": md,
         "source": "Neon " + ", ".join(sorted({v["source"].split(" (")[0] for v in facts.items.values()}
                                              | ({"rag.document·core.disclosure"} if data.docs else set()))),
-        "docs": data.docs,
+        "docs": data.docs, "verification": vlog,
+        "exposure": data.extra.get("exposure"), "anomalies": data.extra.get("anomalies"),
+        "quality": data.extra.get("quality"),
     }
 
 
 def run_my_agents(ticker: str, mode: str = "expert", agent_ids=MY_AGENTS, as_of: str | None = None,
-                  llm=None) -> list[dict]:
-    """CH 담당 관점을 한 번에 실행해 오케스트레이터에 넘길 리스트를 돌려줍니다."""
+                  llm=None, focus: list[str] | None = None, period: int | None = None) -> list[dict]:
+    """CH 담당 관점을 한 번에 실행해 오케스트레이터에 넘길 리스트를 돌려줍니다.
+    focus: A1 관심 거시 변수(예: ["환율", "금리"]), period: A4 관찰 기간(거래일)."""
     from . import db
 
     co = db.company(ticker)
-    return [run_agent(a, mode=mode, llm=llm, data=fetch_agent_data(a, ticker, as_of, co=co)) for a in agent_ids]
+    return [run_agent(a, mode=mode, llm=llm, data=fetch_agent_data(a, ticker, as_of, co=co, focus=focus, period=period))
+            for a in agent_ids]
