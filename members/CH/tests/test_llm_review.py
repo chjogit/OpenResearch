@@ -1,6 +1,14 @@
 """LLM 계층·첨삭 모드 테스트 (가짜 LLM 사용)."""
 from ch_agents.agents import build_agent_data
-from ch_agents.llm import check_output, normalize_keys, parse_json, render, run_agent
+from ch_agents.llm import (
+    auto_keys,
+    check_output,
+    normalize_keys,
+    parse_json,
+    render,
+    run_agent,
+    sentence_problems,
+)
 from ch_agents.review import check_numbers, extract_numbers, review_report, style_checks
 from conftest import AS_OF, CO, FakeLLM
 from test_compute import _fin_bundle, _sent_bundle
@@ -263,3 +271,40 @@ def test_normalize_as_of():
     assert len(normalize_as_of(None)) == 10
     with pytest.raises(ValueError, match="따옴표"):
         normalize_as_of(2026 - 10 - 26)  # 따옴표 없이 쓴 경우 = 1990
+
+
+def test_checker_false_positives_from_first_solar_eval():
+    """10/27 첫 성적표에서 멀쩡한 문장이 빠진 사례들."""
+    d = _a2()
+    valid = set(d.facts.items)
+    from ch_agents.llm import label_terms
+    allowed = label_terms(d)
+    k52 = d.facts.key_of("52주 고점 대비")
+    ok = [f"52주 고점 대비 {{{k52}}}로 가격 변동 폭이 크다.",
+          "FY2025 주주환원 공시 및 배당·자사주 취득 내역",
+          "외국인과 기관이 20·60일 모두 순매도하고 개인만 순매수했다."]
+    for t in ok:
+        assert sentence_problems(t, valid, allowed) == [], t
+    assert sentence_problems("지금 매수하세요.", valid, allowed)
+    assert sentence_problems("외국인 지분율은 46.11%다.", valid, allowed)
+
+
+def test_auto_keys_replaces_exact_ledger_values_only():
+    d = _a2()
+    k_per = d.facts.key_of("PER(TTM 기준)")
+    k_rev = d.facts.key_of("2026년 2분기 매출 전년 동기 대비")
+    res = {"핵심진단": "PER 8.36배, 매출 +130.00%, 다른 값 8.37배, 18.36배",
+           "주장": [{"문장": "TTM PER 8.36배", "구분": "사실", "근거": ["8.36배"]}]}
+    out = auto_keys(res, d)
+    assert out["핵심진단"].startswith(f"PER {{{k_per}}}, 매출 {{{k_rev}}}")
+    assert "8.37배" in out["핵심진단"] and "18.36배" in out["핵심진단"]  # 장부와 다른 값은 그대로 → 검사에서 걸림
+    assert out["주장"][0]["근거"] == ["8.36배"]  # 근거 목록은 건드리지 않음
+
+
+def test_run_agent_passes_first_try_when_values_copied_exactly():
+    d = _a2()
+    out_json = _good(d)
+    out_json["주장"][0]["문장"] = "분기 매출 증가율은 +130.00%이다."
+    llm = FakeLLM(out_json)
+    out = run_agent(2, data=d, llm=llm)
+    assert out["status"] == "완료" and len(llm.calls) == 1 and "+130.00%" in out["analysis"]
