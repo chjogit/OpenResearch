@@ -12,6 +12,8 @@ import time
 
 from .agents import AGENTS, AgentData, fetch_agent_data
 from .facts import fmt
+from .rag import PROMPT_RULE as RAG_RULE
+from .rag import docs_for_prompt, docs_markdown
 from .llm import (
     BANNED,
     PLACEHOLDER,
@@ -166,7 +168,8 @@ def _review_messages(data: AgentData, report: str, rows: list[dict], mode: str) 
 [원칙]
 1. 숫자는 직접 쓰지 말고 [숫자 장부]의 키를 중괄호로 쓰십시오. 보고서 숫자의 맞고 틀림은 [코드 수치 대조]만 따르십시오.
 2. '매수 추천', '매도 추천', '목표주가' 표현은 금지합니다.
-3. 당신 관점의 점검 항목 중 보고서가 빠뜨린 것을 찾으십시오:
+3. """ + RAG_RULE + """
+4. 당신 관점의 점검 항목 중 보고서가 빠뜨린 것을 찾으십시오:
 """ + "\n".join(f"   - {c}" for c in spec.checklist) + f"""
 
 [출력 모드] {guide}
@@ -184,12 +187,15 @@ def _review_messages(data: AgentData, report: str, rows: list[dict], mode: str) 
 {data.facts.for_prompt()}
 
 [코드 판정]
-""" + ("\n".join(f"- {x}" for x in data.facts.flags) or "- (없음)")
+""" + ("\n".join(f"- {x}" for x in data.facts.flags) or "- (없음)") + f"""
+
+[참고 문서] (DB에서 이 관점으로 검색한 공시·뉴스. 보고서가 놓친 사건이 있는지 확인용, 근거 키로 D번호 사용)
+{docs_for_prompt(data.docs)}"""
     return system, user
 
 
 def _sanitize_review(res: dict, data: AgentData) -> tuple[dict, list[str]]:
-    valid, allowed = set(data.facts.items), label_terms(data)
+    valid, allowed = set(data.facts.items) | {f"D{i + 1}" for i in range(len(data.docs))}, label_terms(data)
     removed: list[str] = []
     out = {"빠진논점": [], "수정제안": [], "잘한점": [], "완성도점수": None, "점수이유": str(res.get("점수이유", ""))}
     for it in res.get("빠진논점") or []:
@@ -243,6 +249,10 @@ def review_md(data: AgentData, res: dict, rows: list[dict], status: str, removed
         out += ["", "**잘한 점**", ""] + [f"- {r(x)}" for x in res["잘한점"]]
     s = res["완성도점수"]
     out += ["", f"**④ 관점별 완성도**: {s if s is not None else '-'} / 10 · {r(res['점수이유'])}"]
+    used = {k for x in res["빠진논점"] + res["수정제안"] for k in x.get("근거") or [] if k.startswith("D")}
+    if used:
+        out += ["", "**인용한 참고 문서**", ""] + [ln for i, ln in enumerate(docs_markdown(data.docs))
+                                                 if f"D{i + 1}" in used]
     if removed:
         out += [f"- 검증되지 않아 뺀 문장 {len(removed)}개"]
     return "\n".join(out)
@@ -267,7 +277,8 @@ def review_report(report: str, ticker: str, mode: str = "expert", agent_ids=(1, 
             parsed = parse_json(invoke(llm or get_llm(), [SystemMessage(content=system),
                                                           HumanMessage(content=user)]).content)
             if parsed is not None:
-                res, removed = _sanitize_review(auto_keys(normalize_keys(parsed, set(data.facts.items)), data), data)
+                valid = set(data.facts.items) | {f"D{i + 1}" for i in range(len(data.docs))}
+                res, removed = _sanitize_review(auto_keys(normalize_keys(parsed, valid), data), data)
                 status = "완료" + (" (일부 문장 제외)" if removed else "")
         except Exception as e:  # noqa: BLE001
             status = f"실패: {type(e).__name__}"

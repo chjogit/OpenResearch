@@ -13,6 +13,8 @@ from typing import Any
 
 from .agents import AGENTS, AgentData, fetch_agent_data
 from .glossary import terms_for
+from .rag import PROMPT_RULE as RAG_RULE
+from .rag import docs_for_prompt, docs_markdown
 from .semantic import direction_problems, flag_directions
 
 MODEL = os.getenv("UPSTAGE_MODEL_NAME", "solar-pro4")
@@ -28,7 +30,8 @@ COMMON_RULES = """[절대 준수 원칙]
 6. [코드 판정]은 규칙으로 계산된 결과입니다. 판정의 강도·방향 표현(뚜렷한/약한, 상회/하회, 가속/둔화, 개선/악화)을
    바꾸지 말고 그대로 쓰십시오. 판정과 반대되는 주장을 하려면 근거 키를 대십시오.
 7. 키 뒤에 단위나 수량 단어를 다시 붙이지 마십시오. 값에 이미 단위가 있습니다. 예: "{F18}개 분기"(X) → "{F18}"(O)
-8. 항목 설명(※)에 '아님'으로 적힌 해석은 하지 마십시오. 예: 외국인 순매수일 평균 가격은 실제 매입 단가가 아닙니다."""
+8. 항목 설명(※)에 '아님'으로 적힌 해석은 하지 마십시오. 예: 외국인 순매수일 평균 가격은 실제 매입 단가가 아닙니다.
+9. """ + RAG_RULE
 
 OUTPUT_SCHEMA = """반드시 아래 JSON 하나만 출력하십시오 (설명·코드블록 없이):
 {
@@ -61,7 +64,7 @@ PLACEHOLDER = re.compile(r"\{([A-Z]\d+)\}")
 KEY = re.compile(r"^[A-Z]\d+$")
 # 숫자와 단위가 붙어 있을 때만 '숫자'로 봄 ('2025 주주환원' 같은 띄어쓴 표현은 제외)
 LOOSE_NUMBER = re.compile(r"[-+]?\d[\d,]*(?:\.\d+)?(?:%p|%|원|배|조|억|달러|bp|주|백분위)")
-BANNED = ("매수 추천", "매도 추천", "목표주가", "비중 확대", "비중 축소")
+BANNED = ("매수 추천", "매도 추천", "목표주가", "목표가", "비중 확대", "비중 축소")
 # 투자 권유 문형만 금지 ('순매도하고' 같은 서술은 허용)
 BANNED_RE = re.compile(r"(?<!순)(매수|매도)\s*(하세요|하십시오|하시길|를\s*권|를\s*추천|할\s*것을\s*권|가\s*바람직)")
 COMMON_TERMS = {"52주"}  # 숫자가 들어 있지만 값이 아닌 용어
@@ -114,7 +117,7 @@ def build_messages(data: AgentData, mode: str = "expert") -> tuple[str, str]:
 {OUTPUT_SCHEMA}
 
 {EXAMPLE}"""
-    docs = "\n".join(f"- D{i + 1}: {d['published']} {d['title']}" for i, d in enumerate(data.docs)) or "- (없음)"
+    docs = docs_for_prompt(data.docs)
     flags = "\n".join(f"- {x}" for x in f.flags) or "- (없음)"
     notes = "\n".join(f"- {x}" for x in f.notes) or "- (없음)"
     user = f"""[대상] {data.company['name']} ({data.company['ticker']}) · 기준일 {data.as_of}
@@ -129,7 +132,7 @@ def build_messages(data: AgentData, mode: str = "expert") -> tuple[str, str]:
 [해석 가이드] (숫자 없음)
 {notes}
 
-[참고 뉴스 제목] (정성 근거, 근거 키로 D번호 사용 가능)
+[참고 문서] (DB에서 이 관점으로 검색한 공시·뉴스·여론. 정성 근거, 근거 키로 D번호 사용)
 {docs}"""
     return system, user
 
@@ -199,6 +202,11 @@ def normalize_keys(obj, valid: set[str]):
 
 def _valid_keys(data: AgentData) -> set[str]:
     return set(data.facts.items) | {f"D{i + 1}" for i in range(len(data.docs))}
+
+
+def _opinion_keys(data: AgentData) -> set[str]:
+    """개인 의견(블로그·카페·댓글) 문서의 D키. 이것만으로는 '사실' 주장의 근거가 될 수 없습니다."""
+    return {f"D{i + 1}" for i, d in enumerate(data.docs) if "개인 의견" in str(d.get("kind", ""))}
 
 
 def _texts(result: dict) -> list[str]:
@@ -284,6 +292,7 @@ def check_output(result: dict, data: AgentData) -> dict[str, list[str]]:
         for t in [vals] if isinstance(vals, str) else vals:
             for p in direction_problems(str(t), data.facts, None, dirs):
                 checks["방향"].append(f"{p}: {str(t)[:60]}")
+    opinion = _opinion_keys(data)
     for c in claims:
         if not isinstance(c, dict):
             checks["형식"].append("주장 항목이 객체가 아님")
@@ -296,6 +305,8 @@ def check_output(result: dict, data: AgentData) -> dict[str, list[str]]:
             checks["근거"].append(f"근거 키 오류 {bad}: {str(c.get('문장'))[:40]}")
         if c.get("구분") in ("사실", "해석") and not [k for k in refs if k in valid]:
             checks["근거"].append(f"근거 없는 {c.get('구분')}: {str(c.get('문장'))[:40]}")
+        elif c.get("구분") == "사실" and refs and set(refs) <= opinion:
+            checks["근거"].append(f"개인 의견 문서만 근거인 사실 주장(해석으로 바꾸거나 근거 추가): {str(c.get('문장'))[:40]}")
     return {k: v for k, v in checks.items() if v}
 
 
@@ -308,6 +319,7 @@ def sanitize(result: dict, data: AgentData) -> tuple[dict, list[str]]:
         return bool(sentence_problems(t, valid, allowed) or direction_problems(t, data.facts, refs, dirs))
 
     removed: list[str] = []
+    opinion = _opinion_keys(data)
     out = dict(result)
     if bad(str(out.get("핵심진단", ""))):
         removed.append(str(out.get("핵심진단")))
@@ -319,7 +331,7 @@ def sanitize(result: dict, data: AgentData) -> tuple[dict, list[str]]:
         refs = [str(k) for k in (c.get("근거") or []) if str(k) in valid]
         text = str(c.get("문장", ""))
         if bad(text, refs) or (c.get("구분") in ("사실", "해석") and not refs) \
-                or c.get("구분") not in VALID_KINDS:
+                or c.get("구분") not in VALID_KINDS or (c.get("구분") == "사실" and set(refs) <= opinion):
             removed.append(text)
             continue
         claims.append({"문장": text, "구분": c["구분"], "근거": refs})
@@ -403,8 +415,9 @@ def to_markdown(data: AgentData, result: dict, status: str, checks: dict, remove
     if f.gaps:
         out += ["", "**무자료**", ""] + [f"- {g['label']}: {g['reason']}" for g in f.gaps]
     if data.docs:
-        out += ["", "**참고 뉴스(제목)**", ""] + [f"- D{i + 1} · {d['published']} · {d['title']}"
-                                             for i, d in enumerate(data.docs)]
+        out += ["", "**참고 문서 (DB 검색)**", ""] + docs_markdown(data.docs)
+    elif data.extra.get("rag_error"):
+        out += ["", f"- 참고 문서 검색 실패: {data.extra['rag_error'][:80]}"]
     if mode == "guide":
         terms = terms_for([v["label"] for v in f.items.values()] + f.flags)
         if terms:
@@ -468,7 +481,9 @@ def run_agent(agent_id: int, ticker: str | None = None, mode: str = "expert", ll
         "as_of": data.as_of, "result": result, "facts": facts.items, "gaps": facts.gaps, "flags": facts.flags,
         "checks": checks, "removed": removed, "attempts": attempts, "seconds": round(time.monotonic() - t0, 1),
         "analysis": md,
-        "source": "Neon " + ", ".join(sorted({v["source"].split(" (")[0] for v in facts.items.values()})),
+        "source": "Neon " + ", ".join(sorted({v["source"].split(" (")[0] for v in facts.items.values()}
+                                             | ({"rag.document·core.disclosure"} if data.docs else set()))),
+        "docs": data.docs,
     }
 
 

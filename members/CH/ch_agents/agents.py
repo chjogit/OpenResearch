@@ -6,7 +6,7 @@ from datetime import datetime, timedelta, timezone
 from types import ModuleType
 from typing import Any
 
-from . import db, financial, macro, sentiment
+from . import db, financial, macro, rag, sentiment
 from .facts import Facts
 
 KST = timezone(timedelta(hours=9))
@@ -99,16 +99,30 @@ def normalize_as_of(as_of) -> str:
                      "따옴표 없이 2026-10-26 이라고 쓰면 파이썬이 뺄셈으로 계산합니다.")
 
 
-def fetch_bundle(agent_id: int, co: dict, as_of: str) -> dict:
+def fetch_bundle(agent_id: int, co: dict, as_of: str, use_rag: bool = True) -> dict:
+    """관점 SQL 묶음 + (기본) RAG 후보 문서·공시. 'rag' 키는 스냅샷에도 그대로 저장됩니다."""
     mod = AGENTS[agent_id].module
-    return db.bundle(mod.SQL, mod.params(co, as_of))
+    out = db.bundle(mod.SQL, mod.params(co, as_of))
+    if use_rag and agent_id in rag.PRESETS:
+        try:
+            out["rag"] = rag.fetch(agent_id, co, as_of)
+        except Exception as e:  # noqa: BLE001  문서 검색이 실패해도 숫자 분석은 진행
+            out["rag"] = {"error": f"{type(e).__name__}: {e}"}
+    return out
 
 
 def build_agent_data(agent_id: int, co: dict, bundle: dict, as_of: str) -> AgentData:
     spec = AGENTS[agent_id]
     out = spec.module.compute(bundle, co, as_of)
     extra = {k: v for k, v in out.items() if k not in ("facts", "docs", "period")}
-    return AgentData(agent_id, spec.name, co, as_of, out["facts"], out["docs"], out["period"], extra)
+    docs = out["docs"]
+    raw = bundle.get("rag")
+    if raw is not None and agent_id in rag.PRESETS:
+        if raw.get("error"):
+            extra["rag_error"] = raw["error"]
+        else:
+            docs = rag.select(agent_id, raw, co, as_of)  # 관점 프리셋으로 고른 문서가 모듈 기본 문서를 대신함
+    return AgentData(agent_id, spec.name, co, as_of, out["facts"], docs, out["period"], extra)
 
 
 def fetch_agent_data(agent_id: int, ticker: str, as_of: str | None = None, co: dict | None = None) -> AgentData:
