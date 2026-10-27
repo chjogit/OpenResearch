@@ -80,6 +80,25 @@ def today_kst() -> str:
     return datetime.now(KST).date().isoformat()
 
 
+def normalize_as_of(as_of) -> str:
+    """기준일을 'YYYY-MM-DD' 문자열로 맞춥니다. None 이면 오늘(한국 시간)."""
+    from datetime import date
+
+    if as_of is None or as_of == "":
+        return today_kst()
+    if isinstance(as_of, datetime):
+        return as_of.date().isoformat()
+    if isinstance(as_of, date):
+        return as_of.isoformat()
+    if isinstance(as_of, str):
+        try:
+            return date.fromisoformat(as_of.strip()[:10]).isoformat()
+        except ValueError:
+            pass
+    raise ValueError(f"AS_OF 는 \"2026-10-26\" 처럼 따옴표로 감싼 날짜여야 합니다 (받은 값: {as_of!r}). "
+                     "따옴표 없이 2026-10-26 이라고 쓰면 파이썬이 뺄셈으로 계산합니다.")
+
+
 def fetch_bundle(agent_id: int, co: dict, as_of: str) -> dict:
     mod = AGENTS[agent_id].module
     return db.bundle(mod.SQL, mod.params(co, as_of))
@@ -93,6 +112,6 @@ def build_agent_data(agent_id: int, co: dict, bundle: dict, as_of: str) -> Agent
 
 
 def fetch_agent_data(agent_id: int, ticker: str, as_of: str | None = None, co: dict | None = None) -> AgentData:
-    as_of = as_of or today_kst()
+    as_of = normalize_as_of(as_of)
     co = co or db.company(ticker)
     return build_agent_data(agent_id, co, fetch_bundle(agent_id, co, as_of), as_of)

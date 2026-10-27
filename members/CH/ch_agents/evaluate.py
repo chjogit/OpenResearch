@@ -12,7 +12,7 @@ from collections import Counter
 from pathlib import Path
 
 from . import db
-from .agents import AGENTS, build_agent_data, fetch_agent_data, fetch_bundle, today_kst
+from .agents import AGENTS, build_agent_data, fetch_agent_data, fetch_bundle, normalize_as_of
 from .llm import run_agent
 
 DEFAULT_TICKERS = ["005930", "000660", "035420", "105560", "005380", "051910", "068270", "017670"]
@@ -25,7 +25,7 @@ def kospi200_tickers(limit: int | None = None) -> list[str]:
 
 
 def data_scorecard(tickers: list[str] | None = None, agent_ids=(1, 2, 4), as_of: str | None = None) -> list[dict]:
-    as_of = as_of or today_kst()
+    as_of = normalize_as_of(as_of)
     out = []
     for t in tickers or DEFAULT_TICKERS:
         try:
@@ -100,7 +100,7 @@ SELECT (SELECT corr(y, x) FROM pair) AS kospi_corr_250,
 
 def cross_check(ticker: str, as_of: str | None = None) -> list[dict]:
     """파이썬 계산값과 SQL 재계산값 비교. 다르면 계산 로직이나 정렬 기준을 의심합니다."""
-    as_of = as_of or today_kst()
+    as_of = normalize_as_of(as_of)
     co = db.company(ticker)
     sql = db.q(SQL_XCHECK, {"cid": co["company_id"], "as_of": as_of})[0]
     a1 = fetch_agent_data(1, ticker, as_of, co=co).facts
@@ -129,7 +129,7 @@ def cross_check(ticker: str, as_of: str | None = None) -> list[dict]:
 
 def capture_snapshot(ticker: str, path: str | None = None, as_of: str | None = None, agent_ids=(1, 2, 4)) -> str:
     """실제 DB 묶음을 JSON 파일로 저장합니다. 회귀 테스트나 DB 접속이 어려운 데모에서 재현용으로 씁니다."""
-    as_of = as_of or today_kst()
+    as_of = normalize_as_of(as_of)
     co = db.company(ticker)
     snap = {"as_of": as_of, "company": co, "bundles": {str(a): fetch_bundle(a, co, as_of) for a in agent_ids}}
     path = path or f"snapshot_{ticker}_{as_of}.json"
