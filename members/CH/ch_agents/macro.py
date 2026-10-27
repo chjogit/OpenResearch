@@ -314,10 +314,16 @@ def compute(b: dict, co: dict, as_of: str) -> dict:
         f.add(f"주가-{name} 베타(250일)", b250, "coef", period, src, kind="calc", group="동조성", note=unit_note)
         k_r60 = f.add(f"주가-{name} 상관(60일)", r60, "coef", f"최근 {n60}거래일", src, kind="calc", group="동조성")
         strong = significant(r250, n250)
-        stable = r60 is not None and (r60 > 0) == (r250 > 0) and significant(r60, n60)
-        f.flag(f"주가-{name}: {'뚜렷한' if strong else '약한'} 동조 ({{{k_r}}})"
-               + (", 최근 60일도 같은 방향으로 뚜렷함" if strong and stable else
-                  f", 최근 60일은 다름 ({{{k_r60}}})" if strong and k_r60 and not stable else ""))
+        same_dir = r60 is not None and (r60 > 0) == (r250 > 0)
+        recent = ""
+        if strong and k_r60:
+            if same_dir and significant(r60, n60):
+                recent = ", 최근 60일도 같은 방향으로 뚜렷함"
+            elif same_dir:
+                recent = f", 최근 60일은 같은 방향이지만 약함 ({{{k_r60}}})"
+            else:
+                recent = f", 최근 60일은 방향이 반대 ({{{k_r60}}})"
+        f.flag(f"주가-{name}: {'뚜렷한' if strong else '약한'} 동조 ({{{k_r}}}){recent}")
     f.gap("기업 환율 노출(수출 비중·외화 매출·헤지)", "DART 사업보고서 본문 미수집")
 
     # 4) 업종별 전달 경로

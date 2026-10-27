@@ -364,3 +364,16 @@ def test_macro_drivers_follow_sector(rng):
     labels = [v["label"] for v in f.items.values()] + [g["label"] for g in f.gaps]
     assert any("국고채 3년 금리 상관" in x for x in labels)
     assert not any("필라델피아" in x for x in labels)
+
+
+def test_format_price_and_share_levels():
+    assert fmt(260349.47, "KRW") == "260,349원"
+    assert fmt(80501951, "주수") == "80,501,951주"
+    assert fmt(-21805837, "주") == "-21,805,837주"
+
+
+def test_macro_recent_window_wording(rng):
+    """250일은 뚜렷하고 60일은 같은 방향이지만 약하면 '반대'가 아니라 '약함'으로 표시."""
+    f = macro.compute(_macro_bundle(rng), CO, AS_OF)["facts"]
+    for fl in f.flags:
+        assert "최근 60일은 다름" not in fl
