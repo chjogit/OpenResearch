@@ -370,7 +370,7 @@ def compute(b: dict, co: dict, as_of: str, focus: list[str] | None = None, **_) 
 
     docs = [{"title": d["title"], "published": str(d["published"])[:10]} for d in (b.get("docs") or [])]
     # 5) 기업 노출도 (규칙 기반, exposure.py)
-    rows = exposure.assess(f, sector, b.get("fund"), as_of, focus, b.get("report"))
+    rows = exposure.assess(f, sector, b.get("fund"), as_of, focus, b.get("report"), b.get("terms"))
     # 6) 미확인 전제 (R4): 헤지·결제 시점·판가 전가력 등. 노출 등급은 이 전제가 확인되지 않은 상태의 참고치
     prem = exposure.premises(f, rows, sector)
     open_items = [p["item"] for p in prem if p["status"] != "확인"]

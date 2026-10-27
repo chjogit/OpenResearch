@@ -14,6 +14,9 @@ LLM은 이 등급을 바꾸지 못하고, 판정 문장에 붙은 근거 키만 
 - 환율: 환율 n% 상승 시 손익 영향(전 통화 합계)을 10% 기준으로 맞춰 영업이익과 비교 (10%↑ 높음, 3%↑ 중간)
 - 수출·경기: 수출 매출 비중 (60%↑ 높음, 30%↑ 중간)
 - 달러 순자산과 외환 파생상품 사용 여부는 근거로 보여 주기만 하고 등급에는 쓰지 않습니다.
+- 금리: 이자율 1%p 상승 시 손익 영향(주석 민감도 표)과 차입 조건(TERMS_SQL: 회사채·CP·단기사채 1년 내 만기 비중,
+  미상환 회사채 가중평균 발행금리)은 근거로 보여 주고 미확인 전제의 상태만 바꿉니다(등급 규칙은 그대로).
+- 매출채권 회수기간(DSO)은 '결제 시점' 전제의 근거로만 씁니다. 판가 전가력은 숫자로 만들지 않습니다.
 """
 from __future__ import annotations
 
@@ -93,6 +96,54 @@ WHERE company_id = %(cid)s
                      WHERE company_id = %(cid)s
                        AND fiscal_year <= extract(year FROM %(as_of)s::date - 90)::int - 1)
 """
+# 차입 조건·매출채권 회수기간 (kic-agent-data 019, 작업 debt-terms). 정기보고서는 기말 뒤 제출 기한
+# (사업보고서 90일, 분·반기 45일)이 지난 것만 씁니다 (평가 시점에 공개되지 않았던 값을 쓰지 않도록).
+TERMS_SQL = """
+WITH due AS (
+    SELECT b.kind, b.fiscal_year, b.reprt_code, b.label, max(b.stlm_dt) AS stlm_dt,
+           max(b.amount_raw) FILTER (WHERE b.bucket = 'total') AS total,
+           coalesce(sum(b.amount_raw) FILTER (WHERE b.bucket IN ('1y','10d','10-30d','30-90d','90-180d','180d-1y')), 0)
+               AS within_1y
+    FROM core.debt_balance b
+    WHERE b.company_id = %(cid)s
+      AND b.stlm_dt + CASE WHEN b.reprt_code = '11011' THEN 90 ELSE 45 END <= %(as_of)s::date
+    GROUP BY b.kind, b.fiscal_year, b.reprt_code, b.label
+), mat AS (
+    SELECT DISTINCT ON (kind) kind, fiscal_year, reprt_code, stlm_dt, total, within_1y
+    FROM due WHERE total > 0
+    ORDER BY kind, stlm_dt DESC, (label ~ '합계') DESC, total DESC
+), iss_rep AS (
+    SELECT fiscal_year, reprt_code, max(stlm_dt) AS stlm_dt FROM core.debt_issue
+    WHERE company_id = %(cid)s
+      AND stlm_dt + CASE WHEN reprt_code = '11011' THEN 90 ELSE 45 END <= %(as_of)s::date
+    GROUP BY fiscal_year, reprt_code ORDER BY max(stlm_dt) DESC LIMIT 1
+), iss AS (
+    SELECT i.* FROM core.debt_issue i JOIN iss_rep r USING (fiscal_year, reprt_code)
+    WHERE i.company_id = %(cid)s AND i.rate > 0 AND i.face_amount_raw > 0
+      AND i.kind_nm ~ '회사채|사채' AND coalesce(i.repaid, '') !~ '^상환'
+      AND regexp_replace(i.issuer, '[\\s()㈜주식회사]', '', 'g')
+          ~ regexp_replace((SELECT name FROM core.company WHERE company_id = %(cid)s), '[\\s()]', '', 'g')
+), dso AS (
+    SELECT * FROM core.v_dso
+    WHERE ticker = (SELECT ticker FROM core.company WHERE company_id = %(cid)s) AND market = 'KR'
+      AND dso_days IS NOT NULL
+      AND period_end + CASE WHEN report_code = '11011' THEN 90 ELSE 45 END <= %(as_of)s::date
+    ORDER BY period_end DESC LIMIT 1
+)
+SELECT json_build_object(
+    'maturity', (SELECT json_agg(row_to_json(mat)) FROM mat),
+    'bond_rate', (SELECT json_build_object(
+                    'stlm_dt', (SELECT stlm_dt FROM iss_rep), 'n', count(*),
+                    'wavg', sum(rate * face_amount_raw) / NULLIF(sum(face_amount_raw), 0),
+                    'min', min(rate), 'max', max(rate)) FROM iss),
+    'dso', (SELECT row_to_json(dso) FROM dso),
+    'price_excerpts', (SELECT count(*) FROM rag.document d
+                       WHERE d.company_id = %(cid)s AND d.source = 'dart_report' AND d.title ~ '가격변동'
+                         AND d.published_at::date <= %(as_of)s::date)
+) AS bundle
+"""
+SRC_TERMS = "core.debt_balance·core.debt_issue (DART 정기보고서 주요정보)"
+SRC_DSO = "core.v_dso (DART 전체 재무제표 매출채권 ÷ 4개 분기 매출)"
 SRC_REPORT = "core.report_exposure (DART 사업보고서 원문 표)"
 FX_HIGH, FX_MID = 10.0, 3.0          # 환율 10% 상승 시 손익 영향 ÷ 영업이익 (%)
 EXP_HIGH, EXP_MID = 60.0, 30.0       # 수출 비중 (%)
@@ -140,11 +191,50 @@ def _report_facts(f: Facts, report: list[dict] | None, fundamentals: dict | None
                              note="+면 환율 상승 시 환산 이익 방향, -면 손실 방향")
     if by.get(("fx_derivative", "ALL")):
         got["hedge"] = True
+    ir = by.get(("ir_sens", "ALL"))
+    if ir and ir.get("value") is not None:
+        pct = float(ir["change_pct"]) if ir.get("change_pct") else None
+        got["k_ir"] = f.add(f"이자율 {f'{pct:g}%p' if pct else 'n%p(원문 미기재)'} 상승 시 {ir.get('basis') or '손익'} "
+                            f"영향({when})", float(ir["value"]), "KRW±", when, SRC_REPORT, kind="report",
+                            group="노출 근거", note="재무위험관리 주석의 이자율 민감도 표 (변동금리부 자산·부채 기준)")
+    return got
+
+
+def _when(d: str | None, code: str | None) -> str:
+    q = {"11013": "1분기", "11012": "반기", "11014": "3분기", "11011": "사업"}.get(code or "", "")
+    return f"{(d or '')[:7]} {q}보고서".strip()
+
+
+def _terms_facts(f: Facts, terms: dict | None) -> dict:
+    """차입 조건·매출채권 회수기간을 장부에 올립니다. 금액 단위는 원문 표를 따르므로 비율만 씁니다."""
+    got: dict = {}
+    if not terms:
+        return got
+    mat = [m for m in terms.get("maturity") or [] if m.get("total")]
+    if mat:
+        tot = sum(float(m["total"]) for m in mat)
+        within = sum(float(m["within_1y"] or 0) for m in mat)
+        last = max(mat, key=lambda m: m["stlm_dt"] or "")
+        kinds = "·".join({"bond": "회사채", "cp": "CP", "stb": "단기사채"}.get(m["kind"], m["kind"]) for m in mat)
+        got["k_mat"] = f.add(f"1년 안에 만기가 오는 비중({kinds} 미상환 잔액, {_when(last['stlm_dt'], last['reprt_code'])})",
+                             within / tot * 100 if tot else None, "%", last["stlm_dt"], SRC_TERMS, kind="calc",
+                             group="노출 근거", note="잔여만기 구간별 미상환 잔액에서 계산. 은행 차입금은 포함하지 않음")
+    br = terms.get("bond_rate") or {}
+    if br.get("n") and br.get("wavg") is not None:
+        got["k_rate"] = f.add(f"미상환 회사채 가중평균 발행금리({br['n']}건, {(br.get('stlm_dt') or '')[:7]} 기준)",
+                              float(br["wavg"]), "%", br.get("stlm_dt"), SRC_TERMS, kind="calc", group="노출 근거",
+                              note=f"발행 당시 표면금리를 권면총액으로 가중. 범위 {br.get('min')}~{br.get('max')}%")
+    dso = terms.get("dso")
+    if dso and dso.get("dso_days") is not None:
+        got["k_dso"] = f.add(f"매출채권 회수기간({_when(dso.get('period_end'), dso.get('report_code'))})",
+                             float(dso["dso_days"]), "일", dso.get("period_end"), SRC_DSO, kind="calc",
+                             group="노출 근거", note=f"기말 '{dso.get('receivable_account')}' ÷ 4개 분기 매출 × 365")
+    got["price_excerpts"] = int(terms.get("price_excerpts") or 0)
     return got
 
 
 def assess(f: Facts, sector: str, fundamentals: dict | None, as_of: str, focus: list[str] | None = None,
-           report: list[dict] | None = None) -> list[dict]:
+           report: list[dict] | None = None, terms: dict | None = None) -> list[dict]:
     """노출 등급을 정해 판정 문장을 장부에 올리고, 표에 쓸 행 목록을 돌려줍니다.
     회사 공시값(사업보고서 원문)이 있으면 그것이 업종 기본값보다 먼저입니다."""
     prior = SECTOR_PRIOR.get(sector, DEFAULT_PRIOR)
@@ -160,6 +250,7 @@ def assess(f: Facts, sector: str, fundamentals: dict | None, as_of: str, focus: 
     if fundamentals is None and sector not in FINANCIAL:
         f.gap("부채비율", "연간 재무 없음 (금리 노출은 업종 기본값만 사용)")
     rep = _report_facts(f, report, fundamentals)
+    rep.update(_terms_facts(f, terms))
 
     rows = []
     for i, var in enumerate(VARIABLES):
@@ -194,6 +285,11 @@ def assess(f: Facts, sector: str, fundamentals: dict | None, as_of: str, focus: 
                 level = min(2, level + 1)
             reasons.append(f"주가와 뚜렷한 동조 {{{k}}}")
             keys.append(k)
+        if var == "금리":
+            for k, label in (("k_ir", "회사 공시 이자율 민감도"), ("k_mat", "1년 내 만기 비중"), ("k_rate", "회사채 발행금리")):
+                if k in rep:
+                    reasons.append(f"{label} {{{rep[k]}}}")
+                    keys.append(rep[k])
         if var == "금리" and debt is not None and debt_key:
             if debt >= HIGH_DEBT:
                 level = min(2, level + 1)
@@ -206,8 +302,9 @@ def assess(f: Facts, sector: str, fundamentals: dict | None, as_of: str, focus: 
         text = f"노출 점검 · {var}: {LEVELS[level]} (" + ", ".join(reasons) + ")"
         f.flag(text)
         rows.append({"var": var, "level": LEVELS[level], "reasons": reasons, "keys": keys, "path": PATH[var],
-                     "focus": bool(focus and any(x in var for x in focus)), "company": company})
-    if not rep:
+                     "focus": bool(focus and any(x in var for x in focus)), "company": company,
+                     "basis": {k: v for k, v in rep.items() if k.startswith("k_") or k == "price_excerpts"}})
+    if not any(k in rep for k in ("k_sens", "ratio", "export", "k_net", "hedge", "k_ir")):
         f.gap("기업 고유 노출", UNKNOWN_NOW)
     else:
         if "ratio" not in rep and "k_sens" not in rep:
@@ -242,8 +339,11 @@ def premises(f: Facts, rows: list[dict], sector: str) -> list[dict]:
     """미확인 전제 목록: [{item, status, detail, why, keys}]. 상태는 장부와 노출표에서 코드가 정합니다."""
     fx = next((r for r in rows if r["var"] == "환율"), {"reasons": []})
     hedge = any("파생상품" in x for x in fx["reasons"])
+    basis = (rows[0].get("basis") if rows else None) or {}
     k_net, k_exp = _key_prefix(f, "달러 화폐성 순자산"), _key_prefix(f, "수출 매출 비중")
     k_debt = _key_prefix(f, "부채비율(")
+    k_ir, k_mat, k_rate, k_dso = (basis.get(k) for k in ("k_ir", "k_mat", "k_rate", "k_dso"))
+    k_sens = basis.get("k_sens")
     out = []
     for item, why in PREMISES:
         status, detail, keys = "미확인", "DB에 자료 없음", []
@@ -253,18 +353,33 @@ def premises(f: Facts, rows: list[dict], sector: str) -> list[dict]:
             else:
                 detail = "사업보고서 원문에서 외환 파생상품 표를 찾지 못했거나 미수집"
         elif item.startswith("수출 대금"):
-            detail = "결제 통화별 매출·매출채권 회수 기간 자료 없음"
+            if k_dso:
+                status, detail, keys = "일부 확인", "매출채권 회수기간만 확인. 결제 통화별 매출·회수 조건은 미확인", [k_dso]
+            else:
+                detail = "결제 통화별 매출·매출채권 회수 기간 자료 없음"
         elif item.startswith("판가"):
-            detail = "판매가 조정 조건(계약 구조·경쟁 강도) 자료 없음"
-        elif item.startswith("달러 비용") and k_net:
-            status, detail, keys = "일부 확인", "화폐성 자산·부채의 달러 순액만 공시값 있음. 비용의 통화 구성은 미확인", [k_net]
+            n = basis.get("price_excerpts") or 0
+            detail = (f"사업보고서 '가격변동 추이' 원문 발췌 {n}건만 있음(판단 근거로만 인용). 계약 구조·경쟁 강도 미확인, 판단 보류"
+                      if n else "판매가 조정 조건(계약 구조·경쟁 강도) 자료 없음")
+        elif item.startswith("달러 비용"):
+            keys = [k for k in (k_net, k_sens) if k]
+            if keys:
+                status, detail = "일부 확인", ("화폐성 자산·부채의 달러 순액·환율 민감도만 공시값 있음. "
+                                              "원재료·부품 비용의 통화 구성은 미확인")
         elif item.startswith("수출 매출") and k_exp:
             status, detail, keys = "확인", "사업보고서 매출 실적 표의 내수·수출 구분", [k_exp]
         elif item.startswith("수출 매출"):
             detail = "사업보고서 원문에서 회사 전체 내수·수출 표를 찾지 못했거나 미수집 (업종 기본값 사용)"
         elif item.startswith("차입"):
-            if sector in FINANCIAL:
+            keys = [k for k in (k_mat, k_rate, k_ir) if k]
+            if sector in FINANCIAL and not keys:
                 detail = "금융업: 예대 금리 구조·자산 부채 만기 차이 자료 없음"
+            elif keys:
+                status = "일부 확인"
+                got = [x for x, k in (("사채·CP 만기 구조", k_mat), ("회사채 발행금리", k_rate),
+                                      ("이자율 민감도", k_ir)) if k]
+                detail = f"{'·'.join(got)} 확인. 변동·고정금리 비중과 은행 차입 조건은 공시 정형 자료가 없어 미확인"
+                keys += [k_debt] if k_debt else []
             elif k_debt:
                 status, detail, keys = "일부 확인", "부채비율만 확인. 변동금리 비중·만기 구조는 미확인", [k_debt]
         out.append({"item": item, "status": status, "detail": detail, "why": why, "keys": keys})
