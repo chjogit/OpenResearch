@@ -10,7 +10,7 @@ from __future__ import annotations
 import re
 import time
 
-from .agents import AGENTS, AgentData, fetch_agent_data
+from .agents import AGENTS, MY_AGENTS, AgentData, fetch_agent_data
 from .facts import fmt
 from .rag import PROMPT_RULE as RAG_RULE
 from .rag import docs_for_prompt, docs_markdown
@@ -258,7 +258,7 @@ def review_md(data: AgentData, res: dict, rows: list[dict], status: str, removed
     return "\n".join(out)
 
 
-def review_report(report: str, ticker: str, mode: str = "expert", agent_ids=(1, 2, 4), llm=None,
+def review_report(report: str, ticker: str, mode: str = "expert", agent_ids=MY_AGENTS, llm=None,
                   datas: list[AgentData] | None = None, as_of: str | None = None) -> dict:
     body = (report or "").strip()
     if not body or "여기에 첨삭할 보고서를 붙여 넣으세요" in body:
