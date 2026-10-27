@@ -136,8 +136,10 @@ def compute(b: dict, co: dict, as_of: str) -> dict:
             f.add(f"{n}일 주가 수익률", ret[n], "%chg", px[-1][0], "core.price_daily", kind="calc", group=g)
             if len(ks) > n:
                 kr = (ks[-1][1] / ks[-1 - n][1] - 1) * 100
-                f.add(f"{n}일 코스피 대비 초과 수익률", ret[n] - kr, "%p", px[-1][0], "core.price_daily × ^KS11",
-                      kind="calc", group=g)
+                k_ex = f.add(f"{n}일 코스피 대비 초과 수익률", ret[n] - kr, "%p", px[-1][0], "core.price_daily × ^KS11",
+                             kind="calc", group=g, note="+면 코스피보다 나음(덜 하락 또는 더 상승), -면 코스피보다 못함")
+                if k_ex:
+                    f.flag(f"{n}일 코스피 대비: {'상회' if ret[n] >= kr else '하회'} ({{{k_ex}}})")
     if px and len(daily_returns(px)) < len(px) - 1:
         f.flag("데이터 점검: 가격제한폭을 넘는 하루 가격 변화가 있어 수익률 계산에서 제외함 (액면분할 등 확인 필요)")
     vix = series_points(b.get("vix"))

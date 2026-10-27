@@ -1,6 +1,6 @@
 """LLM 계층·첨삭 모드 테스트 (가짜 LLM 사용)."""
 from ch_agents.agents import build_agent_data
-from ch_agents.llm import check_output, normalize_keys, parse_json, run_agent
+from ch_agents.llm import check_output, normalize_keys, parse_json, render, run_agent
 from ch_agents.review import check_numbers, extract_numbers, review_report, style_checks
 from conftest import AS_OF, CO, FakeLLM
 from test_compute import _fin_bundle, _sent_bundle
@@ -245,6 +245,12 @@ def test_scorecard_reports_llm_errors(monkeypatch, tmp_path):
                                      save_to=str(tmp_path / "e.json"))
     assert summary["llm_errors"] == {"ImportError: no langchain_upstage": 1}
 
+
+def test_render_removes_duplicated_unit_after_key():
+    d = _a2()
+    k = d.facts.key_of("매출 전년 동기 대비 연속 증가 분기 수")
+    out = render(f"연속 {{{k}}}개 분기, PER {{{d.facts.key_of('PER(TTM 기준)')}}}보다", d)
+    assert f"**6개**`[{k}]` 분기" in out and "8.36배**" in out and "개개" not in out
 
 def test_normalize_as_of():
     import datetime as dt

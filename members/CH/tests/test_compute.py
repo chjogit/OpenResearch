@@ -377,3 +377,9 @@ def test_macro_recent_window_wording(rng):
     f = macro.compute(_macro_bundle(rng), CO, AS_OF)["facts"]
     for fl in f.flags:
         assert "최근 60일은 다름" not in fl
+
+
+def test_sentiment_relative_performance_flag():
+    f = sentiment.compute(_sent_bundle(), CO, AS_OF)["facts"]  # 주가 하락, 코스피 상승 → 하회
+    assert any(x.startswith("20일 코스피 대비: 하회") for x in f.flags)
+    assert "+면 코스피보다 나음" in f.items[f.key_of("20일 코스피 대비 초과 수익률")]["note"]
