@@ -388,7 +388,9 @@ def run_agent(agent_id: int, ticker: str | None = None, mode: str = "expert", ll
         attempts.append({"error": f"{type(e).__name__}: {e}"})
     removed: list[str] = []
     if result is None:
-        result, status = fallback_result(data), "규칙 기반 대체"
+        err = next((a["error"] for a in attempts if "error" in a), None)
+        result = fallback_result(data)
+        status = "규칙 기반 대체" + (f" (LLM 호출 실패: {err.split(':')[0]})" if err else " (JSON 형식 아님)")
     else:
         result, removed = sanitize(result, data)
         if not result["주장"]:

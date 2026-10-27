@@ -75,7 +75,7 @@ def test_run_agent_removes_unverified_sentences_after_failed_repair():
 def test_run_agent_fallback_on_error_and_on_all_removed():
     d = _a2()
     out = run_agent(2, data=d, llm=FakeLLM(TimeoutError("solar")))
-    assert out["status"] == "규칙 기반 대체"
+    assert out["status"] == "규칙 기반 대체 (LLM 호출 실패: TimeoutError)"
     groups = {d.facts.items[c["근거"][0]]["group"] for c in out["result"]["주장"]}
     assert {"TTM 실적", "밸류에이션", "분기 추세"} <= groups  # 판정이 없어도 그룹별 대표 숫자로 채움
     d4 = build_agent_data(4, CO, _sent_bundle(), AS_OF)
@@ -197,7 +197,7 @@ def test_snapshot_roundtrip(tmp_path, monkeypatch):
     k = datas[2].facts.key_of("PER(TTM 기준)")
     assert datas[2].facts.items[k]["value"] == 8.36 and set(datas) == {2, 4}
     out = run_agent(2, data=datas[2], llm=FakeLLM(TimeoutError()))
-    assert out["status"] == "규칙 기반 대체"
+    assert out["status"].startswith("규칙 기반 대체 (LLM 호출 실패")
 
 
 def test_run_agent_keeps_better_attempt():
@@ -234,3 +234,13 @@ def test_json_mode_falls_back_when_unsupported():
     out = run_agent(2, data=_a2(), llm=Model(True))
     assert out["status"] == "완료" and L._JSON_MODE["on"] is False
     L._JSON_MODE["on"] = True
+
+
+def test_scorecard_reports_llm_errors(monkeypatch, tmp_path):
+    from ch_agents import evaluate
+
+    d = _a2()
+    monkeypatch.setattr(evaluate, "run_agent", lambda a, t, mode, llm: run_agent(2, data=d, llm=llm))
+    summary = evaluate.llm_scorecard(["005930"], agent_ids=(2,), llm=FakeLLM(ImportError("no langchain_upstage")),
+                                     save_to=str(tmp_path / "e.json"))
+    assert summary["llm_errors"] == {"ImportError: no langchain_upstage": 1}
