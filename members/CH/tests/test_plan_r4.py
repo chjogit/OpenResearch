@@ -200,3 +200,13 @@ def test_fetch_agent_data_routes_period_to_agent3(monkeypatch):
     agents.fetch_agent_data(3, "005930", AS_OF, co=CO, period=10)
     agents.fetch_agent_data(1, "005930", AS_OF, co=CO, focus=["환율"])
     assert seen == {3: {"period": 10}, 1: {"focus": ["환율"]}}
+
+
+def test_equity_basis_sensitivity_not_compared_with_operating_income():
+    f = Facts("M")
+    rep = [{"fiscal_year": 2025, "metric": "fx_sens", "currency": "ALL", "value": 154_400e6, "change_pct": 10,
+            "basis": "자본"}]
+    fund = {"fiscal_year": 2025, "liabilities": 50.0, "equity": 100.0, "operating_income": 1_000e6}
+    rows = {r["var"]: r for r in exposure.assess(f, "건설", fund, AS_OF, report=rep)}
+    assert not rows["환율"]["company"] and any("자본 기준" in x for x in rows["환율"]["reasons"])
+    assert f.key_of("환율 10% 상승 시 손익 영향 ÷ 영업이익(FY2025)") is None

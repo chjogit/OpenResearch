@@ -120,7 +120,9 @@ def _report_facts(f: Facts, report: list[dict] | None, fundamentals: dict | None
             f.add(f"환율 {label_pct} 상승 시 {basis} 영향(USD, {when})", float(usd["value"]), "KRW±", when, SRC_REPORT,
                   kind="report", group="노출 근거")
         oi = (fundamentals or {}).get("operating_income")
-        if pct and oi and float(oi) > 0:
+        if basis == "자본":  # 자본(기타포괄손익 포함) 기준 민감도는 손익이 아니므로 영업이익과 비교하지 않음
+            got["equity_basis"] = True
+        elif pct and oi and float(oi) > 0:
             ratio = total * (10.0 / pct) / float(oi) * 100
             got["ratio"] = ratio
             got["k_ratio"] = f.add(f"환율 10% 상승 시 손익 영향 ÷ 영업이익({when})", ratio, "%", when,
@@ -172,7 +174,8 @@ def assess(f: Facts, sector: str, fundamentals: dict | None, as_of: str, focus: 
             keys.append(rep["k_ratio"])
             company = True
         elif var == "환율" and "k_sens" in rep:
-            reasons.append(f"회사 공시 민감도 {{{rep['k_sens']}}} (영업이익이 없어 등급에는 미반영)")
+            why = "자본 기준이라" if rep.get("equity_basis") else "영업이익이 없어"
+            reasons.append(f"회사 공시 민감도 {{{rep['k_sens']}}} ({why} 등급에는 미반영)")
             keys.append(rep["k_sens"])
         if var == "환율" and "k_net" in rep:
             reasons.append(f"달러 순자산 {{{rep['k_net']}}}")
