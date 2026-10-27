@@ -12,6 +12,7 @@
 """
 from __future__ import annotations
 
+from . import exposure
 from .facts import (
     Facts,
     check_freshness,
@@ -78,6 +79,12 @@ WITH s AS (
 SELECT json_build_object(
     'series', (SELECT json_object_agg(series_id, obs) FROM s),
     'index', (SELECT json_object_agg(symbol, obs) FROM ix),
+    'fund', (SELECT row_to_json(x) FROM (
+              SELECT fiscal_year, liabilities, equity, revenue, operating_income
+              FROM core.v_fundamentals_annual
+              WHERE company_id = %(cid)s
+                AND fiscal_year <= extract(year FROM %(as_of)s::date - 90)::int - 1  -- 사업보고서 제출(3월 말) 전 시점에는 전전년
+              ORDER BY fiscal_year DESC LIMIT 1) x),
     'price', (SELECT json_agg(json_build_object('d', trade_date, 'v', close) ORDER BY trade_date)
               FROM core.price_daily
               WHERE company_id = %(cid)s AND trade_date <= %(as_of)s::date
@@ -180,7 +187,7 @@ def _last_change(points: list[tuple[str, float]]) -> str | None:
     return None
 
 
-def compute(b: dict, co: dict, as_of: str) -> dict:
+def compute(b: dict, co: dict, as_of: str, focus: list[str] | None = None, **_) -> dict:
     f = Facts("M")
     series = {k: series_points(v) for k, v in (b.get("series") or {}).items()}
     sector = sector_of(co)
@@ -363,7 +370,10 @@ def compute(b: dict, co: dict, as_of: str) -> dict:
             f.gap(line.split(":")[0], "이 업종 경로에 필요하지만 DB에 없는 변수")
 
     docs = [{"title": d["title"], "published": str(d["published"])[:10]} for d in (b.get("docs") or [])]
-    return {"facts": f, "docs": docs, "period": f"거시 지표 최근 12개월 · 동조성 {period}", "sector": sector}
+    # 5) 기업 노출도 (규칙 기반, exposure.py)
+    rows = exposure.assess(f, sector, b.get("fund"), as_of, focus)
+    return {"facts": f, "docs": docs, "period": f"거시 지표 최근 12개월 · 동조성 {period}", "sector": sector,
+            "exposure": rows, "focus": list(focus or [])}
 
 
 def bisect_left_days(days: list[str], d: str) -> int:

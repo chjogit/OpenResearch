@@ -37,6 +37,10 @@ python -m pytest members\CH\tests -q
 | `checks`, `removed`, `attempts` | 코드 검사 결과, 최종 출력에서 뺀 문장, LLM 시도 기록 |
 | `analysis`, `source` | 사람이 읽는 마크다운(키를 값으로 바꾼 것), 출처 |
 | `docs` | RAG로 고른 참고 문서 목록 (`D1`부터 순서대로). 공시는 `kind="공시"` |
+| `verification` | Verifier 대조 기록: 문장, ok, unmatched(맞지 않은 숫자), sources(출처 태그) |
+| `exposure` | A1 노출 점검표 행: 변수, 등급(높음/중간/낮음), 근거, 전달 경로 |
+| `anomalies` | A4 이상 징후 판정 문장 |
+| `quality` | 데이터 품질 주의 원천 (quality.api_status 기준) |
 
 `result`의 문장은 숫자 대신 `{M1}` 같은 키를 담고 있습니다. 값은 `facts[키]["text"]`로 바꿔 씁니다.
 
@@ -63,3 +67,18 @@ prompt_block = docs_for_prompt(docs)                # 프롬프트에 붙일 D1,
 - 거르기: 종목명이 없는 문서, 사진 기사, 비슷한 제목, 출처별 개수 초과.
 - 규칙: 문서 속 숫자는 쓰지 않습니다(코드 검사가 지움). 개인 의견 문서만으로는 '사실' 주장을 못 합니다.
 - 한계: 공시는 제목만 있습니다(본문 없음). 벡터 검색은 `rag.chunk`가 비어 있어 아직 쓰지 않습니다.
+
+## 기초기획서 R2 대응 (A1·A4)
+
+| 기획서 요구 | 구현 |
+| --- | --- |
+| A1 입력: 관심 거시 변수 | `run_agent(1, ticker, focus=["환율", "금리"])`, `run_my_agents(..., focus=...)` |
+| A1 기업 노출도 (규칙 기반 우선, LLM은 해석만) | `exposure.py`: 업종 기본값 → 주가 동조성(유의·|상관|≥0.3이면 상향) → 부채비율(금리, 200%↑ 상향·50%↓ 하향) |
+| A4 입력: 기간 | `run_agent(4, ticker, period=10)` (거래일, 5~120) |
+| A4 이상 징후 | 외국인·기관 최근 5일 순매수 강도의 표준점수 \|z\|≥2, 감성 변화 ≥0.15, 검색 관심 2배↑, 대차잔고 20일 +20%↑ |
+| A4 심리·수급 요약표 | 코드가 만든 표 (계열·지표·값·코드 판정) |
+| Verifier 통과 필수 | `verify.py`가 팀 공용 `agent/verifier/fact_source_verifier.py`로 최종 문장 수치 1:1 대조, 주장마다 `[출처: ...]` |
+| 프롬프트 expert.md / guide.md 분기 | `ch_agents/prompts/expert.md`, `guide.md` (공통 + A1 + A4 절) |
+| 품질 플래그 참고 | `quality.py`: quality.api_status 연속 실패·48시간 무성공·한도 도달이면 '데이터 품질 주의' |
+
+미구현·한계: 기업 고유 노출(수출 비중·외화 매출·헤지)은 DART 본문 미수집으로 '미확인'. 감성은 키워드 사전(FinBERT 점수는 DB에 없음).
