@@ -153,3 +153,31 @@ def test_docs_markdown_and_select_order():
     assert docs[0]["kind"] == "공시"
     md = docs_markdown(docs)
     assert md[0].startswith("- D1 · 2026-10-13 · 공시·최대주주 지분 변동") and "(외 1건)" in md[0]
+
+
+def test_real_offtopic_titles_from_first_run_are_dropped():
+    """10/27 PC 첫 실행(삼성전자)에서 섞였던 무관한 기사를 재현합니다."""
+    a3 = [_news(1, "삼성전자, '삼성월렛 머니' 해외결제 서비스로 글로벌 경쟁력 제고", "텐센트·우리은행과 협력"),
+          _news(2, "\"은행 대출 죄더니 사내 대출까지?\" 정부, 삼성전자 주택담보 대출 규제", "임직원 대출"),
+          _news(3, "\"삼성전자 HBM, 경쟁사보다 최대 25% 비싸다\"", "영업이익")]
+    assert [d["doc_id"] for d in select_docs(a3, PRESETS[3], CO, AS_OF)] == [3]
+    a5 = [_news(1, "삼성전자, 삼성월렛 1년 만에 가입자 300만명 돌파", "간편결제"),
+          _news(2, "삼성전자 차트 분석, 쉽게 이해하기", "이평선 아래", source="naver_blog")]
+    assert [d["doc_id"] for d in select_docs(a5, PRESETS[5], CO, AS_OF)] == [2]
+    a6 = [_news(1, "이재용 삼성전자 회장 취임 4주년", "기술·인재 중심"),
+          _news(2, "삼성전자 전영현·노태문, '투톱 겸직' 바뀔까", "대표이사 부회장")]
+    a6[1]["title"] += " 대표이사 인선"
+    assert [d["doc_id"] for d in select_docs(a6, PRESETS[6], CO, AS_OF)] == [2]
+
+
+def test_subsidiary_disclosures_grouped_separately():
+    rows = [{"rcept_dt": "2026-10-08", "report_nm": "연결재무제표기준영업(잠정)실적(공정공시)", "event_type": "earnings_prelim"},
+            {"rcept_dt": "2026-10-07", "report_nm": "영업(잠정)실적(공정공시)(자회사의 주요경영사항)", "event_type": "earnings_prelim"},
+            {"rcept_dt": "2026-07-07", "report_nm": "[기재정정]연결재무제표기준영업(잠정)실적(공정공시)", "event_type": "earnings_prelim"}]
+    out = select_disclosures(rows, PRESETS[2])
+    assert [(g["count"], g["subsidiary"]) for g in out] == [(2, False), (1, True)]
+
+
+def test_target_price_with_space_is_banned():
+    from ch_agents.llm import sentence_problems
+    assert sentence_problems("증권사 목표 주가가 올랐다.", set())

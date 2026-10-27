@@ -41,6 +41,7 @@ class Preset:
     disclosure_days: int = 365
     k_docs: int = 6
     k_disclosures: int = 4
+    min_base: float = 2                           # 이 점수 미만 문서는 제외 (약한 용어 하나만 걸린 문서 거르기)
     per_source: dict[str, int] = field(default_factory=dict)
 
 
@@ -69,11 +70,11 @@ PRESETS: dict[int, Preset] = {
         k_disclosures=5),
     3: Preset(
         "산업·경쟁강도",
-        {"점유율": 3, "경쟁": 1.5, "경쟁사": 2, "수주": 2, "공급계약": 2, "고객사": 2, "신제품": 2, "증설": 2,
-         "양산": 2, "업황": 2, "판가": 2, "가격 인상": 2, "가격 인하": 2, "공급 과잉": 3, "재고": 1.5, "규제": 1.5,
+        {"점유율": 3, "경쟁": 1, "경쟁사": 2, "수주": 2, "공급계약": 2, "고객사": 2, "신제품": 2, "증설": 2,
+         "양산": 2, "업황": 2, "판가": 2, "가격 인상": 2, "가격 인하": 2, "공급 과잉": 3, "재고": 1.5, "규제": 1,
          "신사업": 2, "인수": 1.5, "합병": 1.5, "진출": 1, "수요": 1,
          "market share": 3, "competition": 2, "competitor": 2, "contract": 1.5, "capacity": 1.5, "pricing": 2},
-        NEWS, days=60,
+        NEWS, days=60, min_base=3,
         events=("supply_contract", "capex", "investment_acquisition", "merger", "business_transfer", "spin_off",
                 "share_exchange", "material_agreement", "guidance", "acquisition_completed"),
         report_re="거래처|공급계약|영업양수"),
@@ -89,17 +90,17 @@ PRESETS: dict[int, Preset] = {
     5: Preset(
         "기술적 분석",
         {"신고가": 2, "신저가": 2, "이동평균": 2, "이평선": 2, "골든크로스": 3, "데드크로스": 3, "지지선": 2,
-         "저항선": 2, "거래량": 1.5, "돌파": 1.5, "반등": 1, "박스권": 2, "차트": 1.5, "과매수": 2, "과매도": 2,
+         "저항선": 2, "거래량": 1.5, "전고점 돌파": 2, "저항선 돌파": 2, "기술적 반등": 2, "반등": 1, "박스권": 2, "차트": 1.5, "과매수": 2, "과매도": 2,
          "rsi": 2, "상한가": 2, "하한가": 2, "갭": 1,
          "52-week": 2, "all-time high": 2, "support": 1, "resistance": 1.5},
-        {**NEWS, **OPINION}, days=20, k_docs=6, per_source=OPINION_CAP),
+        {**NEWS, **OPINION}, days=20, k_docs=6, per_source=OPINION_CAP, min_base=3),
     6: Preset(
         "대주주·경영진",
         {"최대주주": 3, "경영권": 3, "지배구조": 3, "승계": 3, "상속": 2, "증여": 2, "오너": 2, "지주사": 2,
          "횡령": 3, "배임": 3, "행동주의": 3, "주주제안": 3, "대표이사": 2, "사외이사": 2, "이사회": 2,
          "주주총회": 2, "임원": 1, "회장": 0.75, "지분": 1, "소송": 0.75, "경영권 분쟁": 3, "지분 매각": 2, "사법 리스크": 3,
          "ceo": 1.5, "board of directors": 2, "chairman": 1.5, "activist": 3, "lawsuit": 1.5, "governance": 3},
-        NEWS, days=60,
+        NEWS, days=60, min_base=3,
         events=("major_holder_change", "governance_report", "shareholders_meeting", "litigation",
                 "officer_change", "embezzlement", "merger", "spin_off", "share_exchange"),
         report_re="임원ㆍ주요주주|최대주주|경영권",
@@ -222,7 +223,7 @@ def score_doc(row: dict, preset: Preset, co: dict, as_of: str) -> tuple[float, l
     st = [t for t in weights if t in summary]
     base = sum(weights[t] * 2 for t in tt) + sum(weights[t] for t in st)
     # 제목에 용어가 있거나, 요약에 서로 다른 용어가 2개 이상 있어야 후보로 인정 ('유가증권시장'의 '유가' 같은 우연 일치 방지)
-    if base < 2 or not (tt or len(st) >= 2):
+    if base < preset.min_base or not (tt or len(st) >= 2):
         return 0.0, []
     s = base * preset.sources.get(row.get("source"), 0.3)
     names = _short_names(co)
@@ -277,13 +278,14 @@ def select_disclosures(rows: list[dict], preset: Preset) -> list[dict]:
     groups: dict[str, dict] = {}
     for r in rows or []:
         title = _report_title(r.get("report_nm"))
-        key = re.sub(r"\(.*?\)|\s", "", title) or title
+        sub = "자회사" in title or "종속회사" in title
+        key = (re.sub(r"\(.*?\)|\s", "", title) or title) + ("|자회사" if sub else "")  # 자회사 공시는 따로 묶음
         g = groups.get(key)
         if g is None:
             groups[key] = g = {
                 "kind": "공시", "source": r.get("source") or "dart", "published": str(r.get("rcept_dt"))[:10],
                 "title": _clean(title), "event": EVENT_LABEL.get(r.get("event_type") or "", r.get("event_type") or "기타"),
-                "url": r.get("url"), "count": 0, "subsidiary": "자회사" in title or "종속회사" in title,
+                "url": r.get("url"), "count": 0, "subsidiary": sub,
             }
         g["count"] += 1
     out = sorted(groups.values(), key=lambda g: g["published"], reverse=True)
