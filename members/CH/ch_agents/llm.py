@@ -58,8 +58,12 @@ MODE_GUIDE = {
 
 PLACEHOLDER = re.compile(r"\{([A-Z]\d+)\}")
 KEY = re.compile(r"^[A-Z]\d+$")
-LOOSE_NUMBER = re.compile(r"[-+]?\d[\d,]*(?:\.\d+)?\s*(?:%p|%|원|배|조|억|달러|bp|주|백분위)")
-BANNED = ("매수 추천", "매도 추천", "목표주가", "비중 확대", "비중 축소", "매수하", "매도하")
+# 숫자와 단위가 붙어 있을 때만 '숫자'로 봄 ('2025 주주환원' 같은 띄어쓴 표현은 제외)
+LOOSE_NUMBER = re.compile(r"[-+]?\d[\d,]*(?:\.\d+)?(?:%p|%|원|배|조|억|달러|bp|주|백분위)")
+BANNED = ("매수 추천", "매도 추천", "목표주가", "비중 확대", "비중 축소")
+# 투자 권유 문형만 금지 ('순매도하고' 같은 서술은 허용)
+BANNED_RE = re.compile(r"(?<!순)(매수|매도)\s*(하세요|하십시오|하시길|를\s*권|를\s*추천|할\s*것을\s*권|가\s*바람직)")
+COMMON_TERMS = {"52주"}  # 숫자가 들어 있지만 값이 아닌 용어
 VALID_KINDS = {"사실", "해석", "예측"}
 
 
@@ -204,22 +208,55 @@ def _texts(result: dict) -> list[str]:
     return out
 
 
-def sentence_problems(text: str, valid: set[str]) -> list[str]:
+def label_terms(data: AgentData | None) -> set[str]:
+    """장부 항목 이름에 들어 있는 숫자 표현(예: '52주 고점'의 '52주')은 값이 아니라 용어로 봅니다."""
+    terms = set(COMMON_TERMS)
+    if data is not None:
+        for v in data.facts.items.values():
+            terms.update(LOOSE_NUMBER.findall(v["label"]))
+    return terms
+
+
+def sentence_problems(text: str, valid: set[str], allowed: set[str] | None = None) -> list[str]:
     probs = []
     bad = [k for k in PLACEHOLDER.findall(text) if k not in valid]
     if bad:
         probs.append(f"없는 키 {bad}")
-    loose = LOOSE_NUMBER.findall(PLACEHOLDER.sub("", text))
+    loose = [x for x in LOOSE_NUMBER.findall(PLACEHOLDER.sub("", text)) if x not in (allowed or COMMON_TERMS)]
     if loose:
         probs.append(f"키 밖 숫자 {loose}")
-    banned = [w for w in BANNED if w in text]
+    banned = [w for w in BANNED if w in text] + [m.group(0) for m in BANNED_RE.finditer(text)]
     if banned:
         probs.append(f"금지 표현 {banned}")
     return probs
 
 
+def auto_keys(obj, data: AgentData):
+    """LLM이 장부 값을 글자 그대로 옮겨 쓴 경우(예: '8.36배') 그 값의 키로 바꿉니다.
+    값이 장부 표기와 정확히 같을 때만 바꾸므로, 결과는 여전히 DB 값만 인용합니다."""
+    table: dict[str, str] = {}
+    for k, v in data.facts.items.items():
+        if v["unit"] != "doc" and v["text"] != "무자료" and re.search(r"\d", v["text"]):
+            table.setdefault(v["text"], k)
+    if not table:
+        return obj
+    pat = re.compile(r"(?<![\d.,{])(" + "|".join(re.escape(t) for t in sorted(table, key=len, reverse=True))
+                     + r")(?![\d])")
+
+    def walk(x):
+        if isinstance(x, str):
+            return pat.sub(lambda m: "{" + table[m.group(1)] + "}", x)
+        if isinstance(x, list):
+            return [walk(y) for y in x]
+        if isinstance(x, dict):
+            return {k: (v if k == "근거" else walk(v)) for k, v in x.items()}
+        return x
+
+    return walk(obj)
+
+
 def check_output(result: dict, data: AgentData) -> dict[str, list[str]]:
-    valid = _valid_keys(data)
+    valid, allowed = _valid_keys(data), label_terms(data)
     checks: dict[str, list[str]] = {"형식": [], "문장": [], "근거": []}
     for field in ("핵심진단", "주장", "자체점수"):
         if field not in result:
@@ -232,7 +269,7 @@ def check_output(result: dict, data: AgentData) -> dict[str, list[str]]:
     if not (isinstance(score, int) and 1 <= score <= 10):
         checks["형식"].append(f"'자체점수'가 1~10 정수가 아님 ({score!r})")
     for text in _texts(result):
-        for p in sentence_problems(text, valid):
+        for p in sentence_problems(text, valid, allowed):
             checks["문장"].append(f"{p}: {text[:60]}")
     for c in claims:
         if not isinstance(c, dict):
@@ -251,10 +288,10 @@ def check_output(result: dict, data: AgentData) -> dict[str, list[str]]:
 
 def sanitize(result: dict, data: AgentData) -> tuple[dict, list[str]]:
     """검사를 통과하지 못한 문장을 빼서, 최종 출력에 검증 안 된 숫자·표현이 남지 않게 합니다."""
-    valid = _valid_keys(data)
+    valid, allowed = _valid_keys(data), label_terms(data)
     removed: list[str] = []
     out = dict(result)
-    if sentence_problems(str(out.get("핵심진단", "")), valid):
+    if sentence_problems(str(out.get("핵심진단", "")), valid, allowed):
         removed.append(str(out.get("핵심진단")))
         out["핵심진단"] = "(검증되지 않은 숫자가 있어 생략. 아래 주장을 참고)"
     claims = []
@@ -263,7 +300,7 @@ def sanitize(result: dict, data: AgentData) -> tuple[dict, list[str]]:
             continue
         refs = [str(k) for k in (c.get("근거") or []) if str(k) in valid]
         text = str(c.get("문장", ""))
-        if sentence_problems(text, valid) or (c.get("구분") in ("사실", "해석") and not refs) \
+        if sentence_problems(text, valid, allowed) or (c.get("구분") in ("사실", "해석") and not refs) \
                 or c.get("구분") not in VALID_KINDS:
             removed.append(text)
             continue
@@ -272,7 +309,7 @@ def sanitize(result: dict, data: AgentData) -> tuple[dict, list[str]]:
     for k in ("긍정요인", "리스크요인", "미확인", "다음점검", "스스로질문"):
         kept = []
         for x in out.get(k) or []:
-            (removed if sentence_problems(str(x), valid) else kept).append(str(x))
+            (removed if sentence_problems(str(x), valid, allowed) else kept).append(str(x))
         out[k] = kept
     if not (isinstance(out.get("자체점수"), int) and 1 <= out["자체점수"] <= 10):
         out["자체점수"] = None
@@ -381,7 +418,7 @@ def run_agent(agent_id: int, ticker: str | None = None, mode: str = "expert", ll
             raw = invoke(model, msgs).content
             parsed = parse_json(raw)
             if parsed is not None:
-                parsed = normalize_keys(parsed, _valid_keys(data))
+                parsed = auto_keys(normalize_keys(parsed, _valid_keys(data)), data)
             checks = check_output(parsed, data) if parsed is not None else {"형식": ["JSON 아님"]}
             attempts.append({"raw": raw, "checks": checks})
             n_prob = sum(len(v) for v in checks.values())

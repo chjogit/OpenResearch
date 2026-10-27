@@ -12,7 +12,18 @@ import time
 
 from .agents import AGENTS, AgentData, fetch_agent_data
 from .facts import fmt
-from .llm import BANNED, PLACEHOLDER, get_llm, invoke, normalize_keys, parse_json, render, sentence_problems
+from .llm import (
+    BANNED,
+    PLACEHOLDER,
+    auto_keys,
+    get_llm,
+    invoke,
+    label_terms,
+    normalize_keys,
+    parse_json,
+    render,
+    sentence_problems,
+)
 
 REPORT_MAX_CHARS = 12000
 NUM = re.compile(r"([-+]?\d[\d,]*(?:\.\d+)?)\s*(조\s*\d[\d,]*\s*억\s*원|조\s*원|조|억\s*원|억|만\s*원|"
@@ -178,7 +189,7 @@ def _review_messages(data: AgentData, report: str, rows: list[dict], mode: str) 
 
 
 def _sanitize_review(res: dict, data: AgentData) -> tuple[dict, list[str]]:
-    valid = set(data.facts.items)
+    valid, allowed = set(data.facts.items), label_terms(data)
     removed: list[str] = []
     out = {"빠진논점": [], "수정제안": [], "잘한점": [], "완성도점수": None, "점수이유": str(res.get("점수이유", ""))}
     for it in res.get("빠진논점") or []:
@@ -186,18 +197,18 @@ def _sanitize_review(res: dict, data: AgentData) -> tuple[dict, list[str]]:
             continue
         txt = str(it.get("내용", ""))
         refs = [str(k) for k in it.get("근거") or [] if str(k) in valid]
-        (removed.append(txt) if sentence_problems(txt, valid) else out["빠진논점"].append({"내용": txt, "근거": refs}))
+        (removed.append(txt) if sentence_problems(txt, valid, allowed) else out["빠진논점"].append({"내용": txt, "근거": refs}))
     for it in res.get("수정제안") or []:
         if not isinstance(it, dict):
             continue
         new = str(it.get("수정안", ""))
         refs = [str(k) for k in it.get("근거") or [] if str(k) in valid]
-        if sentence_problems(new, valid):
+        if sentence_problems(new, valid, allowed):
             removed.append(new)
         else:
             out["수정제안"].append({"원문": str(it.get("원문", "")), "수정안": new, "근거": refs})
     for x in res.get("잘한점") or []:
-        (removed if sentence_problems(str(x), valid) else out["잘한점"]).append(str(x))
+        (removed if sentence_problems(str(x), valid, allowed) else out["잘한점"]).append(str(x))
     s = res.get("완성도점수")
     out["완성도점수"] = s if isinstance(s, int) and 1 <= s <= 10 else None
     if any(w in out["점수이유"] for w in BANNED):
@@ -256,7 +267,7 @@ def review_report(report: str, ticker: str, mode: str = "expert", agent_ids=(1, 
             parsed = parse_json(invoke(llm or get_llm(), [SystemMessage(content=system),
                                                           HumanMessage(content=user)]).content)
             if parsed is not None:
-                res, removed = _sanitize_review(normalize_keys(parsed, set(data.facts.items)), data)
+                res, removed = _sanitize_review(auto_keys(normalize_keys(parsed, set(data.facts.items)), data), data)
                 status = "완료" + (" (일부 문장 제외)" if removed else "")
         except Exception as e:  # noqa: BLE001
             status = f"실패: {type(e).__name__}"
