@@ -1,6 +1,8 @@
+# Python 3.12 기준 (.python-version, CI 와 같음). agent/ 는 3.11 이상 필요
 langchain>=0.3
-langchain-upstage>=0.6
-psycopg[binary]>=3.2
+langchain-core>=0.3          # ch_agents 가 직접 import
+langchain-upstage>=0.6       # Upstage Solar
+psycopg[binary]>=3.2         # Neon Postgres (binary: Windows 에서 libpq 별도 설치 없이)
 python-dotenv>=1.0
 pydantic>=2.7
 pandas>=2.0

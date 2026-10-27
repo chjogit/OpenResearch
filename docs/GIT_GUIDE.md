@@ -36,12 +36,17 @@ git config user.email "GitHub 가입 이메일"
 git checkout -b 내브랜치
 git push -u origin 내브랜치
 
-:: 5. 파이썬 환경
-python -m venv .venv
+:: 5. 파이썬 환경 (가상환경만 Python 3.12, PC 기본 Python 은 그대로)
+pip install uv
+uv venv --python 3.12 .venv
 .venv\Scripts\activate
-pip install -r requirements-dev.txt
+uv pip install -r requirements-dev.txt
+python -m ipykernel install --user --name openresearch --display-name "Python (openresearch .venv)"
 copy .env.example .env
 ```
+
+- 이미 3.12 가 아닌 `.venv` 가 있으면 `rmdir /s /q .venv` 로 지우고 다시 만듭니다. `python --version` 으로 확인합니다.
+- 노트북은 커널을 **Python (openresearch .venv)** 로 골라 실행합니다.
 
 - Mac: `.venv\Scripts\activate` → `source .venv/bin/activate`, `copy` → `cp`
 - `.env` 를 메모장으로 열어 DB 주소와 Upstage 키를 채웁니다. `.env` 는 GitHub에 올라가지 않습니다.

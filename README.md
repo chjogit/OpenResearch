@@ -38,14 +38,21 @@ tests/
 
 ## 시작하기
 
+Python 3.12 을 씁니다. PC 기본 Python 이 다르면 uv 로 가상환경만 3.12 로 만듭니다 (PC 설정은 그대로).
+
 ```bash
 git clone https://github.com/chjogit/OpenResearch.git
 cd OpenResearch
-python -m venv .venv && source .venv/bin/activate   # Windows: .venv\Scripts\activate
-pip install -r requirements-dev.txt
+pip install uv
+uv venv --python 3.12 .venv
+source .venv/bin/activate                  # Windows: .venv\Scripts\activate
+uv pip install -r requirements-dev.txt
+python -m ipykernel install --user --name openresearch --display-name "Python (openresearch .venv)"
 cp .env.example .env    # 값 채우기 (docs/DB_READONLY.md 참고)
 pytest
 ```
+
+노트북은 커널을 **Python (openresearch .venv)** 로 골라 실행합니다. 다른 커널(예: 개인 conda 환경)로 열면 패키지가 없어 `ModuleNotFoundError` 가 납니다.
 
 ## 일하는 방식
 
