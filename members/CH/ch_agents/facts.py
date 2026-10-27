@@ -11,7 +11,7 @@ from collections.abc import Iterable
 from itertools import pairwise
 from typing import Any
 
-KIND_LABEL = {"obs": "실측", "calc": "계산", "proxy": "대용치"}
+KIND_LABEL = {"report": "회사 공시", "obs": "실측", "calc": "계산", "proxy": "대용치"}
 
 
 def fmt(value: float | None, unit: str) -> str:

@@ -10,7 +10,10 @@ LLM은 이 등급을 바꾸지 못하고, 판정 문장에 붙은 근거 키만 
 3. 재무 구조: 금리 변수만. 최근 사업연도 부채비율 200% 이상이면 한 단계 올리고, 50% 이하면 한 단계 내립니다.
    금융업은 부채비율의 의미가 달라 적용하지 않습니다.
 
-DB에 없는 근거(수출 비중·외화 매출·외화 부채·헤지 비율)는 '미확인'으로 남기고, 등급에 쓰지 않습니다.
+회사 공시값(kic-agent-data 가 사업보고서 원문 표에서 뽑아 core.report_exposure 에 저장)이 있으면 먼저 씁니다.
+- 환율: 환율 n% 상승 시 손익 영향(전 통화 합계)을 10% 기준으로 맞춰 영업이익과 비교 (10%↑ 높음, 3%↑ 중간)
+- 수출·경기: 수출 매출 비중 (60%↑ 높음, 30%↑ 중간)
+- 달러 순자산과 외환 파생상품 사용 여부는 근거로 보여 주기만 하고 등급에는 쓰지 않습니다.
 """
 from __future__ import annotations
 
@@ -62,7 +65,7 @@ STAT_DRIVERS = {
 FINANCIAL = {"은행", "증권", "보험", "기타금융"}
 STRONG_CORR = 0.3
 HIGH_DEBT, LOW_DEBT = 200.0, 50.0
-UNKNOWN = "수출 비중·외화 매출·외화 부채·헤지 비율 (DART 사업보고서 본문 미수집)"
+UNKNOWN_NOW = "사업보고서 원문 추출값 없음 (kic-agent-data report-exposure 수집 전이거나 표를 찾지 못함)"
 
 
 def _corr_evidence(f: Facts, names: tuple[str, ...]) -> tuple[str | None, float | None, int | None]:
@@ -82,8 +85,66 @@ def _corr_evidence(f: Facts, names: tuple[str, ...]) -> tuple[str | None, float 
     return None, None, None
 
 
-def assess(f: Facts, sector: str, fundamentals: dict | None, as_of: str, focus: list[str] | None = None) -> list[dict]:
-    """노출 등급을 정해 판정 문장을 장부에 올리고, 표에 쓸 행 목록을 돌려줍니다."""
+REPORT_SQL = """
+SELECT fiscal_year, metric, currency, value, change_pct, basis, rcept_no
+FROM core.report_exposure
+WHERE company_id = %(cid)s
+  AND fiscal_year = (SELECT max(fiscal_year) FROM core.report_exposure
+                     WHERE company_id = %(cid)s
+                       AND fiscal_year <= extract(year FROM %(as_of)s::date - 90)::int - 1)
+"""
+SRC_REPORT = "core.report_exposure (DART 사업보고서 원문 표)"
+FX_HIGH, FX_MID = 10.0, 3.0          # 환율 10% 상승 시 손익 영향 ÷ 영업이익 (%)
+EXP_HIGH, EXP_MID = 60.0, 30.0       # 수출 비중 (%)
+
+
+def _report_facts(f: Facts, report: list[dict] | None, fundamentals: dict | None) -> dict:
+    """원문 추출값을 장부에 올리고, 등급 판단에 쓸 값을 돌려줍니다."""
+    got: dict = {}
+    if not report:
+        return got
+    fy = report[0].get("fiscal_year")
+    when = f"FY{fy}"
+    by = {(r["metric"], r["currency"]): r for r in report}
+    sens = [r for r in report if r["metric"] == "fx_sens" and r.get("value") is not None]
+    if sens:
+        pct = next((float(r["change_pct"]) for r in sens if r.get("change_pct")), None)
+        basis = next((r["basis"] for r in sens if r.get("basis")), None) or "손익"
+        usd = by.get(("fx_sens", "USD"))
+        total = sum(float(r["value"]) for r in sens)
+        label_pct = f"{pct:g}%" if pct else "n%(원문 미기재)"
+        got["k_sens"] = f.add(f"환율 {label_pct} 상승 시 {basis} 영향(전 통화 합계, {when})", total, "KRW±", when,
+                              SRC_REPORT, kind="report", group="노출 근거",
+                              note="사업보고서 재무위험관리 주석의 민감도 표. 회사가 공시한 값")
+        if usd:
+            f.add(f"환율 {label_pct} 상승 시 {basis} 영향(USD, {when})", float(usd["value"]), "KRW±", when, SRC_REPORT,
+                  kind="report", group="노출 근거")
+        oi = (fundamentals or {}).get("operating_income")
+        if pct and oi and float(oi) > 0:
+            ratio = total * (10.0 / pct) / float(oi) * 100
+            got["ratio"] = ratio
+            got["k_ratio"] = f.add(f"환율 10% 상승 시 손익 영향 ÷ 영업이익({when})", ratio, "%", when,
+                                   SRC_REPORT + " × core.v_fundamentals_annual", kind="calc", group="노출 근거",
+                                   note="변동 폭을 10%로 맞춘 값. +면 원화 약세(환율 상승)에 손익 증가, -면 감소")
+    exp = by.get(("export_share", "ALL"))
+    if exp and exp.get("value") is not None:
+        got["export"] = float(exp["value"])
+        got["k_export"] = f.add(f"수출 매출 비중({when})", float(exp["value"]), "%", when, SRC_REPORT, kind="report",
+                                group="노출 근거", note="사업의 내용 '매출 실적'의 내수·수출 표에서 계산 (별도 기준일 수 있음)")
+    a, li = by.get(("fx_asset", "USD")), by.get(("fx_liab", "USD"))
+    if a and li and a.get("value") is not None and li.get("value") is not None:
+        got["k_net"] = f.add(f"달러 화폐성 순자산(자산 − 부채, {when})", float(a["value"]) - float(li["value"]), "KRW±",
+                             when, SRC_REPORT, kind="calc", group="노출 근거",
+                             note="+면 환율 상승 시 환산 이익 방향, -면 손실 방향")
+    if by.get(("fx_derivative", "ALL")):
+        got["hedge"] = True
+    return got
+
+
+def assess(f: Facts, sector: str, fundamentals: dict | None, as_of: str, focus: list[str] | None = None,
+           report: list[dict] | None = None) -> list[dict]:
+    """노출 등급을 정해 판정 문장을 장부에 올리고, 표에 쓸 행 목록을 돌려줍니다.
+    회사 공시값(사업보고서 원문)이 있으면 그것이 업종 기본값보다 먼저입니다."""
     prior = SECTOR_PRIOR.get(sector, DEFAULT_PRIOR)
     debt_key = None
     debt = None
@@ -96,15 +157,38 @@ def assess(f: Facts, sector: str, fundamentals: dict | None, as_of: str, focus: 
                              kind="calc", group="노출 근거", note="부채 ÷ 자본. 금리 노출 판단에만 사용")
     if fundamentals is None and sector not in FINANCIAL:
         f.gap("부채비율", "연간 재무 없음 (금리 노출은 업종 기본값만 사용)")
+    rep = _report_facts(f, report, fundamentals)
 
     rows = []
     for i, var in enumerate(VARIABLES):
         level = prior[i]
         reasons = [f"업종({sector}) 기본 {LEVELS[prior[i]]}" if sector in SECTOR_PRIOR else "업종 미분류: 기본 중간"]
         keys: list[str] = []
+        company = False
+        if var == "환율" and "ratio" in rep:
+            r = abs(rep["ratio"])
+            level = 2 if r >= FX_HIGH else 1 if r >= FX_MID else 0
+            reasons = [f"회사 공시 민감도: 영업이익 대비 {{{rep['k_ratio']}}}"]
+            keys.append(rep["k_ratio"])
+            company = True
+        elif var == "환율" and "k_sens" in rep:
+            reasons.append(f"회사 공시 민감도 {{{rep['k_sens']}}} (영업이익이 없어 등급에는 미반영)")
+            keys.append(rep["k_sens"])
+        if var == "환율" and "k_net" in rep:
+            reasons.append(f"달러 순자산 {{{rep['k_net']}}}")
+            keys.append(rep["k_net"])
+        if var == "환율" and rep.get("hedge"):
+            reasons.append("외환 파생상품(통화선도 등) 사용 공시")
+        if var == "수출·경기" and "export" in rep:
+            e = rep["export"]
+            level = 2 if e >= EXP_HIGH else 1 if e >= EXP_MID else 0
+            reasons = [f"회사 공시 수출 비중 {{{rep['k_export']}}}"]
+            keys.append(rep["k_export"])
+            company = True
         k, r, n = _corr_evidence(f, STAT_DRIVERS[var])
         if k and r is not None and n and significant(r, n) and abs(r) >= STRONG_CORR:
-            level = min(2, level + 1)
+            if not company:
+                level = min(2, level + 1)
             reasons.append(f"주가와 뚜렷한 동조 {{{k}}}")
             keys.append(k)
         if var == "금리" and debt is not None and debt_key:
@@ -119,9 +203,16 @@ def assess(f: Facts, sector: str, fundamentals: dict | None, as_of: str, focus: 
         text = f"노출 점검 · {var}: {LEVELS[level]} (" + ", ".join(reasons) + ")"
         f.flag(text)
         rows.append({"var": var, "level": LEVELS[level], "reasons": reasons, "keys": keys, "path": PATH[var],
-                     "focus": bool(focus and any(x in var for x in focus))})
-    f.gap("기업 고유 노출", UNKNOWN)
-    f.note("노출 등급은 규칙(업종 기본값 → 통계 근거 → 재무 구조)으로 정한 값이며, 회사의 실제 노출 비율이 아님")
+                     "focus": bool(focus and any(x in var for x in focus)), "company": company})
+    if not rep:
+        f.gap("기업 고유 노출", UNKNOWN_NOW)
+    else:
+        if "ratio" not in rep and "k_sens" not in rep:
+            f.gap("환율 민감도(회사 공시)", "사업보고서 원문에서 민감도 표를 찾지 못함")
+        if "export" not in rep:
+            f.gap("수출 매출 비중(회사 공시)", "사업보고서 원문에서 회사 전체 내수·수출 표를 찾지 못함")
+    f.note("노출 등급 규칙: 회사 공시값(사업보고서 원문 표)이 있으면 그것으로, 없으면 업종 기본값에서 출발해 "
+           "주가 동조성·부채비율로 조정. 헤지 효과는 수치로 반영하지 않음")
     if focus:
         rows.sort(key=lambda r: not r["focus"])
     return rows

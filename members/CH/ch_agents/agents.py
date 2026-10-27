@@ -6,7 +6,7 @@ from datetime import datetime, timedelta, timezone
 from types import ModuleType
 from typing import Any
 
-from . import db, financial, macro, quality, rag, sentiment
+from . import db, exposure, financial, macro, quality, rag, sentiment
 from .facts import Facts
 
 KST = timezone(timedelta(hours=9))
@@ -111,6 +111,11 @@ def fetch_bundle(agent_id: int, co: dict, as_of: str, use_rag: bool = True) -> d
             out["rag"] = rag.fetch(agent_id, co, as_of)
         except Exception as e:  # noqa: BLE001  문서 검색이 실패해도 숫자 분석은 진행
             out["rag"] = {"error": f"{type(e).__name__}: {e}"}
+    if agent_id == 1:  # 사업보고서 원문 노출 (kic-agent-data 018). 표가 아직 없으면 업종 기본값만 씀
+        try:
+            out["report"] = db.q(exposure.REPORT_SQL, {"cid": co["company_id"], "as_of": as_of})
+        except Exception:  # noqa: BLE001
+            out["report"] = None
     if agent_id in quality.SOURCES:
         try:
             out["quality"] = db.q(quality.SQL)

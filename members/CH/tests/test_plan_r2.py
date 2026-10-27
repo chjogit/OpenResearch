@@ -159,3 +159,49 @@ def test_quality_notes_reach_markdown(rng):
     d = build_agent_data(1, CO, b, AS_OF)
     res = run_agent(1, data=d, llm=FakeLLM(TimeoutError()))
     assert "**데이터 품질 주의**" in res["analysis"] and res["quality"]
+
+
+# ---------------------------------------------------------------- 사업보고서 원문 노출 (회사 공시값 우선)
+
+REPORT = [
+    {"fiscal_year": 2025, "metric": "fx_sens", "currency": "USD", "value": 1_210_371e6, "change_pct": 10, "basis": "세전이익"},
+    {"fiscal_year": 2025, "metric": "fx_sens", "currency": "JPY", "value": -105_656e6, "change_pct": 10, "basis": "세전이익"},
+    {"fiscal_year": 2025, "metric": "fx_asset", "currency": "USD", "value": 33_108_951e6},
+    {"fiscal_year": 2025, "metric": "fx_liab", "currency": "USD", "value": 22_280_863e6},
+    {"fiscal_year": 2025, "metric": "export_share", "currency": "ALL", "value": 20.0},
+    {"fiscal_year": 2025, "metric": "fx_derivative", "currency": "ALL", "value": 1},
+]
+
+
+def test_company_disclosure_overrides_sector_prior():
+    f = Facts("M")
+    fund = {"fiscal_year": 2025, "liabilities": 50.0, "equity": 100.0, "operating_income": 20_000_000e6}
+    rows = {r["var"]: r for r in exposure.assess(f, "반도체", fund, AS_OF, report=REPORT)}
+    # (1,210,371 − 105,656)백만원 ÷ 영업이익 20조 = 5.52% → 중간 (업종 기본값은 높음)
+    assert rows["환율"]["level"] == "중간" and rows["환율"]["company"]
+    k = f.key_of("환율 10% 상승 시 손익 영향 ÷ 영업이익(FY2025)")
+    assert round(f.items[k]["value"], 2) == 5.52 and f.items[k]["kind"] == "계산"
+    assert f.items[f.key_of("환율 10% 상승 시 세전이익 영향(전 통화 합계, FY2025)")]["kind"] == "회사 공시"
+    assert rows["수출·경기"]["level"] == "낮음"                     # 수출 비중 20% (업종 기본값은 높음)
+    assert any("외환 파생상품" in x for x in rows["환율"]["reasons"])
+    assert f.key_of("달러 화폐성 순자산(자산 − 부채, FY2025)")
+    assert not any(g["label"] == "기업 고유 노출" for g in f.gaps)
+
+
+def test_partial_disclosure_reports_missing_parts():
+    f = Facts("M")
+    rows = {r["var"]: r for r in exposure.assess(f, "화학", None, AS_OF, report=REPORT[4:5])}
+    assert rows["수출·경기"]["company"] and not rows["환율"]["company"]
+    assert any(g["label"] == "환율 민감도(회사 공시)" for g in f.gaps)
+
+
+def test_report_values_pass_verifier(rng):
+    b = _macro_bundle(rng)
+    b["fund"] = {"fiscal_year": 2025, "liabilities": 50.0, "equity": 100.0, "operating_income": 20_000_000e6}
+    b["report"] = REPORT
+    d = build_agent_data(1, CO, b, AS_OF)
+    terms = verifier._term_values(d)
+    for k, it in d.facts.items.items():
+        if it["group"] == "노출 근거":
+            v = verifier.check_text(f"{it['label']}은 {{{k}}}이다.", [k], d, terms)
+            assert v["ok"], (it["label"], it["text"], v["unmatched"])

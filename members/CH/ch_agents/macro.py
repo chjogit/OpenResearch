@@ -80,7 +80,7 @@ SELECT json_build_object(
     'series', (SELECT json_object_agg(series_id, obs) FROM s),
     'index', (SELECT json_object_agg(symbol, obs) FROM ix),
     'fund', (SELECT row_to_json(x) FROM (
-              SELECT fiscal_year, liabilities, equity, revenue, operating_income
+              SELECT fiscal_year, liabilities, equity, revenue, operating_income, net_income
               FROM core.v_fundamentals_annual
               WHERE company_id = %(cid)s
                 AND fiscal_year <= extract(year FROM %(as_of)s::date - 90)::int - 1  -- 사업보고서 제출(3월 말) 전 시점에는 전전년
@@ -371,7 +371,7 @@ def compute(b: dict, co: dict, as_of: str, focus: list[str] | None = None, **_) 
 
     docs = [{"title": d["title"], "published": str(d["published"])[:10]} for d in (b.get("docs") or [])]
     # 5) 기업 노출도 (규칙 기반, exposure.py)
-    rows = exposure.assess(f, sector, b.get("fund"), as_of, focus)
+    rows = exposure.assess(f, sector, b.get("fund"), as_of, focus, b.get("report"))
     return {"facts": f, "docs": docs, "period": f"거시 지표 최근 12개월 · 동조성 {period}", "sector": sector,
             "exposure": rows, "focus": list(focus or [])}
 

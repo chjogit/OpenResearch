@@ -41,6 +41,7 @@ class Preset:
     disclosure_days: int = 365
     k_docs: int = 6
     k_disclosures: int = 4
+    long_days: dict[str, int] = field(default_factory=dict)  # 연 1회 문서(사업보고서)는 기간을 길게, 최신성 감점 없음
     min_base: float = 2                           # 이 점수 미만 문서는 제외 (약한 용어 하나만 걸린 문서 거르기)
     per_source: dict[str, int] = field(default_factory=dict)
 
@@ -55,8 +56,9 @@ PRESETS: dict[int, Preset] = {
         {"환율": 2, "원/달러": 2, "원·달러": 2, "원화": 2, "달러 강세": 2, "달러 약세": 2, "기준금리": 2,
          "금리 인하": 2, "금리 인상": 2, "관세": 2, "수출": 1.5, "물가": 2, "인플레이션": 2, "연준": 2, "fomc": 2,
          "국제유가": 2, "유가 상승": 2, "유가 하락": 2, "wti": 2, "브렌트": 2, "국채": 1.5, "금리": 1, "경기 둔화": 2, "경기 침체": 2, "경기 회복": 1.5, "경기 부양": 1.5, "무역": 1, "수입": 0.5,
-         "tariff": 2, "federal reserve": 2, "the fed": 1.5, "interest rate": 2, "inflation": 2, "dollar": 1.5, "export": 1.5, "oil price": 1.5, "crude": 1.5},
-        NEWS, days=30),
+         "tariff": 2, "federal reserve": 2, "the fed": 1.5, "interest rate": 2, "inflation": 2, "dollar": 1.5, "export": 1.5, "oil price": 1.5, "crude": 1.5,
+         "환위험": 2, "통화선도": 2, "통화스왑": 2, "헷지": 1.5, "위험회피": 1.5},
+        {**NEWS, "dart_report": 1.2}, days=30, long_days={"dart_report": 500}),
     2: Preset(
         "재무·밸류에이션·건전성",
         {"실적": 1.5, "영업이익": 2, "매출": 1, "순이익": 2, "어닝": 2, "컨센서스": 2, "가이던스": 2, "잠정": 1.5,
@@ -107,7 +109,7 @@ PRESETS: dict[int, Preset] = {
         k_disclosures=5),
 }
 
-SOURCE_LABEL = {"naver_news": "뉴스", "finnhub_news": "해외뉴스", "naver_blog": "블로그(개인 의견)",
+SOURCE_LABEL = {"naver_news": "뉴스", "finnhub_news": "해외뉴스", "dart_report": "사업보고서(회사 공시)", "naver_blog": "블로그(개인 의견)",
                 "naver_cafe": "카페(개인 의견)", "youtube_comment": "유튜브 댓글(개인 의견)"}
 EVENT_LABEL = {
     "earnings_prelim": "잠정실적", "earnings_change": "손익구조 변경", "audit_report": "감사보고서",
@@ -136,7 +138,9 @@ c AS (
     SELECT doc_id, source, title, coalesce(summary, '') AS summary, published_at, url
     FROM rag.document
     WHERE company_id = %(cid)s AND source = ANY(%(sources)s::text[])
-      AND published_at <= %(as_of)s::date AND published_at > %(as_of)s::date - %(days)s::int
+      AND published_at <= %(as_of)s::date
+      AND published_at > %(as_of)s::date - CASE WHEN source = ANY(%(long_src)s::text[]) THEN %(long_days)s::int
+                                                ELSE %(days)s::int END
 ),
 m AS (
     SELECT c.doc_id,
@@ -168,6 +172,7 @@ def params(agent_id: int, co: dict, as_of: str) -> dict:
     p = PRESETS[agent_id]
     return {"cid": co["company_id"], "as_of": as_of, "terms": [t.lower() for t in p.terms],
             "sources": list(p.sources), "days": p.days, "events": list(p.events),
+            "long_src": list(p.long_days), "long_days": max(p.long_days.values(), default=p.days),
             "report_re": p.report_re, "ddays": p.disclosure_days}
 
 
@@ -227,7 +232,7 @@ def score_doc(row: dict, preset: Preset, co: dict, as_of: str) -> tuple[float, l
         return 0.0, []
     s = base * preset.sources.get(row.get("source"), 0.3)
     names = _short_names(co)
-    if row.get("source") != "finnhub_news" and names:  # 영문 뉴스는 티커로 수집되어 한글 이름이 없음
+    if row.get("source") not in ("finnhub_news", "dart_report") and names:  # 영문 뉴스·사업보고서는 종목별로 수집되어 이름 검사 불필요
         if _mentions(title, names):
             s += 1.0                   # 제목에 종목명: 이 종목에 관한 문서
         elif _mentions(summary, names):
@@ -236,7 +241,8 @@ def score_doc(row: dict, preset: Preset, co: dict, as_of: str) -> tuple[float, l
             return 0.0, []             # 종목명이 없으면 다른 종목 기사로 보고 제외
     if PHOTO_RE.search(row.get("title") or ""):
         s *= 0.3                       # 사진 기사는 정보가 적음
-    s *= 1 / (1 + _age(row.get("published"), as_of) / HALF_LIFE_DAYS)
+    if row.get("source") not in preset.long_days:
+        s *= 1 / (1 + _age(row.get("published"), as_of) / HALF_LIFE_DAYS)
     return round(s, 3), sorted(set(tt) | set(st), key=lambda t: -weights[t])
 
 
