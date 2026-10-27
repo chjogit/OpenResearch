@@ -14,7 +14,7 @@ SQL = ("SELECT api_name, last_success, last_error, last_error_msg, consecutive_f
 SOURCES = {
     1: {"ecos·fred": "거시 지표(ECOS·FRED)", "yfinance": "지수(코스피·SOX)", "fsc": "국내 시세",
         "data.go.kr": "관세청 수출"},
-    4: {"naver_finance": "투자자별 순매수", "naver": "뉴스·블로그·카페", "naver_datalab": "검색 관심도",
+    3: {"naver_finance": "투자자별 순매수", "naver": "뉴스·블로그·카페", "naver_datalab": "검색 관심도",
         "fsc": "국내 시세·대차잔고", "youtube": "유튜브 댓글", "yfinance": "VIX·코스피"},
 }
 STALE_HOURS = 48

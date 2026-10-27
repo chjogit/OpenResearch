@@ -1,7 +1,7 @@
 """기초기획서 R2 기준 기능 테스트: 사용자 입력, A1 노출도, A4 이상 징후·요약표, Verifier 연동, 프롬프트 파일, 품질 플래그."""
 from datetime import datetime, timedelta, timezone
 
-from ch_agents import exposure, macro, quality, sentiment
+from ch_agents import agent1_macro as macro, agent3_sentiment_flow as sentiment, exposure, quality
 from ch_agents import verify as verifier
 from ch_agents.agents import build_agent_data
 from ch_agents.facts import Facts
@@ -80,10 +80,10 @@ def test_a4_concentrated_selling_anomaly_and_summary_period():
 
 
 def test_a4_prompt_and_markdown_tables():
-    d = build_agent_data(4, CO, _sent_bundle(flows=_heavy_selling()), AS_OF, {"period": 10})
+    d = build_agent_data(3, CO, _sent_bundle(flows=_heavy_selling()), AS_OF, {"period": 10})
     _, user = build_messages(d, "guide")
     assert "관찰 기간: 10거래일" in user
-    res = run_agent(4, data=d, llm=FakeLLM(TimeoutError()))
+    res = run_agent(3, data=d, llm=FakeLLM(TimeoutError()))
     md = res["analysis"]
     assert "**이상 징후**" in md and "**심리·수급 요약표 (관찰 기간 10거래일)**" in md
     assert res["anomalies"] and res["status"].startswith("규칙 기반 대체")
@@ -95,7 +95,7 @@ def test_a4_prompt_and_markdown_tables():
 def test_every_ledger_value_survives_shared_verifier(rng):
     """표시 형식(fmt)으로 쓴 모든 장부 값이 팀 공용 fact_source_verifier 대조를 통과해야 함."""
     datas = [build_agent_data(1, CO, _macro_bundle(rng), AS_OF),
-             build_agent_data(4, CO, _sent_bundle(flows=_heavy_selling()), AS_OF, {"period": 10})]
+             build_agent_data(3, CO, _sent_bundle(flows=_heavy_selling()), AS_OF, {"period": 10})]
     for d in datas:
         terms = verifier._term_values(d)
         for k, it in d.facts.items.items():
@@ -107,7 +107,7 @@ def test_every_ledger_value_survives_shared_verifier(rng):
 
 
 def test_verifier_flags_number_not_in_ledger_and_tags_sources():
-    d = build_agent_data(4, CO, _sent_bundle(), AS_OF)
+    d = build_agent_data(3, CO, _sent_bundle(), AS_OF)
     k = d.facts.key_of("외국인 20일 순매수 수량")
     ok = verifier.check_text(f"외국인은 {{{k}}} 순매도했다.", [k], d)
     assert ok["ok"] and ok["sources"] == ["Neon core.investor_flow_daily, " + d.facts.items[k]["as_of"]]
@@ -116,11 +116,11 @@ def test_verifier_flags_number_not_in_ledger_and_tags_sources():
 
 
 def test_run_agent_adds_source_tags_and_verification_log():
-    d = build_agent_data(4, CO, _sent_bundle(), AS_OF)
+    d = build_agent_data(3, CO, _sent_bundle(), AS_OF)
     k = d.facts.key_of("외국인 20일 순매수 수량")
     res = {"핵심진단": "외국인은 순매도 우위.", "자체점수": 6,
            "주장": [{"문장": f"외국인은 20일간 {{{k}}}로 순매도했다.", "구분": "사실", "근거": [k]}]}
-    out = run_agent(4, data=d, llm=FakeLLM(res))
+    out = run_agent(3, data=d, llm=FakeLLM(res))
     assert out["status"] == "완료"
     assert out["result"]["주장"][0]["출처"][0].startswith("Neon core.investor_flow_daily")
     assert "[출처: Neon core.investor_flow_daily" in out["analysis"]
@@ -132,7 +132,7 @@ def test_run_agent_adds_source_tags_and_verification_log():
 
 
 def test_prompt_files_split_by_mode_and_agent():
-    e1, e4, g1 = mode_guide("expert", 1), mode_guide("expert", 4), mode_guide("guide", 1)
+    e1, e4, g1 = mode_guide("expert", 1), mode_guide("expert", 3), mode_guide("guide", 1)
     assert "거시 노출 참고치" in e1 and "거시 노출 참고치" not in e4
     assert "수급·심리 요약" in e4
     assert "스스로질문" in g1 and "지표 정의" in g1

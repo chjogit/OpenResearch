@@ -1,6 +1,6 @@
 """모드별 프롬프트 (기초기획서 R2 3.4 '프롬프트: expert.md / guide.md 분기').
 
-prompts/expert.md, prompts/guide.md 를 읽어 '## 공통'과 '## A<번호>' 절을 합칩니다.
+prompts/expert.md, prompts/guide.md 를 읽어 '## 공통'과 '## 에이전트 <번호>' 절을 합칩니다.
 문구를 고칠 때는 코드가 아니라 이 두 파일을 고칩니다.
 """
 from __future__ import annotations
@@ -34,5 +34,5 @@ def mode_guide(mode: str, agent_id: int) -> str:
     s = _sections(mode)
     title = s.get("_head", "").splitlines()[0].lstrip("# ").strip() if s.get("_head") else mode
     parts = [f"{title}: " + " ".join(ln.strip() for ln in s.get("_head", "").splitlines()[1:] if ln.strip()),
-             s.get("공통", ""), s.get(f"A{agent_id}", "")]
+             s.get("공통", ""), s.get(f"에이전트 {agent_id}", "")]
     return "\n".join(p for p in parts if p)

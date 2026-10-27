@@ -1,7 +1,7 @@
 """데이터 계산(순수 함수) 테스트. DB·LLM 없이 실행됩니다: pytest members/CH/tests"""
 import math
 
-from ch_agents import financial, macro, sentiment
+from ch_agents import agent1_macro as macro, agent3_sentiment_flow as sentiment, financial
 from ch_agents.facts import (
     Facts,
     corr_beta,
@@ -386,7 +386,7 @@ def test_sentiment_relative_performance_flag():
 
 
 def test_sector_series_only_for_matching_sector(rng):
-    from ch_agents import macro
+    from ch_agents import agent1_macro as macro
 
     b = _macro_bundle(rng)
     ms = months(26)
@@ -402,7 +402,7 @@ def test_sector_series_only_for_matching_sector(rng):
 
 
 def test_china_exports_yoy_only_for_chemicals(rng):
-    from ch_agents import macro
+    from ch_agents import agent1_macro as macro
 
     b = _macro_bundle(rng)
     b["series"]["ECOS_CHN_EXPORT"] = [{"d": m, "v": 300000.0 + 1000 * i} for i, m in enumerate(months(26))]

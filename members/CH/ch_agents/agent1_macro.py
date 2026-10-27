@@ -1,4 +1,4 @@
-"""A1 거시경제·변수 민감도.
+"""에이전트 1 거시경제 (교재 8장, 기초기획서 R4).
 
 계산하는 것
 - 지표별 최신값, 3·12개월 변화, 국면 판정(인상/인하/보합, 원화 강세/약세, 물가 가속/둔화)
@@ -358,7 +358,6 @@ def compute(b: dict, co: dict, as_of: str, focus: list[str] | None = None, **_) 
             else:
                 recent = f", 최근 60일은 방향이 반대 ({{{k_r60}}})"
         f.flag(f"주가-{name}: {'뚜렷한' if strong else '약한'} 동조 ({{{k_r}}}){recent}")
-    f.gap("기업 환율 노출(수출 비중·외화 매출·헤지)", "DART 사업보고서 본문 미수집")
 
     # 4) 업종별 전달 경로
     guide = TRANSMISSION.get(sector, DEFAULT_TRANSMISSION)
@@ -372,8 +371,13 @@ def compute(b: dict, co: dict, as_of: str, focus: list[str] | None = None, **_) 
     docs = [{"title": d["title"], "published": str(d["published"])[:10]} for d in (b.get("docs") or [])]
     # 5) 기업 노출도 (규칙 기반, exposure.py)
     rows = exposure.assess(f, sector, b.get("fund"), as_of, focus, b.get("report"))
+    # 6) 미확인 전제 (R4): 헤지·결제 시점·판가 전가력 등. 노출 등급은 이 전제가 확인되지 않은 상태의 참고치
+    prem = exposure.premises(f, rows, sector)
+    open_items = [p["item"] for p in prem if p["status"] != "확인"]
+    if open_items:
+        f.note("미확인 전제(가정하지 말 것): " + ", ".join(open_items))
     return {"facts": f, "docs": docs, "period": f"거시 지표 최근 12개월 · 동조성 {period}", "sector": sector,
-            "exposure": rows, "focus": list(focus or [])}
+            "exposure": rows, "premises": prem, "focus": list(focus or [])}
 
 
 def bisect_left_days(days: list[str], d: str) -> int:

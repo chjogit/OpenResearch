@@ -6,6 +6,10 @@
 - 통과하지 못한 문장은 최종 출력에서 뺌 (앞 단계의 코드 검사와 별개로 두 번째 관문)
 
 장부 항목 이름에 든 숫자(예: '52주', '250일')는 값이 아니라 용어이므로 대조 대상 값에 함께 넣습니다.
+
+기초기획서 R4 4.4 'Verifier: 수치 대조 + 출처 태그 + claimId/evidenceId 연결'
+- 대조 기록 한 줄마다 claimId(주장 ID)와 evidenceIds(근거 ID)를 남깁니다. 통과하지 못한 주장도 ID 와 함께 기록됩니다.
+- 주장(주장)과 반대 근거(반대근거)를 같은 방식으로 대조합니다.
 """
 from __future__ import annotations
 
@@ -25,18 +29,12 @@ KEY = re.compile(r"\{([A-Z]\d+)\}")
 DATE = re.compile(r"\d{4}-\d{2}-\d{2}|\d{4}\.\d{1,2}(?:\.\d{1,2})?|FY\d{4}")
 LABEL_NUM = re.compile(r"\d+(?:\.\d+)?")
 TOOL = "ch_agents"
+CLAIM_FIELDS = ("주장", "반대근거")
 
 
-def _source_tag(it: dict) -> str:
-    src = str(it.get("source") or "").split(" (")[0]
-    when = str(it.get("as_of") or "")
-    return f"Neon {src}" + (f", {when}" if when and when not in ("-",) and len(when) <= 12 else "")
-
-
-def _doc_tag(d: dict) -> str:
-    if d.get("kind") == "공시":
-        return f"{str(d.get('source') or 'dart').upper()} 공시 {d.get('published')}"
-    return f"{d.get('kind', '문서')} {d.get('published')}"
+from .contract import assign_claim_ids, evidence_ids, evidence_map  # noqa: E402
+from .contract import doc_tag as _doc_tag  # noqa: E402
+from .contract import source_tag as _source_tag  # noqa: E402
 
 
 def plain(text: str, data) -> str:
@@ -85,19 +83,22 @@ def check_text(text: str, keys: list[str], data, terms: dict | None = None) -> d
 def apply(result: dict, data) -> tuple[dict, list[dict], list[str]]:
     """결과 전체를 대조합니다. (통과한 결과, 대조 기록, 뺀 문장)"""
     terms = _term_values(data)
+    emap = evidence_map(data)
     log: list[dict] = []
     removed: list[str] = []
-    out = dict(result)
-    claims = []
-    for c in result.get("주장") or []:
-        keys = list(dict.fromkeys(KEY.findall(c.get("문장", "")) + [str(k) for k in c.get("근거") or []]))
-        v = check_text(c.get("문장", ""), keys, data, terms)
-        log.append({"문장": c.get("문장", ""), **v})
-        if v["ok"]:
-            claims.append({**c, "출처": v["sources"]})
-        else:
-            removed.append(c.get("문장", ""))
-    out["주장"] = claims
+    out = assign_claim_ids(result)
+    for field in CLAIM_FIELDS:
+        claims = []
+        for c in out.get(field) or []:
+            keys = list(dict.fromkeys(KEY.findall(c.get("문장", "")) + [str(k) for k in c.get("근거") or []]))
+            v = check_text(c.get("문장", ""), keys, data, terms)
+            ev = evidence_ids(keys, emap)
+            log.append({"claimId": c["claimId"], "구분": field, "문장": c.get("문장", ""), **v, "evidenceIds": ev})
+            if v["ok"]:
+                claims.append({**c, "출처": v["sources"], "evidenceIds": ev})
+            else:
+                removed.append(c.get("문장", ""))
+        out[field] = claims
     for field in ("핵심진단", "점수이유"):
         t = str(result.get(field) or "")
         v = check_text(t, KEY.findall(t), data, terms)

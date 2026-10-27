@@ -12,6 +12,7 @@ import time
 from typing import Any
 
 from .agents import AGENTS, MY_AGENTS, AgentData, fetch_agent_data
+from . import contract as contract_mod
 from . import exposure as exposure_mod
 from . import verify as verifier
 from .glossary import terms_for
@@ -34,12 +35,19 @@ COMMON_RULES = """[절대 준수 원칙]
    바꾸지 말고 그대로 쓰십시오. 판정과 반대되는 주장을 하려면 근거 키를 대십시오.
 7. 키 뒤에 단위나 수량 단어를 다시 붙이지 마십시오. 값에 이미 단위가 있습니다. 예: "{F18}개 분기"(X) → "{F18}"(O)
 8. 항목 설명(※)에 '아님'으로 적힌 해석은 하지 마십시오. 예: 외국인 순매수일 평균 가격은 실제 매입 단가가 아닙니다.
-9. """ + RAG_RULE
+9. "반대근거"에는 핵심진단과 반대 방향을 가리키는 근거나 하방 위험을 1~3개 쓰십시오. 사용자 성향과 상관없이 늘 씁니다.
+10. [미확인 전제]의 항목(헤지 여부, 결제 시점, 판가 전가력 등)을 확인된 것처럼 쓰거나 가정하지 마십시오.
+11. 수급(순매수) 기록만으로 매수·매도 의도, 세력, 내부 정보 보유를 추정하지 마십시오.
+12. [코드 판정]의 '중복 신호 주의'로 묶인 신호(뉴스 논조·검색 관심·거래대금·집중 매매)는 같은 사건의 한 묶음입니다.
+    여러 개의 독립 근거로 세거나 '두 신호가 함께 확인되어 더 강하다'고 쓰지 마십시오.
+13. 감성 점수는 키워드 사전 기준선이며 학습 모델의 검증된 결과가 아닙니다. 긍정 문서가 많다는 것을 수익률 전망으로 쓰지 마십시오.
+14. """ + RAG_RULE
 
 OUTPUT_SCHEMA = """반드시 아래 JSON 하나만 출력하십시오 (설명·코드블록 없이):
 {
   "핵심진단": "1~2문장",
   "주장": [{"문장": "...", "구분": "사실|해석|예측", "근거": ["키", "..."]}],
+  "반대근거": [{"문장": "핵심진단과 반대 방향의 근거 또는 하방 위험", "구분": "사실|해석|예측", "근거": ["키"]}],
   "긍정요인": ["..."],
   "리스크요인": ["..."],
   "미확인": ["판단에 필요하지만 데이터가 없는 것"],
@@ -53,6 +61,7 @@ EXAMPLE = """[출력 예시 — 형식만 참고, 키와 내용은 실제 장부
 {"핵심진단": "환율은 {X3} 기준 원화 강세 국면이고, 주가와의 동조성은 약합니다.",
  "주장": [{"문장": "원/달러가 3개월 동안 {X4} 변했다.", "구분": "사실", "근거": ["X4"]},
           {"문장": "원화 강세는 수출 대금의 원화 환산액을 줄이는 방향이지만 달러 비용 비중은 확인되지 않았다.", "구분": "해석", "근거": ["X4"]}],
+ "반대근거": [{"문장": "헤지 비율이 확인되지 않아 환율 영향이 실제보다 작을 수 있다.", "구분": "해석", "근거": ["X4"]}],
  "긍정요인": ["..."], "리스크요인": ["..."], "미확인": ["기업의 달러 비용 비중"], "다음점검": ["..."],
  "자체점수": 6, "점수이유": "거시 변화는 충분하나 기업 노출 데이터가 없음"}"""
 
@@ -72,6 +81,15 @@ BANNED = ("매수 추천", "매도 추천", "목표주가", "목표 주가", "�
 BANNED_RE = re.compile(r"(?<!순)(매수|매도)\s*(하세요|하십시오|하시길|를\s*권|를\s*추천|할\s*것을\s*권|가\s*바람직)")
 COMMON_TERMS = {"52주"}  # 숫자가 들어 있지만 값이 아닌 용어
 VALID_KINDS = {"사실", "해석", "예측"}
+# 수급만으로 의도·정보 보유를 추정하는 표현 (R4 에이전트 3 제약). 바로 뒤에 부정('추정할 수 없다')이 오면 허용
+INTENT_RE = re.compile(r"(매수|매도|매집)\s*의도|세력|작전|내부\s*정보|미리\s*알고|정보를\s*(알고|쥐고|가지고)|매집")
+INTENT_NEG = re.compile(r"^.{0,20}(추정(할|하지|해서는|은)|단정(할|하지)|알\s*수\s*없|확인(할|되지)|아님|아니)")
+# 중복 신호를 독립 근거처럼 세는 표현 (R4 에이전트 3 제약)
+INDEP_RE = re.compile(r"(두|세|2|3|여러|복수)\s*(가지|개)?\s*(의\s*)?(신호|근거|지표)[^.]{0,15}(뒷받침|확인|입증|강화)"
+                      r"|독립(된|적인)?\s*(근거|신호)|이중으로\s*확인|동시에\s*(확인|뒷받침)|함께\s*(확인|뒷받침)"
+                      r"|더욱\s*(강하|확실|분명)|신뢰도(가|를)\s*높")
+SAME_RE = re.compile(r"같은\s*사건|중복|하나의\s*(사건|근거|묶음)|사건\s*묶음|독립(된|적인)?\s*(근거|신호)(가|로)?\s*(아니|보지|세지)")
+CLAIM_FIELDS = ("주장", "반대근거")
 
 
 def get_llm(temperature: float = 0.0):
@@ -107,7 +125,7 @@ def invoke(model, msgs):
 def build_messages(data: AgentData, mode: str = "expert") -> tuple[str, str]:
     spec = AGENTS[data.agent_id]
     f = data.facts
-    system = f"""당신은 OpenResearch의 [A{data.agent_id}: {spec.name}]입니다.
+    system = f"""당신은 OpenResearch의 [{spec.name}]입니다.
 {spec.role}
 
 {COMMON_RULES}
@@ -142,10 +160,27 @@ def build_messages(data: AgentData, mode: str = "expert") -> tuple[str, str]:
 
 [해석 가이드] (숫자 없음)
 {notes}
-
+{_extra_sections(data)}
 [참고 문서] (DB에서 이 관점으로 검색한 공시·뉴스·여론. 정성 근거, 근거 키로 D번호 사용)
 {docs}"""
     return system, user
+
+
+def _extra_sections(data: AgentData) -> str:
+    """에이전트별 코드 표를 프롬프트에 넣습니다: 1 미확인 전제, 3 기준선 비교."""
+    out = []
+    prem = data.extra.get("premises")
+    if prem:
+        out += ["", "[미확인 전제] (확인되지 않은 것은 가정하지 말 것)"]
+        out += [f"- {p['item']}: {p['status']} — {p['detail']}" + (" " + " ".join("{" + k + "}" for k in p["keys"])
+                                                                 if p["keys"] else "") for p in prem]
+    base = data.extra.get("baseline")
+    if base:
+        out += ["", "[기준선 비교] (규칙·사전 기준선 대비 현재. 상태는 코드 판정)"]
+        for b in base:
+            ks = [f"{n} {{{b[k]}}}" for n, k in (("현재", "current"), ("기준선", "base"), ("비교", "measure")) if b.get(k)]
+            out.append(f"- {b['signal']} ({b['method']}): " + ", ".join(ks) + f" → {b['status']}")
+    return "\n".join(out)
 
 
 # ---------------------------------------------------------------- 파싱·검사
@@ -222,7 +257,8 @@ def _opinion_keys(data: AgentData) -> set[str]:
 
 def _texts(result: dict) -> list[str]:
     out = [str(result.get("핵심진단", "")), str(result.get("점수이유", ""))]
-    out += [str(c.get("문장", "")) for c in result.get("주장", []) if isinstance(c, dict)]
+    for field in CLAIM_FIELDS:
+        out += [str(c.get("문장", "")) for c in result.get(field) or [] if isinstance(c, dict)]
     for k in ("긍정요인", "리스크요인", "미확인", "다음점검", "스스로질문"):
         out += [str(x) for x in result.get(k) or []]
     return out
@@ -248,7 +284,23 @@ def sentence_problems(text: str, valid: set[str], allowed: set[str] | None = Non
     banned = [w for w in BANNED if w in text] + [m.group(0) for m in BANNED_RE.finditer(text)]
     if banned:
         probs.append(f"금지 표현 {banned}")
+    intent = [m.group(0) for m in INTENT_RE.finditer(text) if not INTENT_NEG.search(text[m.end():m.end() + 30])]
+    if intent:
+        probs.append(f"수급만으로 의도·정보 보유 추정 {intent}")
     return probs
+
+
+def duplicate_problems(text: str, refs, data: AgentData | None) -> list[str]:
+    """'중복 신호 주의'로 묶인 신호 둘 이상을 근거로 들며 독립 근거처럼 세는 문장을 찾습니다."""
+    if data is None:
+        return []
+    keys = set(PLACEHOLDER.findall(str(text))) | {str(k) for k in refs or []}
+    out = []
+    for c in data.extra.get("dup_clusters") or []:
+        hit = [s for s, ks in (c.get("members") or {}).items() if keys & set(ks)]
+        if len(hit) >= 2 and INDEP_RE.search(str(text)) and not SAME_RE.search(str(text)):
+            out.append(f"중복 신호({'·'.join(hit)})를 독립 근거로 셈")
+    return out
 
 
 def auto_keys(obj, data: AgentData):
@@ -293,6 +345,19 @@ def check_output(result: dict, data: AgentData) -> dict[str, list[str]]:
             checks["문장"].append(f"{p}: {text[:60]}")
     dirs = flag_directions(data.facts)
     checks["방향"] = []
+    checks["중복 신호"] = []
+    counter = result.get("반대근거") or []
+    if not isinstance(counter, list):
+        checks["형식"].append("'반대근거'가 목록이 아님")
+        counter = []
+    for c in claims + counter:
+        if isinstance(c, dict):
+            refs = [str(k) for k in (c.get("근거") or [])]
+            for p in duplicate_problems(str(c.get("문장", "")), refs, data):
+                checks["중복 신호"].append(f"{p}: {str(c.get('문장'))[:60]}")
+    for t in [str(result.get("핵심진단", ""))] + [str(x) for x in result.get("긍정요인") or []]:
+        for p in duplicate_problems(t, None, data):
+            checks["중복 신호"].append(f"{p}: {t[:60]}")
     for c in claims:
         if isinstance(c, dict):
             refs = [str(k) for k in (c.get("근거") or [])]
@@ -304,7 +369,7 @@ def check_output(result: dict, data: AgentData) -> dict[str, list[str]]:
             for p in direction_problems(str(t), data.facts, None, dirs):
                 checks["방향"].append(f"{p}: {str(t)[:60]}")
     opinion = _opinion_keys(data)
-    for c in claims:
+    for c in claims + counter:
         if not isinstance(c, dict):
             checks["형식"].append("주장 항목이 객체가 아님")
             continue
@@ -327,7 +392,8 @@ def sanitize(result: dict, data: AgentData) -> tuple[dict, list[str]]:
     dirs = flag_directions(data.facts)
 
     def bad(t: str, refs=None) -> bool:
-        return bool(sentence_problems(t, valid, allowed) or direction_problems(t, data.facts, refs, dirs))
+        return bool(sentence_problems(t, valid, allowed) or direction_problems(t, data.facts, refs, dirs)
+                    or duplicate_problems(t, refs, data))
 
     removed: list[str] = []
     opinion = _opinion_keys(data)
@@ -335,18 +401,19 @@ def sanitize(result: dict, data: AgentData) -> tuple[dict, list[str]]:
     if bad(str(out.get("핵심진단", ""))):
         removed.append(str(out.get("핵심진단")))
         out["핵심진단"] = "(검증되지 않은 숫자나 판정과 어긋난 표현이 있어 생략. 아래 주장을 참고)"
-    claims = []
-    for c in out.get("주장") or []:
-        if not isinstance(c, dict):
-            continue
-        refs = [str(k) for k in (c.get("근거") or []) if str(k) in valid]
-        text = str(c.get("문장", ""))
-        if bad(text, refs) or (c.get("구분") in ("사실", "해석") and not refs) \
-                or c.get("구분") not in VALID_KINDS or (c.get("구분") == "사실" and set(refs) <= opinion):
-            removed.append(text)
-            continue
-        claims.append({"문장": text, "구분": c["구분"], "근거": refs})
-    out["주장"] = claims
+    for field in CLAIM_FIELDS:
+        claims = []
+        for c in out.get(field) or [] if isinstance(out.get(field), list) else []:
+            if not isinstance(c, dict):
+                continue
+            refs = [str(k) for k in (c.get("근거") or []) if str(k) in valid]
+            text = str(c.get("문장", ""))
+            if bad(text, refs) or (c.get("구분") in ("사실", "해석") and not refs) \
+                    or c.get("구분") not in VALID_KINDS or (c.get("구분") == "사실" and set(refs) <= opinion):
+                removed.append(text)
+                continue
+            claims.append({"문장": text, "구분": c["구분"], "근거": refs})
+        out[field] = claims
     for k in ("긍정요인", "리스크요인", "미확인", "다음점검", "스스로질문"):
         kept = []
         for x in out.get(k) or []:
@@ -358,6 +425,8 @@ def sanitize(result: dict, data: AgentData) -> tuple[dict, list[str]]:
 
 
 # ---------------------------------------------------------------- 규칙 기반 대체
+
+NEGATIVE_RE = re.compile(r"악화|하회|순매도|높음|급증|지연|경고|주의|위험 회피|방향이 반대|엇갈림")
 
 def fallback_result(data: AgentData) -> dict:
     f = data.facts
@@ -372,9 +441,13 @@ def fallback_result(data: AgentData) -> dict:
             seen_groups.add(v["group"])
             claims.append({"문장": f"{v['label']}: {{{k}}}", "구분": "사실", "근거": [k]})
     head = " / ".join(c["문장"] for c in claims[:2]) or "규칙 판정 결과가 없습니다."
+    used = {c["문장"] for c in claims}
+    counter = [{"문장": fl, "구분": "사실", "근거": PLACEHOLDER.findall(fl)} for fl in f.flags
+               if fl not in used and PLACEHOLDER.findall(fl) and NEGATIVE_RE.search(fl)][:3]
     return {
         "핵심진단": head,
         "주장": claims,
+        "반대근거": counter,
         "긍정요인": [],
         "리스크요인": [c["문장"] for c in claims if c["문장"].startswith(("경고", "주의"))],
         "미확인": [f"{g['label']} ({g['reason']})" for g in f.gaps],
@@ -406,16 +479,32 @@ DUP_UNIT = re.compile(r"(\*\*[^*]*?(개|일|배|원|주|%p|%)\*\*`\[[A-Z]\d+\]`)
 
 
 def _tables(data: AgentData) -> list[str]:
-    """코드가 만든 표 (LLM 무관): A1 노출 점검표, A4 이상 징후·심리·수급 요약표."""
+    """코드가 만든 표 (LLM 무관): 에이전트 1 노출 점검표, 에이전트 3 이상 징후·심리·수급 요약표."""
     r = lambda t: render(t, data)
     out: list[str] = []
     rows = data.extra.get("exposure")
     if rows:
         out += ["", "**노출 점검표 (규칙 기반: 업종 기본값 → 통계 근거 → 재무 구조)**", "",
                 exposure_mod.table_md(rows, r)]
-    if data.agent_id == 4:
+    prem = data.extra.get("premises")
+    if prem:
+        out += ["", "**미확인 전제 (노출 등급은 아래 전제가 확인되지 않은 상태의 참고치)**", "",
+                exposure_mod.premises_md(prem, r)]
+    if data.agent_id == 3:
         an = data.extra.get("anomalies") or []
         out += ["", "**이상 징후**", ""] + ([f"- {r(x)}" for x in an] or ["- 없음 (코드 기준에 걸린 항목 없음)"])
+        base = data.extra.get("baseline") or []
+        if base:
+            out += ["", "**기준선 비교 (규칙·사전 기준선 대비 현재)**", "",
+                    "| 신호 | 기준선 방식 | 현재 | 기준선 | 비교 | 상태 |", "| --- | --- | --- | --- | --- | --- |"]
+            cell = lambda k: r("{" + k + "}") if k else "-"
+            out += [f"| {b['signal']} | {b['method']} | {cell(b.get('current'))} | {cell(b.get('base'))} | "
+                    f"{cell(b.get('measure'))} | {b['status']} |" for b in base]
+        if data.extra.get("sentiment_model"):
+            out += [f"- 감성 점수: {data.extra['sentiment_model']}"]
+        for c in data.extra.get("dup_clusters") or []:
+            out += ["", f"**중복 신호 주의 ({c['id']})**: {'·'.join(c['signals'])}은(는) 같은 사건을 반영할 수 있어 "
+                        "하나의 사건 묶음으로 보고 독립 근거로 중복 계산하지 않습니다."]
     summary = data.extra.get("summary")
     if summary:
         P = data.extra.get("obs_period")
@@ -426,19 +515,32 @@ def _tables(data: AgentData) -> list[str]:
     return out
 
 
+def _claim_line(c: dict, data: AgentData, emap: dict[str, str]) -> str:
+    tag = " ".join(f"[출처: {s}]" for s in c.get("출처") or [])
+    refs = ", ".join(f"{emap.get(k, k)}·{k}" for k in c.get("근거") or []) or "-"
+    cid = f"{c['claimId']} " if c.get("claimId") else ""
+    return f"- {cid}[{c.get('구분')}] {render(c.get('문장', ''), data)} (근거: {refs})" + (f" {tag}" if tag else "")
+
+
 def to_markdown(data: AgentData, result: dict, status: str, checks: dict, removed: list[str],
-                mode: str = "expert", vlog: list[dict] | None = None) -> str:
+                mode: str = "expert", vlog: list[dict] | None = None, report_id: str | None = None) -> str:
     r = lambda t: render(t, data)
     f = data.facts
-    out = [f"- **상태**: {status}", f"- **관측 기간**: {data.period}",
-           f"- **핵심 진단**: {r(result.get('핵심진단', ''))}"]
+    emap = contract_mod.evidence_map(data)
+    out = [f"- **상태**: {status}", f"- **관측 기간**: {data.period}"]
+    if report_id:
+        out.append(f"- **reportId**: `{report_id}` · 기준일 {data.as_of}")
+    out.append(f"- **핵심 진단**: {r(result.get('핵심진단', ''))}")
     out += _tables(data)
-    out += ["", "**주장과 근거**", ""]
-    for c in result.get("주장", []):
-        tag = " ".join(f"[출처: {s}]" for s in c.get("출처") or [])
-        out.append(f"- [{c.get('구분')}] {r(c.get('문장', ''))} (근거: {', '.join(c.get('근거') or []) or '-'})"
-                   + (f" {tag}" if tag else ""))
-    for title, key in (("긍정 요인", "긍정요인"), ("리스크 요인", "리스크요인"), ("미확인", "미확인"),
+    out += ["", "**주장과 근거** (claimId · 근거 ID·장부 키)", ""]
+    out += [_claim_line(c, data, emap) for c in result.get("주장", [])]
+    counter = result.get("반대근거") or []
+    risks = result.get("리스크요인") or []
+    if counter or risks:
+        out += ["", "**반대 근거·하방 위험**", ""]
+        out += [_claim_line(c, data, emap) for c in counter]
+        out += [f"- (하방 위험) {r(x)}" for x in risks]
+    for title, key in (("긍정 요인", "긍정요인"), ("미확인", "미확인"),
                        ("다음 점검", "다음점검"), ("스스로 확인해 볼 질문", "스스로질문")):
         items = result.get(key) or []
         if items:
@@ -447,7 +549,7 @@ def to_markdown(data: AgentData, result: dict, status: str, checks: dict, remove
     out += ["", f"**자체 점수**: {score if score is not None else '-'} / 10 · {r(result.get('점수이유', ''))}"]
     if f.flags:
         out += ["", "**코드 판정**", ""] + [f"- {r(x)}" for x in f.flags]
-    out += ["", "**숫자 장부**", "", f.table_md()]
+    out += ["", "**숫자 장부** (근거 ID = 장부 순서)", "", f.table_md(emap)]
     if f.gaps:
         out += ["", "**무자료**", ""] + [f"- {g['label']}: {g['reason']}" for g in f.gaps]
     if data.docs:
@@ -466,7 +568,9 @@ def to_markdown(data: AgentData, result: dict, status: str, checks: dict, remove
         n_ok = sum(1 for v in vlog if v.get("ok"))
         bad = [v for v in vlog if not v.get("ok")]
         out += [f"- **Verifier (fact_source_verifier)**: 문장 {len(vlog)}개 수치 대조, 통과 {n_ok}개"
-                + (f", 불일치 {len(bad)}개 제외 ({'; '.join(', '.join(v['unmatched']) for v in bad)[:120]})" if bad else "")]
+                + (f", 불일치 {len(bad)}개 제외 ({'; '.join(', '.join(v['unmatched']) for v in bad)[:120]})" if bad else "")
+                + (f" · 제외된 주장 {', '.join(v['claimId'] for v in bad if v.get('claimId'))}"
+                   if any(v.get("claimId") for v in bad) else "")]
     q = data.extra.get("quality")
     if q:
         out += ["", "**데이터 품질 주의**", ""] + [f"- {w['name']} ({w['api']}): {w['reason']}" for w in q]
@@ -479,7 +583,7 @@ def run_agent(agent_id: int, ticker: str | None = None, mode: str = "expert", ll
               data: AgentData | None = None, as_of: str | None = None, max_repair: int = 1,
               focus: list[str] | None = None, period: int | None = None) -> dict:
     """에이전트 하나를 실행해 팀 공통 출력 계약 dict 를 돌려줍니다.
-    focus: A1 관심 거시 변수(예: ["환율", "금리"]), period: A4 관찰 기간(거래일). data 를 넘기면 무시됩니다."""
+    focus: 에이전트 1 관심 거시 변수(예: ["환율", "금리"]), period: 에이전트 3 관찰 기간(거래일). data 를 넘기면 무시됩니다."""
     if data is None:
         data = fetch_agent_data(agent_id, ticker, as_of, focus=focus, period=period)
     system, user = build_messages(data, mode)
@@ -525,25 +629,29 @@ def run_agent(agent_id: int, ticker: str | None = None, mode: str = "expert", ll
         else:
             checks = attempts[best_at]["checks"]
             status = "완료" + (" (수정 1회)" if best_at > 0 else "") + (" (일부 문장 제외)" if removed else "")
-    md = to_markdown(data, result, status, checks, removed, mode, vlog)
     facts = data.facts
-    return {
+    out = {
         "agent_id": agent_id, "agent_name": data.name, "status": status, "period": data.period,
         "as_of": data.as_of, "result": result, "facts": facts.items, "gaps": facts.gaps, "flags": facts.flags,
         "checks": checks, "removed": removed, "attempts": attempts, "seconds": round(time.monotonic() - t0, 1),
-        "analysis": md,
         "source": "Neon " + ", ".join(sorted({v["source"].split(" (")[0] for v in facts.items.values()}
                                              | ({"rag.document·core.disclosure"} if data.docs else set()))),
         "docs": data.docs, "verification": vlog,
         "exposure": data.extra.get("exposure"), "anomalies": data.extra.get("anomalies"),
-        "quality": data.extra.get("quality"),
+        "quality": data.extra.get("quality"), "premises": data.extra.get("premises"),
+        "baseline": data.extra.get("baseline"), "dup_clusters": data.extra.get("dup_clusters"),
     }
+    # 데이터 계약 (R4 3장): reportId·claimId·evidenceId·사실/해석/예측·반대 근거·미확인·기준일/공개시각·출처 태그
+    out["contract"] = contract_mod.build(out, data, mode)
+    out["report_id"] = out["contract"]["reportId"]
+    out["analysis"] = to_markdown(data, result, status, checks, removed, mode, vlog, out["report_id"])
+    return out
 
 
 def run_my_agents(ticker: str, mode: str = "expert", agent_ids=MY_AGENTS, as_of: str | None = None,
                   llm=None, focus: list[str] | None = None, period: int | None = None) -> list[dict]:
     """CH 담당 관점을 한 번에 실행해 오케스트레이터에 넘길 리스트를 돌려줍니다.
-    focus: A1 관심 거시 변수(예: ["환율", "금리"]), period: A4 관찰 기간(거래일)."""
+    focus: 에이전트 1 관심 거시 변수(예: ["환율", "금리"]), period: 에이전트 3 관찰 기간(거래일)."""
     from . import db
 
     co = db.company(ticker)

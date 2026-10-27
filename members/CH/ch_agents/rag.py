@@ -15,9 +15,9 @@
   코드 검사(키 밖 숫자)가 그대로 걸러냅니다.
 - 블로그·카페·댓글은 '개인 의견'으로 표시합니다.
 
-팀원 사용법 (A3·A5·A6 포함, 관점 번호만 바꾸면 됨)
+팀원 사용법 (교재 번호: 1 거시, 2 산업·사업모델, 3 투자심리·수급, 4 기술적, 5 경영진·대주주, 7 가치평가·위험(재무))
     from ch_agents.rag import retrieve, docs_for_prompt
-    docs = retrieve(6, "005930", as_of="2026-10-26")
+    docs = retrieve(5, "005930", as_of="2026-10-26")
     print(docs_for_prompt(docs))
 """
 from __future__ import annotations
@@ -59,7 +59,7 @@ PRESETS: dict[int, Preset] = {
          "tariff": 2, "federal reserve": 2, "the fed": 1.5, "interest rate": 2, "inflation": 2, "dollar": 1.5, "export": 1.5, "oil price": 1.5, "crude": 1.5,
          "환위험": 2, "통화선도": 2, "통화스왑": 2, "헷지": 1.5, "위험회피": 1.5},
         {**NEWS, "dart_report": 1.2}, days=30, long_days={"dart_report": 500}),
-    2: Preset(
+    7: Preset(
         "재무·밸류에이션·건전성",
         {"실적": 1.5, "영업이익": 2, "매출": 1, "순이익": 2, "어닝": 2, "컨센서스": 2, "가이던스": 2, "잠정": 1.5,
          "배당": 2, "자사주": 2, "소각": 2, "주주환원": 2, "밸류업": 2, "부채": 2, "차입": 2, "회사채": 2,
@@ -70,7 +70,7 @@ PRESETS: dict[int, Preset] = {
                 "rights_issue", "convertible_bond", "capital_reduction", "value_up_plan", "quarterly_report",
                 "half_year_report", "annual_report", "guidance", "loan_decision", "earnings"),
         k_disclosures=5),
-    3: Preset(
+    2: Preset(
         "산업·경쟁강도",
         {"점유율": 3, "경쟁": 1, "경쟁사": 2, "수주": 2, "공급계약": 2, "고객사": 2, "신제품": 2, "증설": 2,
          "양산": 2, "업황": 2, "판가": 2, "가격 인상": 2, "가격 인하": 2, "공급 과잉": 3, "재고": 1.5, "규제": 1,
@@ -80,7 +80,7 @@ PRESETS: dict[int, Preset] = {
         events=("supply_contract", "capex", "investment_acquisition", "merger", "business_transfer", "spin_off",
                 "share_exchange", "material_agreement", "guidance", "acquisition_completed"),
         report_re="거래처|공급계약|영업양수"),
-    4: Preset(
+    3: Preset(
         "투자심리·수급",
         {"외국인": 2, "기관": 1.5, "개인 투자자": 1.5, "개인은": 1, "순매수": 2, "순매도": 2, "수급": 2, "공매도": 2, "대차": 2,
          "투자심리": 2, "개미": 1.5, "급등": 1.5, "급락": 1.5, "매물": 1.5, "차익실현": 2, "쏠림": 1.5,
@@ -89,14 +89,14 @@ PRESETS: dict[int, Preset] = {
         {**NEWS, **OPINION}, days=20,
         events=("rumor_clarification", "rumor_inquiry", "conversion_exercise"), disclosure_days=120,
         k_docs=7, k_disclosures=3, per_source=OPINION_CAP),
-    5: Preset(
+    4: Preset(
         "기술적 분석",
         {"신고가": 2, "신저가": 2, "이동평균": 2, "이평선": 2, "골든크로스": 3, "데드크로스": 3, "지지선": 2,
          "저항선": 2, "거래량": 1.5, "전고점 돌파": 2, "저항선 돌파": 2, "기술적 반등": 2, "반등": 1, "박스권": 2, "차트": 1.5, "과매수": 2, "과매도": 2,
          "rsi": 2, "상한가": 2, "하한가": 2, "갭": 1,
          "52-week": 2, "all-time high": 2, "support": 1, "resistance": 1.5},
         {**NEWS, **OPINION}, days=20, k_docs=6, per_source=OPINION_CAP, min_base=3),
-    6: Preset(
+    5: Preset(
         "대주주·경영진",
         {"최대주주": 3, "경영권": 3, "지배구조": 3, "승계": 3, "상속": 2, "증여": 2, "오너": 2, "지주사": 2,
          "횡령": 3, "배임": 3, "행동주의": 3, "주주제안": 3, "대표이사": 2, "사외이사": 2, "이사회": 2,
@@ -151,7 +151,7 @@ m AS (
 )
 SELECT json_build_object(
     'news', (SELECT json_agg(x) FROM (
-        SELECT c.doc_id, c.source, c.title, left(c.summary, 240) AS summary, c.published_at::date AS published,
+        SELECT c.doc_id, c.source, c.title, left(c.summary, 240) AS summary, c.published_at::date AS published, c.published_at AS published_at,
                c.url, coalesce(m.tt, '{}') AS tt, coalesce(m.st, '{}') AS st
         FROM m JOIN c USING (doc_id)
         ORDER BY coalesce(cardinality(m.tt), 0) * 2 + coalesce(cardinality(m.st), 0) DESC, c.published_at DESC
@@ -266,6 +266,7 @@ def select_docs(rows: list[dict], preset: Preset, co: dict, as_of: str) -> list[
         per_src[src] = per_src.get(src, 0) + 1
         kept.append({
             "kind": SOURCE_LABEL.get(src, src), "source": src, "published": str(r.get("published"))[:10],
+            "published_at": str(r.get("published_at") or r.get("published")),  # 최초 공개시각 (R4 데이터 계약)
             "title": _clean(r.get("title")), "summary": _clean(r.get("summary"), 110),
             "url": r.get("url"), "terms": terms[:4], "score": s, "doc_id": r.get("doc_id"),
         })

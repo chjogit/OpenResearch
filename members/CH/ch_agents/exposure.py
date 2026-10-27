@@ -1,4 +1,4 @@
-"""A1 기업 노출도: 규칙 기반 노출 지표 (기초기획서 R2 3.2, 리스크 대응 '규칙 기반 노출 지표 우선, LLM은 해석만').
+"""에이전트 1 기업 노출도: 규칙 기반 노출 지표 (기초기획서 R2 3.2, 리스크 대응 '규칙 기반 노출 지표 우선, LLM은 해석만').
 
 거시 변수 4개(환율·금리·원자재·물가, 수출·경기)마다 노출 등급(높음/중간/낮음)을 코드가 정합니다.
 LLM은 이 등급을 바꾸지 못하고, 판정 문장에 붙은 근거 키만 인용해 해석합니다.
@@ -55,7 +55,7 @@ PATH = {  # 변수별로 무엇을 거쳐 실적에 닿는지 (가이드 모드 
     "원자재·물가": "원재료 가격과 판매가 전가, 가계 구매력",
     "수출·경기": "제품 수요와 물량, 업황 사이클",
 }
-# 변수별 통계 근거로 볼 동조성 항목 (macro.py 의 '주가-<이름> 상관(250일)')
+# 변수별 통계 근거로 볼 동조성 항목 (agent1_macro.py 의 '주가-<이름> 상관(250일)')
 STAT_DRIVERS = {
     "환율": ("원/달러",),
     "금리": ("미국 10년 국채금리", "국고채 3년 금리"),
@@ -216,6 +216,64 @@ def assess(f: Facts, sector: str, fundamentals: dict | None, as_of: str, focus: 
     if focus:
         rows.sort(key=lambda r: not r["focus"])
     return rows
+
+
+# ---------------------------------------------------------------- 미확인 전제 (기초기획서 R4 2.2·4.2)
+# 노출 등급은 아래 전제가 확인되지 않은 상태의 '참고치'입니다. 전제마다 상태(확인/일부 확인/미확인)를 코드가 정하고,
+# LLM은 미확인 전제를 사실처럼 가정하지 못합니다 (교재 8장: 판매량·판가·헤지·결제 시점이 필요).
+PREMISES = (
+    ("환헤지 여부·비율", "헤지 비율·만기에 따라 환율 변화가 손익에 닿는 크기가 달라짐"),
+    ("수출 대금 결제 통화·결제 시점", "결제 통화와 회수 기간에 따라 환율 효과가 반영되는 시점이 달라짐"),
+    ("판가 전가력", "원가·환율 변화를 판매가에 넘길 수 있으면 이익 영향이 줄어듦"),
+    ("달러 비용 비중(원재료·부품 수입 통화)", "달러 매출과 달러 비용이 상쇄되는 만큼 순노출이 줄어듦"),
+    ("수출 매출 비중", "수출 비중이 클수록 환율·해외 경기 영향이 큼"),
+    ("차입 조건(변동·고정금리 비중, 만기)", "변동금리 비중이 크면 금리 변화가 이자 비용에 바로 반영됨"),
+)
+
+
+def _key_prefix(f: Facts, prefix: str) -> str | None:
+    return next((k for k, v in f.items.items() if v["label"].startswith(prefix)), None)
+
+
+def premises(f: Facts, rows: list[dict], sector: str) -> list[dict]:
+    """미확인 전제 목록: [{item, status, detail, why, keys}]. 상태는 장부와 노출표에서 코드가 정합니다."""
+    fx = next((r for r in rows if r["var"] == "환율"), {"reasons": []})
+    hedge = any("파생상품" in x for x in fx["reasons"])
+    k_net, k_exp = _key_prefix(f, "달러 화폐성 순자산"), _key_prefix(f, "수출 매출 비중")
+    k_debt = _key_prefix(f, "부채비율(")
+    out = []
+    for item, why in PREMISES:
+        status, detail, keys = "미확인", "DB에 자료 없음", []
+        if item.startswith("환헤지"):
+            if hedge:
+                status, detail = "일부 확인", "사업보고서에 외환 파생상품 사용 공시. 헤지 비율·만기는 미확인"
+            else:
+                detail = "사업보고서 원문에서 외환 파생상품 표를 찾지 못했거나 미수집"
+        elif item.startswith("수출 대금"):
+            detail = "결제 통화별 매출·매출채권 회수 기간 자료 없음"
+        elif item.startswith("판가"):
+            detail = "판매가 조정 조건(계약 구조·경쟁 강도) 자료 없음"
+        elif item.startswith("달러 비용") and k_net:
+            status, detail, keys = "일부 확인", "화폐성 자산·부채의 달러 순액만 공시값 있음. 비용의 통화 구성은 미확인", [k_net]
+        elif item.startswith("수출 매출") and k_exp:
+            status, detail, keys = "확인", "사업보고서 매출 실적 표의 내수·수출 구분", [k_exp]
+        elif item.startswith("수출 매출"):
+            detail = "사업보고서 원문에서 회사 전체 내수·수출 표를 찾지 못했거나 미수집 (업종 기본값 사용)"
+        elif item.startswith("차입"):
+            if sector in FINANCIAL:
+                detail = "금융업: 예대 금리 구조·자산 부채 만기 차이 자료 없음"
+            elif k_debt:
+                status, detail, keys = "일부 확인", "부채비율만 확인. 변동금리 비중·만기 구조는 미확인", [k_debt]
+        out.append({"item": item, "status": status, "detail": detail, "why": why, "keys": keys})
+    return out
+
+
+def premises_md(items: list[dict], render) -> str:
+    out = ["| 전제 | 상태 | 내용 | 왜 필요한가 |", "| --- | --- | --- | --- |"]
+    for p in items:
+        keys = " ".join("{" + k + "}" for k in p["keys"])
+        out.append(f"| {p['item']} | {p['status']} | {render(p['detail'] + (' ' + keys if keys else ''))} | {p['why']} |")
+    return "\n".join(out)
 
 
 def table_md(rows: list[dict], render) -> str:
