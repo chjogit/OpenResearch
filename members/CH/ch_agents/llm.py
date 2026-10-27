@@ -13,6 +13,7 @@ from typing import Any
 
 from .agents import AGENTS, AgentData, fetch_agent_data
 from .glossary import terms_for
+from .semantic import direction_problems, flag_directions
 
 MODEL = os.getenv("UPSTAGE_MODEL_NAME", "solar-pro4")
 
@@ -271,6 +272,18 @@ def check_output(result: dict, data: AgentData) -> dict[str, list[str]]:
     for text in _texts(result):
         for p in sentence_problems(text, valid, allowed):
             checks["문장"].append(f"{p}: {text[:60]}")
+    dirs = flag_directions(data.facts)
+    checks["방향"] = []
+    for c in claims:
+        if isinstance(c, dict):
+            refs = [str(k) for k in (c.get("근거") or [])]
+            for p in direction_problems(str(c.get("문장", "")), data.facts, refs, dirs):
+                checks["방향"].append(f"{p}: {str(c.get('문장'))[:60]}")
+    for key in ("핵심진단", "긍정요인", "리스크요인"):
+        vals = result.get(key) or []
+        for t in [vals] if isinstance(vals, str) else vals:
+            for p in direction_problems(str(t), data.facts, None, dirs):
+                checks["방향"].append(f"{p}: {str(t)[:60]}")
     for c in claims:
         if not isinstance(c, dict):
             checks["형식"].append("주장 항목이 객체가 아님")
@@ -289,18 +302,23 @@ def check_output(result: dict, data: AgentData) -> dict[str, list[str]]:
 def sanitize(result: dict, data: AgentData) -> tuple[dict, list[str]]:
     """검사를 통과하지 못한 문장을 빼서, 최종 출력에 검증 안 된 숫자·표현이 남지 않게 합니다."""
     valid, allowed = _valid_keys(data), label_terms(data)
+    dirs = flag_directions(data.facts)
+
+    def bad(t: str, refs=None) -> bool:
+        return bool(sentence_problems(t, valid, allowed) or direction_problems(t, data.facts, refs, dirs))
+
     removed: list[str] = []
     out = dict(result)
-    if sentence_problems(str(out.get("핵심진단", "")), valid, allowed):
+    if bad(str(out.get("핵심진단", ""))):
         removed.append(str(out.get("핵심진단")))
-        out["핵심진단"] = "(검증되지 않은 숫자가 있어 생략. 아래 주장을 참고)"
+        out["핵심진단"] = "(검증되지 않은 숫자나 판정과 어긋난 표현이 있어 생략. 아래 주장을 참고)"
     claims = []
     for c in out.get("주장") or []:
         if not isinstance(c, dict):
             continue
         refs = [str(k) for k in (c.get("근거") or []) if str(k) in valid]
         text = str(c.get("문장", ""))
-        if sentence_problems(text, valid, allowed) or (c.get("구분") in ("사실", "해석") and not refs) \
+        if bad(text, refs) or (c.get("구분") in ("사실", "해석") and not refs) \
                 or c.get("구분") not in VALID_KINDS:
             removed.append(text)
             continue
@@ -309,7 +327,7 @@ def sanitize(result: dict, data: AgentData) -> tuple[dict, list[str]]:
     for k in ("긍정요인", "리스크요인", "미확인", "다음점검", "스스로질문"):
         kept = []
         for x in out.get(k) or []:
-            (removed if sentence_problems(str(x), valid, allowed) else kept).append(str(x))
+            (removed if bad(str(x)) else kept).append(str(x))
         out[k] = kept
     if not (isinstance(out.get("자체점수"), int) and 1 <= out["자체점수"] <= 10):
         out["자체점수"] = None
