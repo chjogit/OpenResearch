@@ -11,7 +11,7 @@ import re
 import time
 from typing import Any
 
-from .agents import AGENTS, AgentData, fetch_agent_data
+from .agents import AGENTS, MY_AGENTS, AgentData, fetch_agent_data
 from .glossary import terms_for
 from .rag import PROMPT_RULE as RAG_RULE
 from .rag import docs_for_prompt, docs_markdown
@@ -487,7 +487,7 @@ def run_agent(agent_id: int, ticker: str | None = None, mode: str = "expert", ll
     }
 
 
-def run_my_agents(ticker: str, mode: str = "expert", agent_ids=(1, 2, 4), as_of: str | None = None,
+def run_my_agents(ticker: str, mode: str = "expert", agent_ids=MY_AGENTS, as_of: str | None = None,
                   llm=None) -> list[dict]:
     """CH 담당 관점을 한 번에 실행해 오케스트레이터에 넘길 리스트를 돌려줍니다."""
     from . import db

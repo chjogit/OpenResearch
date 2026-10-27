@@ -12,7 +12,7 @@ from collections import Counter
 from pathlib import Path
 
 from . import db
-from .agents import AGENTS, build_agent_data, fetch_agent_data, fetch_bundle, normalize_as_of
+from .agents import AGENTS, MY_AGENTS, build_agent_data, fetch_agent_data, fetch_bundle, normalize_as_of
 from .llm import run_agent
 
 DEFAULT_TICKERS = ["005930", "000660", "035420", "105560", "005380", "051910", "068270", "017670"]
@@ -24,7 +24,7 @@ def kospi200_tickers(limit: int | None = None) -> list[str]:
     return [r["ticker"] for r in rows][:limit]
 
 
-def data_scorecard(tickers: list[str] | None = None, agent_ids=(1, 2, 4), as_of: str | None = None) -> list[dict]:
+def data_scorecard(tickers: list[str] | None = None, agent_ids=MY_AGENTS, as_of: str | None = None) -> list[dict]:
     as_of = normalize_as_of(as_of)
     out = []
     for t in tickers or DEFAULT_TICKERS:
@@ -45,7 +45,7 @@ def data_scorecard(tickers: list[str] | None = None, agent_ids=(1, 2, 4), as_of:
     return out
 
 
-def llm_scorecard(tickers: list[str] | None = None, agent_ids=(1, 2, 4), mode: str = "expert",
+def llm_scorecard(tickers: list[str] | None = None, agent_ids=MY_AGENTS, mode: str = "expert",
                   save_to: str | None = "eval_results.json", llm=None) -> dict:
     results = []
     for t in tickers or DEFAULT_TICKERS[:3]:
@@ -127,7 +127,7 @@ def cross_check(ticker: str, as_of: str | None = None) -> list[dict]:
 
 # ---------------------------------------------------------------- 스냅샷 (DB 없이 재현)
 
-def capture_snapshot(ticker: str, path: str | None = None, as_of: str | None = None, agent_ids=(1, 2, 4)) -> str:
+def capture_snapshot(ticker: str, path: str | None = None, as_of: str | None = None, agent_ids=MY_AGENTS) -> str:
     """실제 DB 묶음을 JSON 파일로 저장합니다. 회귀 테스트나 DB 접속이 어려운 데모에서 재현용으로 씁니다."""
     as_of = normalize_as_of(as_of)
     co = db.company(ticker)

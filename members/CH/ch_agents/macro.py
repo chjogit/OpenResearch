@@ -50,7 +50,16 @@ EXPORT_SERIES = {
     "KCS_EXP_854231_USD": "반도체 프로세서·컨트롤러 수출",
 }
 CPI_SERIES = {"CPIAUCSL": "미국 CPI", "ECOS_CPI": "한국 소비자물가"}
-ALL_SERIES = list(MACRO_SERIES) + list(CPI_SERIES) + list(EXPORT_SERIES)
+# 업종 전달 경로에만 쓰는 변수 (해당 업종일 때만 장부에 올림). kic-agent-data #13·#15 에서 수집
+# (이름, 단위, 업종, 변화 기간). 중국 수출은 계절성이 커서 전년 같은 달(12개월) 대비만 씀
+SECTOR_SERIES = {
+    "PCOPPUSDM": ("국제 구리 가격", "USD", ("금속",), (3, 12)),
+    "PIORECRUSDM": ("국제 철광석 가격", "USD", ("금속",), (3, 12)),
+    "PNGASJPUSDM": ("아시아 LNG 가격", "USD", ("전기·가스",), (3, 12)),
+    "QKRN628BIS": ("한국 주거용 부동산 가격지수(BIS)", "idx", ("건설", "은행"), (3, 12)),
+    "ECOS_CHN_EXPORT": ("중국 수출(통관기준)", "idx", ("화학", "금속"), (12,)),
+}
+ALL_SERIES = list(MACRO_SERIES) + list(CPI_SERIES) + list(EXPORT_SERIES) + list(SECTOR_SERIES)
 
 SQL = """
 WITH s AS (
@@ -114,17 +123,19 @@ TRANSMISSION = {
     "은행": [
         "한국 기준금리: 대출·예금 금리 차이(순이자마진)",
         "국고채 금리 곡선(장단기 금리차): 조달·운용 수익",
-        "경기·부동산: 대손비용 ※",
+        "주택가격(BIS): 담보가치와 대손비용 경로",
+        "경기: 대손비용 ※",
     ],
     "증권": ["기준금리·시장금리: 채권 운용 손익", "주식 거래대금: 수수료 수익 ※"],
     "보험": ["장기 국고채 금리: 자산운용 수익과 부채 평가", "한국 기준금리: 단기 운용 수익"],
     "기타금융": ["자회사 업종의 거시 경로를 따름. 은행 자회사가 있으면 기준금리·순이자마진 경로가 중요",
              "한국 기준금리: 조달 비용"],
-    "화학": ["유가: 원재료 비용과 제품 가격", "원/달러: 원재료 수입 비용과 수출 대금", "중국 경기: 제품 수요 ※"],
-    "금속": ["원/달러: 원재료 수입과 수출 대금", "중국 경기·원자재 가격 ※"],
+    "화학": ["유가: 원재료 비용과 제품 가격", "원/달러: 원재료 수입 비용과 수출 대금", "중국 수출: 중국 제조업 경기와 제품 수요"],
+    "금속": ["원/달러: 원재료 수입과 수출 대금", "구리·철광석 가격: 원재료 비용과 제품 가격",
+           "중국 수출: 중국 제조업 경기와 철강·비철 수요"],
     "음식료·담배": ["원/달러: 곡물 등 원재료 수입 비용", "국내 물가: 판매가 전가 여력"],
-    "건설": ["한국 기준금리: 분양 수요와 자금 조달 비용", "부동산 경기 ※"],
-    "전기·가스": ["유가: 연료비 (LNG 가격 ※)", "원/달러: 연료 수입 비용", "요금 규제 ※"],
+    "건설": ["한국 기준금리: 분양 수요와 자금 조달 비용", "주택가격(BIS): 분양 수요와 미분양 위험"],
+    "전기·가스": ["유가·아시아 LNG 가격: 연료비", "원/달러: 연료 수입 비용", "요금 규제 ※"],
     "통신": ["한국 기준금리: 배당주 할인율·차입 비용", "경기 민감도는 낮은 편"],
     "IT 서비스": ["미국·한국 금리: 성장주 할인율", "기업 IT 투자 경기 ※"],
     "제약": ["원/달러: 수출과 원료 수입", "금리: 연구개발형 기업의 할인율"],
@@ -194,6 +205,22 @@ def compute(b: dict, co: dict, as_of: str) -> dict:
                       kind="calc", group="거시 지표")
         if sid == "ECOS_BASE_RATE" and (lc := _last_change(pts)):
             f.note(f"한국 기준금리 마지막 변경 관측월: {lc[:7]}")
+    # 1-1) 업종 전용 변수 (구리·철광석·LNG·주택가격): 해당 업종에서만
+    for sid, (name, unit, sectors, spans) in SECTOR_SERIES.items():
+        if sector not in sectors:
+            continue
+        pts = series.get(sid) or []
+        if not pts:
+            f.gap(name, "시계열 없음 (kic-agent-data 수집 대기)")
+            continue
+        d, v = pts[-1]
+        f.add(name, v, unit, d, f"{SRC} {sid}", group="업종 변수")
+        for months in spans:
+            old = value_on_or_before(pts, shift_months(d, months))
+            label = "전년 같은 달 대비" if months == 12 and spans == (12,) else f"{months}개월 변화율"
+            f.add(f"{name} {label}", pct_change(v, old and old[1]), "%chg", d, f"{SRC} {sid}",
+                  kind="calc", group="업종 변수")
+
     usd = series.get("ECOS_USDKRW") or []
     check_freshness(f, "원/달러 환율", usd[-1][0] if usd else None, as_of, 7)
     check_freshness(f, "미국 10년 국채금리", (series.get("DGS10") or [("", 0)])[-1][0] or None, as_of, 10)

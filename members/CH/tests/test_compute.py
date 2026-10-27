@@ -383,3 +383,30 @@ def test_sentiment_relative_performance_flag():
     f = sentiment.compute(_sent_bundle(), CO, AS_OF)["facts"]  # 주가 하락, 코스피 상승 → 하회
     assert any(x.startswith("20일 코스피 대비: 하회") for x in f.flags)
     assert "+면 코스피보다 나음" in f.items[f.key_of("20일 코스피 대비 초과 수익률")]["note"]
+
+
+def test_sector_series_only_for_matching_sector(rng):
+    from ch_agents import macro
+
+    b = _macro_bundle(rng)
+    ms = months(26)
+    b["series"]["PCOPPUSDM"] = [{"d": m, "v": 9000.0 + 10 * i} for i, m in enumerate(ms)]
+    metal = dict(CO, name="고려아연", peer_method="manual:금속")
+    f = macro.compute(b, metal, AS_OF)["facts"]
+    k = f.key_of("국제 구리 가격 12개월 변화율")
+    assert k and f.items[k]["value"] > 0
+    assert any(g["label"] == "국제 철광석 가격" for g in f.gaps)     # 같은 업종이지만 아직 수집 전
+    semi = macro.compute(b, CO, AS_OF)["facts"]                     # 반도체에는 올리지 않음
+    assert semi.key_of("국제 구리 가격") is None
+    assert not any("구리" in g["label"] for g in semi.gaps)
+
+
+def test_china_exports_yoy_only_for_chemicals(rng):
+    from ch_agents import macro
+
+    b = _macro_bundle(rng)
+    b["series"]["ECOS_CHN_EXPORT"] = [{"d": m, "v": 300000.0 + 1000 * i} for i, m in enumerate(months(26))]
+    f = macro.compute(b, dict(CO, name="LG화학", peer_method="manual:화학"), AS_OF)["facts"]
+    assert f.key_of("중국 수출(통관기준) 전년 같은 달 대비")
+    assert f.key_of("중국 수출(통관기준) 3개월 변화율") is None      # 계절성 때문에 3개월 변화는 쓰지 않음
+    assert not any("중국" in g["label"] for g in f.gaps)

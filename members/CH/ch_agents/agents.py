@@ -11,6 +11,9 @@ from .facts import Facts
 
 KST = timezone(timedelta(hours=9))
 
+# CH 담당 관점 (10/27부터 A1 거시·A4 투자심리). A2 재무 코드는 기능을 넘겨받는 팀원이 참고하도록 남겨 둠
+MY_AGENTS = (1, 4)
+
 
 @dataclass
 class AgentSpec:
