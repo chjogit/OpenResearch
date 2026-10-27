@@ -251,3 +251,15 @@ def test_render_removes_duplicated_unit_after_key():
     k = d.facts.key_of("매출 전년 동기 대비 연속 증가 분기 수")
     out = render(f"연속 {{{k}}}개 분기, PER {{{d.facts.key_of('PER(TTM 기준)')}}}보다", d)
     assert f"**6개**`[{k}]` 분기" in out and "8.36배**" in out and "개개" not in out
+
+def test_normalize_as_of():
+    import datetime as dt
+
+    import pytest
+    from ch_agents.agents import normalize_as_of
+
+    assert normalize_as_of("2026-10-26") == "2026-10-26"
+    assert normalize_as_of(dt.date(2026, 10, 26)) == "2026-10-26"
+    assert len(normalize_as_of(None)) == 10
+    with pytest.raises(ValueError, match="따옴표"):
+        normalize_as_of(2026 - 10 - 26)  # 따옴표 없이 쓴 경우 = 1990
