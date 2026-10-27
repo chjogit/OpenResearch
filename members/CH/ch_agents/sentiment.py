@@ -215,7 +215,7 @@ def compute(b: dict, co: dict, as_of: str) -> dict:
     # 대차잔고
     lend = series_points(b.get("lending"))
     if len(lend) >= 20:
-        f.add("대차잔고(주식 수)", lend[-1][1], "주", lend[-1][0], "core.stock_lending_daily", group="수급")
+        f.add("대차잔고(주식 수)", lend[-1][1], "주수", lend[-1][0], "core.stock_lending_daily", group="수급")
         f.add("대차잔고 20일 변화율", pct_change(lend[-1][1], lend[-20][1]), "%chg", lend[-1][0],
               "core.stock_lending_daily", kind="calc", group="수급", note="공매도 선행 지표로 쓰는 대용치")
     else:

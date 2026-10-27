@@ -20,7 +20,7 @@ NUM = re.compile(r"([-+]?\d[\d,]*(?:\.\d+)?)\s*(조\s*\d[\d,]*\s*억\s*원|조\s
 UNIT_KIND = {"조원": "KRW", "조": "KRW", "억원": "KRW", "억": "KRW", "만원": "KRW_or_price", "원": "KRW_or_price",
              "%p": "pp", "%포인트": "pp", "%": "pct", "배": "x", "주": "shares", "만주": "shares", "억주": "shares"}
 MULT = {"조원": 1e12, "조": 1e12, "억원": 1e8, "억": 1e8, "만원": 1e4, "만주": 1e4, "억주": 1e8}
-FACT_KIND = {"KRW": "KRW", "KRW±": "KRW", "%": "pct", "%chg": "pct", "%p": "pp", "배": "x", "주": "shares"}
+FACT_KIND = {"KRW": "KRW", "KRW±": "KRW", "%": "pct", "%chg": "pct", "%p": "pp", "배": "x", "주": "shares", "주수": "shares"}
 SYNONYMS = {
     "매출액": "매출", "영업익": "영업이익", "당기순이익": "순이익", "순익": "순이익", "per": "PER", "pbr": "PBR",
     "roe": "ROE", "주가수익비율": "PER", "환율": "원/달러", "달러": "원/달러", "외인": "외국인", "부채": "부채비율",

@@ -62,6 +62,8 @@ def llm_scorecard(tickers: list[str] | None = None, agent_ids=(1, 2, 4), mode: s
         "check_violations_last_attempt": dict(Counter(k for r in results for k in (r.get("checks") or {}))),
         "avg_seconds": round(sum(r.get("seconds", 0) for r in results) / max(len(results), 1), 1),
         "avg_claims": round(sum(len(r["result"].get("주장", [])) for r in results) / max(len(results), 1), 1),
+        # LLM 호출 자체가 실패한 경우의 오류 (같은 오류는 묶어서 횟수)
+        "llm_errors": dict(Counter(a["error"][:200] for r in results for a in r.get("attempts", []) if "error" in a)),
     }
     if save_to:
         Path(save_to).write_text(json.dumps({"summary": summary, "results": results}, ensure_ascii=False, indent=1,

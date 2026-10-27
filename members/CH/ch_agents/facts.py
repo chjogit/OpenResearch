@@ -33,11 +33,13 @@ def fmt(value: float | None, unit: str) -> str:
             return f"{sign}{v / 1e12:,.2f}조원"
         if abs(v) >= 1e8:
             return f"{sign}{v / 1e8:,.0f}억원"
-        return f"{sign}{v:,.2f}원"
+        return f"{sign}{v:,.0f}원" if abs(v) >= 100 else f"{sign}{v:,.2f}원"  # 주가·평균 가격은 원 단위
     if unit == "USD":
         return f"{v / 1e8:,.2f}억달러" if abs(v) >= 1e8 else f"{v:,.0f}달러"
-    if unit == "주":
+    if unit == "주":  # 순매수처럼 방향이 있는 수량
         return f"{v:+,.0f}주"
+    if unit == "주수":  # 잔고처럼 크기만 있는 수량
+        return f"{v:,.0f}주"
     if unit == "일":
         return f"{v:,.0f}일"
     if unit == "개":
