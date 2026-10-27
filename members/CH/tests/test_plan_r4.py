@@ -85,6 +85,45 @@ def test_premises_without_report_are_unconfirmed():
     assert set(prem.values()) == {"미확인"} and len(prem) == 6
 
 
+TERMS = {"maturity": [{"kind": "bond", "fiscal_year": 2026, "reprt_code": "11012", "stlm_dt": "2026-06-30",
+                       "total": 600.0, "within_1y": 150.0},
+                      {"kind": "cp", "fiscal_year": 2026, "reprt_code": "11012", "stlm_dt": "2026-06-30",
+                       "total": 400.0, "within_1y": 400.0}],
+         "bond_rate": {"stlm_dt": "2026-06-30", "n": 3, "wavg": 3.25, "min": 2.9, "max": 3.8},
+         "dso": {"period_end": "2026-06-30", "report_code": "11012", "dso_days": 71.4, "receivable_account": "매출채권"},
+         "price_excerpts": 2}
+REPORT_IR = REPORT + [{"fiscal_year": 2025, "metric": "ir_sens", "currency": "ALL", "value": -49_900e6,
+                       "change_pct": 1, "basis": "세전이익"}]
+
+
+def test_premises_with_debt_terms_dso_and_ir():
+    f = Facts("M")
+    fund = {"fiscal_year": 2025, "liabilities": 50.0, "equity": 100.0, "operating_income": 20_000_000e6}
+    rows = exposure.assess(f, "반도체", fund, AS_OF, report=REPORT_IR, terms=TERMS)
+    prem = {p["item"]: p for p in exposure.premises(f, rows, "반도체")}
+    debt = prem["차입 조건(변동·고정금리 비중, 만기)"]
+    assert debt["status"] == "일부 확인" and "만기 구조" in debt["detail"] and "변동·고정금리 비중" in debt["detail"]
+    assert round(f.items[debt["keys"][0]]["value"], 6) == 55.0                   # (150 + 400) / (600 + 400)
+    assert any(f.items[k]["value"] == 3.25 for k in debt["keys"])        # 가중평균 발행금리
+    assert any(f.items[k]["value"] == -49_900e6 for k in debt["keys"])   # 이자율 1%p 민감도
+    pay = prem["수출 대금 결제 통화·결제 시점"]
+    assert pay["status"] == "일부 확인" and f.items[pay["keys"][0]]["value"] == 71.4
+    price = prem["판가 전가력"]
+    assert price["status"] == "미확인" and "발췌 2건" in price["detail"] and "판단 보류" in price["detail"]
+    assert prem["달러 비용 비중(원재료·부품 수입 통화)"]["status"] == "일부 확인"
+    rate_row = next(r for r in rows if r["var"] == "금리")
+    assert rate_row["level"] == "낮음" and any("이자율 민감도" in x for x in rate_row["reasons"])  # 등급 규칙은 그대로
+
+
+def test_premises_terms_without_report_still_flags_missing_disclosure():
+    f = Facts("M")
+    rows = exposure.assess(f, "반도체", None, AS_OF, terms={"maturity": [], "bond_rate": {"n": 0}, "dso": None,
+                                                         "price_excerpts": 0})
+    assert any(g["label"] == "기업 고유 노출" for g in f.gaps)
+    prem = {p["item"]: p["status"] for p in exposure.premises(f, rows, "반도체")}
+    assert set(prem.values()) == {"미확인"}
+
+
 def test_contract_counter_claims_and_verifier_links():
     d = build_agent_data(3, CO, _sent_bundle(), AS_OF)
     k = d.facts.key_of("외국인 20일 순매수 수량")
