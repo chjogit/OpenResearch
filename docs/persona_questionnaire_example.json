@@ -1,0 +1,19 @@
+{
+  "mode": "combined",
+  "knowledge_answers": {
+    "K1": "b",
+    "K2": "c",
+    "K3": "a",
+    "K4": "c",
+    "K5": "a",
+    "K6": "b",
+    "K7": "b",
+    "K8": "c"
+  },
+  "style_answers": {
+    "S1": "A",
+    "S2": "A",
+    "S3": "A",
+    "S4": "C"
+  }
+}
