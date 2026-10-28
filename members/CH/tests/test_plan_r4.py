@@ -249,3 +249,34 @@ def test_equity_basis_sensitivity_not_compared_with_operating_income():
     rows = {r["var"]: r for r in exposure.assess(f, "건설", fund, AS_OF, report=rep)}
     assert not rows["환율"]["company"] and any("자본 기준" in x for x in rows["환율"]["reasons"])
     assert f.key_of("환율 10% 상승 시 손익 영향 ÷ 영업이익(FY2025)") is None
+
+
+# ---------------------------------------------------------------- 회사채 발행사 이름 매칭
+
+
+def test_issuer_names_normalize_and_aliases():
+    assert exposure.norm_issuer("(주)씨제이 제일제당") == "씨제이제일제당"
+    assert exposure.norm_issuer("네이버 주식회사") == "네이버" and exposure.norm_issuer("S-Oil") == "S-OIL"
+    assert exposure.norm_issuer("우리금융지주") == "우리금융지주"              # '주'·'사' 글자를 따로 지우지 않음
+    assert exposure.norm_issuer("한국가스공사") == "한국가스공사"
+    assert exposure.issuer_names({"ticker": "000270", "name": "기아"}) == ["기아"]
+    assert exposure.issuer_names({"ticker": "035420", "name": "NAVER"}) == ["NAVER", "네이버"]
+    assert exposure.issuer_names({"ticker": "036570", "name": "NC"}) == ["NC", "엔씨", "엔씨소프트"]
+    # 자회사 이름은 별칭에 넣지 않음 (모회사 금리에 섞이지 않도록)
+    for subs in ("한화오션", "신세계디에프", "두산에너빌리티", "카카오페이증권", "현대카드", "삼성카드"):
+        assert all(subs not in v for v in exposure.ISSUER_ALIASES.values())
+    assert all(exposure.norm_issuer(a) == a for v in exposure.ISSUER_ALIASES.values() for a in v)
+
+
+def test_terms_sql_matches_issuer_by_equality(monkeypatch):
+    sql = exposure.TERMS_SQL
+    assert "%(issuers)s" in sql and "[\\s()㈜주식회사]" not in sql      # 글자 단위 삭제 정규식 제거
+    assert "~ regexp_replace((SELECT name" not in sql                    # '포함' 비교 대신 '같음' 비교
+    p = exposure.terms_params({"company_id": 7, "ticker": "055550", "name": "신한지주"}, AS_OF)
+    assert p == {"cid": 7, "as_of": AS_OF, "issuers": ["신한지주", "신한금융지주"]}
+    seen = []
+    monkeypatch.setattr(agents.db, "bundle", lambda q, params: seen.append(params) or {})
+    monkeypatch.setattr(agents.db, "q", lambda *a, **k: [])
+    monkeypatch.setattr(agents.rag, "fetch", lambda *a, **k: [])
+    agents.fetch_bundle(1, {**CO, "company_id": 1}, AS_OF)
+    assert any(isinstance(x, dict) and x.get("issuers") == ["삼성전자"] for x in seen)
