@@ -7,6 +7,8 @@
 - 관심: 네이버 검색 관심도(최근 7일 ÷ 직전 90일, 1년 내 위치). 문서 수는 수집 범위가 바뀌면 함께 바뀌므로 쓰지 않음
 - 거래: 거래대금 최근 5일 평균 ÷ 직전 60일 평균
 - 가격·시장: 20·60일 수익률, 코스피 대비 초과 수익률, VIX(시장 공포 지표)
+- 시장 기준선: KOSPI 200 구성 종목 합산(이 종목 제외)의 외국인·기관 순매수 강도와 거래대금 배율(대용치).
+  종목의 수급 방향이 시장 전체와 같은지, 거래대금 증가가 시장 전체 거래 증가와 함께인지를 구분합니다.
 그리고 수급과 가격이 엇갈리는지(예: 주가 하락 중 외국인 순매수)를 규칙으로 표시합니다.
 
 기초기획서 R4 대응
@@ -49,6 +51,17 @@ SELECT json_build_object(
     'search', (SELECT json_agg(json_build_object('d', trade_date, 'v', ratio) ORDER BY trade_date)
                FROM core.search_trend WHERE subject = 'KR:' || %(ticker)s AND trade_date <= %(as_of)s::date
                  AND trade_date > %(as_of)s::date - INTERVAL '400 days'),
+    -- 시장 기준선(대용치): KOSPI 200 구성 종목 합산, 이 종목 제외. 순매수 금액은 수량 × 종가 근사
+    'market', (SELECT json_agg(m ORDER BY m.d DESC) FROM (
+        SELECT f.trade_date AS d, count(*) AS n, sum(f.foreign_net_qty * p.close) AS fv,
+               sum(f.institution_net_qty * p.close) AS iv, sum(p.trade_value) AS tv
+        FROM core.investor_flow_daily f
+        JOIN core.price_daily p ON p.company_id = f.company_id AND p.trade_date = f.trade_date
+        JOIN core.company c ON c.company_id = f.company_id
+        WHERE 'KOSPI200' = ANY(c.index_tags) AND f.company_id <> %(cid)s
+          AND f.trade_date <= %(as_of)s::date AND f.trade_date > %(as_of)s::date - 200
+          AND p.close IS NOT NULL AND p.trade_value > 0
+        GROUP BY f.trade_date ORDER BY f.trade_date DESC LIMIT 130) m),
     'lending', (SELECT json_agg(json_build_object('d', trade_date, 'v', balance_qty) ORDER BY trade_date)
                 FROM (SELECT trade_date, balance_qty FROM core.stock_lending_daily
                       WHERE company_id = %(cid)s AND trade_date <= %(as_of)s::date
@@ -58,6 +71,10 @@ SELECT json_build_object(
 
 SRC_FLOW = "core.investor_flow_daily (네이버 투자자별 매매)"
 SRC_DOC = "rag.document × core.doc_sentiment (키워드 사전)"
+SRC_MKT = "core.investor_flow_daily × core.price_daily (KOSPI 200 합산, 이 종목 제외)"
+MKT = "KOSPI 200 합산, 대용치"
+MKT_MIN_SHARE = 0.8    # 시장 합산에 쓴 종목 수가 기간 최대의 이 비율 미만인 날은 뺌 (수집 누락일)
+SAME, OPPOSITE = "시장과 같은 방향", "시장과 반대 방향"
 WHO = (("외국인", "fq"), ("기관", "iq"), ("개인", "pq"))
 MIN_DOCS = 5
 MIN_PRIOR_DOCS = 20
@@ -207,6 +224,9 @@ def compute(b: dict, co: dict, as_of: str, period: int | None = None, **_) -> di
     elif rows:
         f.gap("거래대금 기준선", "거래대금이 있는 거래일 65일 미만")
 
+    # 1-2) 시장 기준선 (KOSPI 200 합산, 대용치): 종목 신호가 시장 전체 흐름인지 종목만의 흐름인지 구분
+    market_baseline(f, rows, b.get("market"), P, baseline)
+
     # 2) 가격·시장
     g = "가격·시장"
     px = series_points(b.get("price"))
@@ -335,7 +355,8 @@ def compute(b: dict, co: dict, as_of: str, period: int | None = None, **_) -> di
                              "rule": f"20일 변화율 {LEND_JUMP:g}% 이상이면 이례적"})
     else:
         f.gap("주식대차 잔고(공매도 대용)", "core.stock_lending_daily 20일 미만 (금융위 서버 접속 문제로 수집 지연)")
-    f.note("근거 계열: 수급 / 거래 / 논조 / 관심 / 가격·시장. 같은 계열 안의 지표는 하나의 근거로 센다.")
+    f.note("근거 계열: 수급 / 거래 / 논조 / 관심 / 가격·시장. 같은 계열 안의 지표는 하나의 근거로 센다. "
+           "'시장' 항목은 종목 수급·거래의 기준선이라 독립 근거로 세지 않는다.")
     f.note("감성 점수는 " + SENT_MODEL + "입니다. 긍정 문서가 많다는 것과 향후 수익률이 높다는 것은 별개의 가설입니다.")
     f.note("순매수 기록만으로 매수 의도·정보 보유를 추정하지 않습니다.")
     clusters = duplicate_clusters(fired)
@@ -347,6 +368,80 @@ def compute(b: dict, co: dict, as_of: str, period: int | None = None, **_) -> di
         f.note(f"사용자 관찰 기간: {P}거래일")
     return {"facts": f, "docs": [], "period": period, "anomalies": anomalies, "summary": summary_rows(f, P),
             "obs_period": P, "baseline": baseline, "dup_clusters": clusters, "sentiment_model": SENT_MODEL}
+
+
+def market_baseline(f: Facts, rows: list[dict], market: list[dict] | None, P: int, baseline: list[dict]) -> None:
+    """종목과 같은 거래일의 시장 합산 값으로 외국인·기관 순매수 강도와 거래대금 배율을 비교합니다.
+    방향(같은지·반대인지)만 판정하고, 차이의 크기에는 문턱값을 두지 않습니다(종목 간 차이가 원래 큼).
+    거래대금은 종목 배율 ÷ 시장 배율에 종목 급증 기준(TV_JUMP)을 그대로 적용합니다."""
+    if not rows:
+        return
+    mk = [m for m in market or [] if m.get("tv")]
+    top = max((int(m["n"] or 0) for m in mk), default=0)
+    by_d = {str(m["d"])[:10]: m for m in mk if int(m["n"] or 0) >= top * MKT_MIN_SHARE}
+    if not by_d:
+        f.gap("시장 수급 기준선", "KOSPI 200 합산 자료 없음")
+        return
+    d0 = rows[0]["d"]
+
+    def window(n):
+        days = [r["d"] for r in rows[:n]]
+        got = [by_d[d] for d in days if d in by_d]
+        return got if len(days) == n and len(got) >= n * 0.9 else None
+
+    g = "시장"
+    for n in sorted({20, P}):
+        win = window(n)
+        if not win:
+            f.gap(f"시장 {n}일 수급 기준선", "같은 거래일의 KOSPI 200 합산 자료 부족")
+            continue
+        mtv = sum(float(m["tv"]) for m in win)
+        for who, col in (("외국인", "fv"), ("기관", "iv")):
+            amt = sum(float(m[col] or 0) for m in win)
+            f.add(f"시장 {who} {n}일 순매수 금액({MKT}, 근사)", amt, "KRW±", d0, SRC_MKT, kind="proxy", group=g,
+                  note="이 종목을 뺀 KOSPI 200 구성 종목의 순매수 수량 × 종가 합계")
+            k_m = f.add(f"시장 {who} {n}일 순매수 강도({MKT})", amt / mtv * 100, "%", d0, SRC_MKT, kind="proxy",
+                        group=g, note="순매수 금액 근사 합계 ÷ 거래대금 합계. 종목 강도와 같은 방식")
+            k_s = f.key_of(f"{who} {n}일 순매수 강도(거래대금 대비)")
+            if not (k_m and k_s):
+                continue
+            sv, mv = f.items[k_s]["value"], amt / mtv * 100
+            k_g = f.add(f"{who} {n}일 순매수 강도의 시장 대비 차이", sv - mv, "%p", d0, SRC_MKT, kind="calc", group=g,
+                        note="종목 강도 − 시장 강도. +면 시장보다 순매수 쪽, -면 순매도 쪽")
+            same = (sv > 0) == (mv > 0)
+            side = "매수" if sv > 0 else "매도"
+            mside = "매수" if mv > 0 else "매도"
+            f.flag(f"{who} {n}일 순{side}: {SAME if same else OPPOSITE}"
+                   f"{'' if same else f'(시장은 순{mside})'} (종목 {{{k_s}}} · 시장 {{{k_m}}})")
+            if n == P:
+                baseline.append({"signal": f"{who} 순매수 강도(시장 대비)",
+                                 "method": "규칙: 같은 거래일 KOSPI 200 합산(이 종목 제외, 대용치)",
+                                 "current": k_s, "base": k_m, "measure": k_g, "status": SAME if same else OPPOSITE,
+                                 "rule": "순매수·순매도 방향이 시장 합산과 같은지"})
+    win = window(65)
+    k_t = f.key_of("거래대금 배율(최근 5일 ÷ 직전 60일)")
+    if not win:
+        f.gap("시장 거래대금 기준선", "같은 거래일의 KOSPI 200 합산 65일 미만")
+        return
+    tv = [float(m["tv"]) for m in win]
+    m5, b60 = sum(tv[:5]) / 5, sum(tv[5:]) / len(tv[5:])
+    mr = m5 / b60 if b60 else None
+    k_mr = f.add(f"시장 거래대금 배율({MKT}, 최근 5일 ÷ 직전 60일)", mr, "배", d0, SRC_MKT, kind="calc", group=g,
+                 note="1보다 크면 시장 전체 거래가 평소보다 많음")
+    if not (k_t and k_mr and mr):
+        return
+    sr = f.items[k_t]["value"]
+    k_rel = f.add("거래대금 배율의 시장 대비(종목 배율 ÷ 시장 배율)", sr / mr, "배", d0, SRC_MKT, kind="calc", group=g,
+                  note="1보다 크면 시장 전체보다 거래가 더 늘었음")
+    hit = sr / mr >= TV_JUMP
+    if sr >= TV_JUMP and not hit:
+        f.flag(f"거래대금 급증은 시장 전체 거래 증가와 함께 나타남 (종목 {{{k_t}}} · 시장 {{{k_mr}}} · 시장 대비 {{{k_rel}}})")
+    elif hit:
+        f.flag(f"거래대금이 시장 전체보다 크게 늘어남 (시장 대비 {{{k_rel}}})")
+    baseline.append({"signal": "거래대금(시장 대비)", "method": "규칙: 같은 거래일 KOSPI 200 합산 거래대금 배율",
+                     "current": k_t, "base": k_mr, "measure": k_rel,
+                     "status": "기준선 대비 이례적" if hit else "평소 범위",
+                     "rule": f"종목 배율 ÷ 시장 배율이 {TV_JUMP:g} 이상이면 이례적"})
 
 
 def duplicate_clusters(fired: dict[str, list[str]]) -> list[dict]:
@@ -363,7 +458,9 @@ SUMMARY = (  # (계열, 장부 항목 이름 틀) — 기간 P 는 사용자 입
     ("수급", "외국인 {P}일 순매수 수량"), ("수급", "외국인 {P}일 순매수 강도(거래대금 대비)"),
     ("수급", "기관 {P}일 순매수 수량"), ("수급", "개인 {P}일 순매수 수량"),
     ("수급", "외국인 지분율 20일 변화"), ("수급", "대차잔고 20일 변화율"),
-    ("거래", "거래대금 배율(최근 5일 ÷ 직전 60일)"),
+    ("시장", "시장 외국인 {P}일 순매수 강도(KOSPI 200 합산, 대용치)"),
+    ("시장", "외국인 {P}일 순매수 강도의 시장 대비 차이"),
+    ("거래", "거래대금 배율(최근 5일 ÷ 직전 60일)"), ("거래", "거래대금 배율의 시장 대비(종목 배율 ÷ 시장 배율)"),
     ("논조", "뉴스 감성(최근 7일)"), ("논조", "뉴스 감성 변화(최근 7일 − 직전 8~30일)"),
     ("논조", "블로그 감성(최근 7일)"), ("논조", "카페 감성(최근 7일)"),
     ("관심", "검색 관심도 배율(최근 7일 ÷ 직전 90일)"),
