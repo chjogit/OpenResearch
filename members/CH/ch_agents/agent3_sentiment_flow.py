@@ -110,7 +110,8 @@ def _days_back(day: str, n: int) -> str:
 
 def _intensity_z(rows: list[dict], col: str) -> tuple[float, float, int, float] | None:
     """최근 5거래일 평균 순매수 강도(거래대금 대비 %)와, 직전 60거래일 분포 대비 표준점수."""
-    daily = [(r[col] or 0) * r["close"] / r["tv"] * 100 for r in rows[:65] if r.get("close") and r.get("tv")]
+    # 시세가 아직 없는 날(수급이 시세보다 먼저 들어온 당일)은 빼고 최근 65개 '시세 있는 날'로 계산
+    daily = [(r[col] or 0) * r["close"] / r["tv"] * 100 for r in rows if r.get("close") and r.get("tv")][:65]
     if len(daily) < 65:
         return None
     recent, base = daily[:5], daily[5:65]
@@ -137,8 +138,15 @@ def compute(b: dict, co: dict, as_of: str, period: int | None = None, question: 
     rows = b.get("flows") or []  # 최신순
     for r in rows:
         r["d"] = str(r["d"])[:10]
+    # 수급은 장 마감 뒤(18:30~)에, 시세는 그보다 늦게 들어오는 날이 있음. 시세가 아직 없는 맨 앞 수급 행은
+    # 금액·강도·기준선을 계산할 수 없어 빼고, 다음 실행에서 반영 (10-29: 이 한 행 때문에 65일 기준선이 모두 빠졌음)
+    pending = []
+    while rows and not (rows[0].get("close") and rows[0].get("tv")):
+        pending.append(rows.pop(0)["d"])
     period = "-"
 
+    if pending:
+        f.note(f"수급 {', '.join(pending)} 은 시세 공개 전이라 이번 계산에서 뺌 (다음 실행에서 반영)")
     # 1) 수급
     g = "수급"
     if not rows:
@@ -217,7 +225,7 @@ def compute(b: dict, co: dict, as_of: str, period: int | None = None, question: 
 
     # 1-1) 거래대금 (뉴스와 같은 사건을 반영하기 쉬운 신호)
     g = "거래"
-    tvs = [r["tv"] for r in rows[:65] if r.get("tv")]
+    tvs = [r["tv"] for r in rows if r.get("tv")][:65]   # 시세 없는 당일 수급 행은 건너뜀
     if len(tvs) >= 65:
         m5, b60 = sum(tvs[:5]) / 5, sum(tvs[5:65]) / 60
         k_m = f.add("거래대금 최근 5일 평균", m5, "KRW", rows[0]["d"], "core.price_daily", kind="calc", group=g)

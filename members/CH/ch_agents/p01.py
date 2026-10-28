@@ -236,7 +236,8 @@ def summary3(f, p: dict) -> dict:
     for k, it in f.items.items():
         if it.get("group") == "시나리오(공시 정적 환산)":
             pred.append(f"{it['label']} {{{k}}}")
-    held = [h.split(":")[0] for h in p.get("held_reasons") or []]
+    # 상태 코드 대신 짧은 한국어 사유 (코드 원문은 계약의 statusCodes·L3 화면에만)
+    held = [h.split(":", 1)[-1].split("→")[0].strip() for h in p.get("held_reasons") or []]
     return {
         "확인한 사실": "; ".join(facts_line) or "기준일 거시 관측만 확인",
         "조건부 예측": "; ".join(pred) or "제공하지 않음 (요청 없음 또는 보류)",

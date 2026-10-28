@@ -83,13 +83,20 @@ def _sections(c: dict) -> dict[str, list[dict]]:
         for k, v in (px.get("summary") or {}).items():
             s["scope"].append(_item(f"S:{k}", f"{k}: {v}"))
         state = {"answered": "답함", "held": "보류"}
-        reasons = {r.split(":")[0]: r for r in px.get("heldReasons") or []}
+        # 상태 코드 원문(MODEL_NOT_APPROVED 등)은 문장에 넣지 않고 L3 꾸밈으로만 보여 줌 (L1·L2 에 코드가 보이던 문제)
+        reasons = {r.split(":")[0]: r.split(":", 1)[1].strip() for r in px.get("heldReasons") or [] if ":" in r}
         for name, t in (px.get("tasks") or {}).items():
             if t.get("state") not in state:
                 continue
-            why = "; ".join(reasons.get(cd, cd) for cd in t.get("codes") or [])
+            codes = list(t.get("codes") or [])
+            why = "; ".join(reasons.get(cd, cd) for cd in codes)
             note = why or t.get("note") or ""
-            s["scope"].append(_item(f"T:{name}", f"{name}: {state[t['state']]}" + (f" — {note}" if note else "")))
+            s["scope"].append(_item(f"T:{name}", f"{name}: {state[t['state']]}" + (f" — {note}" if note else ""),
+                                    codes=codes))
+        other = [c for c in px.get("statusCodes") or [] if not any(c in (t.get("codes") or [])
+                                                                     for t in (px.get("tasks") or {}).values())]
+        if other:
+            s["scope"].append(_item("T:자료", "자료 상태: " + "; ".join(reasons.get(c, c) for c in other), codes=other))
     if str(c.get("status", "")).startswith("규칙 기반 대체"):
         s["caveats"].append(_item("status", f"LLM 문장 없이 코드 규칙으로 만든 요약입니다. 상태: {c['status']}"))
     for i, f in enumerate(c.get("codeFindings") or [], 1):
@@ -148,6 +155,8 @@ def _line(sec: str, it: dict, lv: Level) -> str:
         basis = f" ({it['basis']})" if it.get("basis") else ""
         mark = " · 회사 공시 기반" if it.get("companySpecific") else " · 주가 통계 기반"
         return f"- {it['text']}{basis}" + (mark if lv == Level.L3 else "") + (f" — {ev}" if lv == Level.L3 and ev else "")
+    if sec == "scope" and lv == Level.L3 and it.get("codes"):
+        return f"- `{it['ref']}` {it['text']} — `{'`, `'.join(it['codes'])}`"
     if lv == Level.L3 and it["ref"] not in ("summary", "status", "disclaimer"):
         return f"- `{it['ref']}` {it['text']}" + (f" — {ev}" if ev else "")
     if lv == Level.L2 and ev and sec not in ("summary",):

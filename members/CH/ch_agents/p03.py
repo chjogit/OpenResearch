@@ -377,7 +377,8 @@ def summary3(f, p: dict) -> dict:
         if k:
             facts.append(f"{lab} {{{k}}}")
     rel = [x for x in f.flags if x.startswith(("외국인 20일", "기관 20일", "이상 징후", "중복 신호"))]
-    held = [h.split(":")[0] for h in p.get("held_reasons") or []]
+    # 상태 코드 대신 짧은 한국어 사유 (코드 원문은 계약의 statusCodes·L3 화면에만)
+    held = [h.split(":", 1)[-1].split("→")[0].strip() for h in p.get("held_reasons") or []]
     return {"확인한 사실": "; ".join(facts) or "수급 관측 없음",
             "평소·시장 대비": " / ".join(rel[:4]) or "평소 범위 (코드 기준 이례 없음)",
             "아직 답 못한 부분": ", ".join(held) or "없음"}

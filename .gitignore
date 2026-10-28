@@ -11,3 +11,4 @@ outputs/
 members/CH/eval_results*.json
 members/CH/snapshot_*.json
 members/CH/eval_*.csv
+members/CH/persona_audit*.json
