@@ -123,7 +123,7 @@ def fetch_bundle(agent_id: int, co: dict, as_of: str, use_rag: bool = True) -> d
         except Exception:  # noqa: BLE001
             out["report"] = None
         try:  # 차입 조건·매출채권 회수기간 (kic-agent-data 019). 표가 아직 없으면 전제는 미확인으로 남음
-            out["terms"] = db.bundle(exposure.TERMS_SQL, {"cid": co["company_id"], "as_of": as_of})
+            out["terms"] = db.bundle(exposure.TERMS_SQL, exposure.terms_params(co, as_of))
         except Exception:  # noqa: BLE001
             out["terms"] = None
     if agent_id in quality.SOURCES:

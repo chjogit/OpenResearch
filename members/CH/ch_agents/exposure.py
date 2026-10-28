@@ -20,6 +20,8 @@ LLM은 이 등급을 바꾸지 못하고, 판정 문장에 붙은 근거 키만 
 """
 from __future__ import annotations
 
+import re
+
 from .facts import Facts, significant
 
 LEVELS = ("낮음", "중간", "높음")
@@ -96,6 +98,53 @@ WHERE company_id = %(cid)s
                      WHERE company_id = %(cid)s
                        AND fiscal_year <= extract(year FROM %(as_of)s::date - 90)::int - 1)
 """
+# 회사채 발행실적의 발행사 이름은 공시마다 표기가 달라(한글 표기·정식 이름·옛 이름) 회사 마스터 이름과 바로 맞지
+# 않습니다. 이름을 정규화한 뒤 '같은지'로 비교합니다. '포함'으로 비교하면 자회사(한화 → 한화오션, 신세계 →
+# 신세계디에프)가 모회사 금리에 섞입니다. 별칭은 DB에서 확인한 회사 자신의 발행사 표기만 넣고 자회사는 넣지 않습니다.
+ISSUER_ALIASES: dict[str, tuple[str, ...]] = {
+    "000120": ("씨제이대한통운",),
+    "001040": ("씨제이",),
+    "001450": ("현대해상화재보험",),
+    "005300": ("롯데칠성음료",),
+    "005380": ("현대자동차",),
+    "005490": ("포스코홀딩스",),
+    "005940": ("엔에이치투자증권",),
+    "007070": ("지에스리테일",),
+    "007340": ("디엔오토모티브",),
+    "010060": ("OCI",),                     # OCI홀딩스의 옛 이름 OCI주식회사
+    "024110": ("중소기업은행",),
+    "030200": ("케이티",),
+    "033780": ("케이티앤지",),
+    "035420": ("네이버",),
+    "036570": ("엔씨", "엔씨소프트"),
+    "047810": ("한국항공우주산업",),
+    "055550": ("신한금융지주",),
+    "079550": ("엘아이지디펜스앤에어로스페이스",),
+    "095340": ("아이에스시",),
+    "097950": ("씨제이제일제당",),
+    "105560": ("KB금융지주",),
+    "120110": ("코오롱인더스트리",),
+    "204320": ("에이치엘만도",),
+    "298050": ("에이치에스효성첨단소재",),
+}
+_ISSUER_STRIP = re.compile(r"\(주\)|㈜|주식회사|\s")
+
+
+def norm_issuer(name: str) -> str:
+    """TERMS_SQL 의 발행사 정규화와 같은 규칙: (주)·㈜·'주식회사'·공백을 빼고 대문자로."""
+    return _ISSUER_STRIP.sub("", str(name or "")).upper()
+
+
+def issuer_names(co: dict) -> list[str]:
+    """회사 자신의 발행사로 볼 이름 (정규화 후). 회사 마스터 이름 + 별칭."""
+    names = [co.get("name") or "", *ISSUER_ALIASES.get(str(co.get("ticker") or ""), ())]
+    return list(dict.fromkeys(n for n in map(norm_issuer, names) if n))
+
+
+def terms_params(co: dict, as_of: str) -> dict:
+    return {"cid": co["company_id"], "as_of": as_of, "issuers": issuer_names(co)}
+
+
 # 차입 조건·매출채권 회수기간 (kic-agent-data 019, 작업 debt-terms). 정기보고서는 기말 뒤 제출 기한
 # (사업보고서 90일, 분·반기 45일)이 지난 것만 씁니다 (평가 시점에 공개되지 않았던 값을 쓰지 않도록).
 TERMS_SQL = """
@@ -121,8 +170,9 @@ WITH due AS (
     SELECT i.* FROM core.debt_issue i JOIN iss_rep r USING (fiscal_year, reprt_code)
     WHERE i.company_id = %(cid)s AND i.rate > 0 AND i.face_amount_raw > 0
       AND i.kind_nm ~ '회사채|사채' AND coalesce(i.repaid, '') !~ '^상환'
-      AND regexp_replace(i.issuer, '[\\s()㈜주식회사]', '', 'g')
-          ~ regexp_replace((SELECT name FROM core.company WHERE company_id = %(cid)s), '[\\s()]', '', 'g')
+      AND (i.issuer ~ '^\\s*당\\s*사\\s*$'  -- 발행사를 '당사'로 적은 경우 (기아)
+           OR upper(regexp_replace(regexp_replace(i.issuer, '\\(제[^)]*\\)|\\(?주\\d+\\)', '', 'g'),
+                                   '\\(주\\)|㈜|주식회사|\\s', '', 'g')) = ANY(%(issuers)s::text[]))
 ), dso AS (
     SELECT * FROM core.v_dso
     WHERE ticker = (SELECT ticker FROM core.company WHERE company_id = %(cid)s) AND market = 'KR'
