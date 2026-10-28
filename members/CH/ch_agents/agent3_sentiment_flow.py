@@ -17,11 +17,19 @@
 - 중복 신호: 최근 창(5~7일)에 뉴스 논조·검색 관심·거래대금·집중 매매 이상 징후가 둘 이상 함께 나타나면
   같은 사건을 반영할 수 있으므로 하나의 '사건 묶음'(X1)으로 묶고, 독립 근거로 중복 계산하지 않습니다.
 
+제작 기준 (10-28): docs/P03_투자심리수급_상세개발기획서.md v1.0 (p03.py). 기준에 맞춰 추가한 것
+- 공개 시점 규칙: 기준일 t 에는 대차 t·검색 t 를 쓰지 않음 (P03-F02)
+- 등급·결과 종류: 가격 수익률·외국인 순매수일 평균 가격은 참고용(P04 영역·오해 소지)
+- 사건 연구(과거 관계): 집중 매매 신호 뒤 5·20일 코스피 대비 초과수익률, 종목 이력 + KOSPI 200 합산 (P03-F07)
+- 시장 위험선호: 지수·배당 ETF 설정·환매 추정 자금 흐름 (P03-F06, etf.py)
+- 질문 계약·상태 코드·세 줄 요약 (P03-F01). 의도 질문은 INTENT_NOT_INFERABLE 로 보류
+
 한계: 감성 점수는 키워드 사전 기반이며 학습 모델 성능이 검증된 값이 아닙니다. 순매수 기록만으로
 매수 의도나 정보 보유를 추정하지 않습니다. 대차잔고(공매도 대용)는 수집 테이블이 비어 있으면 무자료입니다.
 """
 from __future__ import annotations
 
+from . import etf, p03
 from .facts import Facts, check_freshness, daily_returns, pct_change, percentile_rank, series_points, streak
 
 SQL = """
@@ -35,10 +43,10 @@ SELECT json_build_object(
         ORDER BY f.trade_date DESC LIMIT 260) x),
     'price', (SELECT json_agg(json_build_object('d', trade_date, 'v', close) ORDER BY trade_date)
               FROM core.price_daily WHERE company_id = %(cid)s AND trade_date <= %(as_of)s::date
-                AND trade_date > %(as_of)s::date - INTERVAL '200 days'),
+                AND trade_date > %(as_of)s::date - INTERVAL '420 days'),
     'kospi', (SELECT json_agg(json_build_object('d', trade_date, 'v', close) ORDER BY trade_date)
               FROM core.market_index_daily WHERE symbol = '^KS11' AND trade_date <= %(as_of)s::date
-                AND trade_date > %(as_of)s::date - INTERVAL '200 days'),
+                AND trade_date > %(as_of)s::date - INTERVAL '420 days'),
     'vix', (SELECT json_agg(json_build_object('d', trade_date, 'v', close) ORDER BY trade_date)
             FROM core.market_index_daily WHERE symbol = '^VIX' AND trade_date <= %(as_of)s::date
               AND trade_date > %(as_of)s::date - INTERVAL '400 days'),
@@ -114,10 +122,14 @@ def _intensity_z(rows: list[dict], col: str) -> tuple[float, float, int, float] 
     return m5, (m5 - mu) / (sd / 5 ** 0.5), len(base), mu
 
 
-def compute(b: dict, co: dict, as_of: str, period: int | None = None, **_) -> dict:
-    """period: 사용자가 정한 관찰 기간(거래일). 기본 20일. 5·20·60일은 항상 계산하고 period 를 더합니다."""
+def compute(b: dict, co: dict, as_of: str, period: int | None = None, question: str | None = None, **_) -> dict:
+    """period: 사용자가 정한 관찰 기간(거래일). 기본 20일. 5·20·60일은 항상 계산하고 period 를 더합니다.
+    question: 사용자 질문 원문 (P03 과업 계약: 예측·의도 질문은 보류)."""
     f = Facts("S")
     P = max(5, min(int(period or DEFAULT_PERIOD), MAX_PERIOD))
+    plan = p03.plan(question, P, as_of)
+    b = dict(b)
+    avail = p03.availability(b, as_of)  # P03-F02: 대차 t·검색 t 는 기준일에 공개 전
     windows = sorted({5, 20, 60, P})
     anomalies: list[str] = []
     baseline: list[dict] = []       # 기준선 비교표 행
@@ -356,7 +368,7 @@ def compute(b: dict, co: dict, as_of: str, period: int | None = None, **_) -> di
                              "measure": k_l, "status": "기준선 대비 이례적" if hit else "평소 범위",
                              "rule": f"20일 변화율 {LEND_JUMP:g}% 이상이면 이례적"})
     else:
-        f.gap("주식대차 잔고(공매도 대용)", "core.stock_lending_daily 20일 미만 (금융위 서버 접속 문제로 수집 지연)")
+        f.gap("주식대차 잔고(공매도 대용)", f"core.stock_lending_daily 기준일 전 공개분 {len(lend)}일 (20일 미만, 수집 중이거나 대차 거래 없는 종목)")
     f.note("근거 계열: 수급 / 거래 / 논조 / 관심 / 가격·시장. 같은 계열 안의 지표는 하나의 근거로 센다. "
            "'시장' 항목은 종목 수급·거래의 기준선이라 독립 근거로 세지 않는다.")
     f.note("감성 점수는 " + SENT_MODEL + "입니다. 긍정 문서가 많다는 것과 향후 수익률이 높다는 것은 별개의 가설입니다.")
@@ -368,9 +380,25 @@ def compute(b: dict, co: dict, as_of: str, period: int | None = None, **_) -> di
                f"독립 근거로 세지 않고 하나의 사건 묶음({c['id']})으로 봄 ({keys})")
     if P not in (5, 20, 60):
         f.note(f"사용자 관찰 기간: {P}거래일")
+
+    # P03 기준 추가 과업
+    etf.add_flow_facts(f, b.get("etf"))                                         # P03-F06 시장 위험선호
+    events = p03.event_study(rows, px, ks, as_of) if rows and px and ks else []   # P03-F07 종목 이력
+    events += p03.panel_rows(b.get("panel_events"))                             # P03-F07 KOSPI 200 합산
+    picked = p03.add_event_facts(f, events, as_of, p03.current_signals(f))
+    if avail["cut"]:
+        f.note("공개 시점 규칙(" + p03.POLICY_VERSION + "): 기준일에 공개 전이던 자료를 뺌 → "
+               + ", ".join(f"{k} {v[-1]}" for k, v in avail["cut"].items()))
+    tiers = p03.annotate(f)
+    freshness = {"수급": flow_last, "가격": px[-1][0] if px else None, "수급 지연": lag}
+    plan = p03.finalize(plan, avail=avail, freshness=freshness, flags=f.flags, clusters=clusters,
+                        events={"rows": events}, sentiment_used=bool(by_src))
+    f.note(f"제작 기준: {p03.STANDARD}. 참고용 항목 {tiers['reference']}개(가격 수익률·순매수일 평균 가격)")
     return {"facts": f, "docs": [], "period": period, "anomalies": anomalies, "summary": summary_rows(f, P),
             "obs_period": P, "baseline": baseline, "dup_clusters": clusters, "sentiment_model": SENT_MODEL,
-            "freshness": {"수급": flow_last, "가격": px[-1][0] if px else None, "수급 지연": lag}}
+            "freshness": freshness,
+            "p03": {"plan": plan, "availability": avail, "events": events, "events_cited": picked, "tiers": tiers,
+                    "summary": p03.summary3(f, plan)}}
 
 
 def flow_lag(f: Facts, flow_last: str | None, price_last: str | None) -> bool:

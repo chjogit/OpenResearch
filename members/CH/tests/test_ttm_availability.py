@@ -46,7 +46,8 @@ def test_ttm_needs_four_consecutive_quarters(bad):
 
 def test_ttm_sql_respects_filing_deadline():
     assert "'ttm_op'" in A1_SQL and "core.financial_quarter" in A1_SQL
-    assert "CASE WHEN fiscal_q = 4 THEN 90 ELSE 45 END" in A1_SQL        # 기준일에 아직 공시 전인 분기는 쓰지 않음
+    assert "CASE WHEN q.fiscal_q = 4 THEN 90 ELSE 45 END" in A1_SQL      # 기준일에 아직 공시 전인 분기는 쓰지 않음
+    assert "coalesce(r.k," in A1_SQL and "rcept_no" in A1_SQL           # 접수일이 있으면 접수일 기준
 
 
 @pytest.mark.parametrize("item,reason,code", [
@@ -74,7 +75,7 @@ def test_contract_carries_availability_and_validates(rng):
     b["report"] = REPORT
     out = run_agent(1, data=build_agent_data(1, CO, b, AS_OF), llm=FakeLLM(TimeoutError()))
     c = out["contract"]
-    assert c["schemaVersion"] == "r4-1.1" and contract.validate(c) == [] and contract.link_errors(c) == []
+    assert c["schemaVersion"] == contract.SCHEMA_VERSION and contract.validate(c) == [] and contract.link_errors(c) == []
     assert c["unverified"] and all(u["availability"] and u["availabilityLabel"] for u in c["unverified"])
     by = {u["item"]: u["availability"] for u in c["unverified"]}
     assert by["판가 전가력"] == "not_disclosed"

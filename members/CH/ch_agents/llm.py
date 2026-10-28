@@ -21,6 +21,8 @@ from .prompts import mode_guide
 from .rag import PROMPT_RULE as RAG_RULE
 from .rag import docs_for_prompt, docs_markdown
 from .semantic import baseline_problems, direction_problems, flag_directions
+from . import p01 as p01_mod
+from . import p03 as p03_mod
 
 MODEL = os.getenv("UPSTAGE_MODEL_NAME", "solar-pro4")
 
@@ -85,7 +87,8 @@ COMMON_TERMS = {"52주"}  # 숫자가 들어 있지만 값이 아닌 용어
 VALID_KINDS = {"사실", "해석", "예측"}
 # 수급만으로 의도·정보 보유를 추정하는 표현 (R4 에이전트 3 제약). 바로 뒤에 부정('추정할 수 없다')이 오면 허용
 INTENT_RE = re.compile(r"(매수|매도|매집)\s*의도|세력|작전|내부\s*정보|미리\s*알고|정보를\s*(알고|쥐고|가지고)|매집")
-INTENT_NEG = re.compile(r"^.{0,20}(추정(할|하지|해서는|은)|단정(할|하지)|알\s*수\s*없|확인(할|되지)|아님|아니)")
+INTENT_NEG = re.compile(r"^[^.]{0,45}(추정(할|하지|해서는|은)|단정(할|하지)|알\s*수\s*없|확인(할|되지)|아님|아니|"
+                        r"판단(은|을)?[^.]{0,15}(내리지|하지)\s*않)")
 # 중복 신호를 독립 근거처럼 세는 표현 (R4 에이전트 3 제약)
 INDEP_RE = re.compile(r"(두|세|2|3|여러|복수)\s*(가지|개)?\s*(의\s*)?(신호|근거|지표)[^.]{0,15}(뒷받침|확인|입증|강화)"
                       r"|독립(된|적인)?\s*(근거|신호)|이중으로\s*확인|동시에\s*(확인|뒷받침)|함께\s*(확인|뒷받침)"
@@ -150,6 +153,10 @@ def build_messages(data: AgentData, mode: str = "expert") -> tuple[str, str]:
         asked.append("관심 거시 변수: " + ", ".join(opts["focus"]))
     if opts.get("period"):
         asked.append(f"관찰 기간: {data.extra.get('obs_period', opts['period'])}거래일")
+    if opts.get("scenario"):
+        asked.append("시나리오: " + str(opts["scenario"]))
+    if opts.get("question"):
+        asked.append("질문: " + str(opts["question"]))
     user = f"""[대상] {data.company['name']} ({data.company['ticker']}) · 기준일 {data.as_of}
 [사용자 입력] {' / '.join(asked) or '없음'}
 [관측 기간] {data.period}
@@ -168,9 +175,30 @@ def build_messages(data: AgentData, mode: str = "expert") -> tuple[str, str]:
     return system, user
 
 
+TASK_STATE = {"answered": "답함", "held": "보류", "not_requested": "요청 없음"}
+
+
+def _task_section(data: AgentData) -> list[str]:
+    """제작 기준(P01·P03) 과업 계약. 답함 과업은 해당 장부 키로 답하고, 보류 과업은 미확인에 사유를 적게 합니다."""
+    px = data.extra.get("p01") or data.extra.get("p03")
+    if not px:
+        return []
+    out = ["", "[과업 계약] (제작 기준. '답함' 과업은 그 그룹의 장부 키로 반드시 다루고, '보류' 과업은 숫자 없이 "
+                "미확인에 사유를 적을 것. 사용자 질문이 있으면 핵심진단 첫 문장이 질문에 답해야 함)"]
+    groups = {"예측": "실적 예측(기준선)", "시나리오": "시나리오(공시 정적 환산)", "과거관계": "과거 관계(사건 연구)"}
+    for name, t in (px["plan"].get("tasks") or {}).items():
+        if t.get("state") == "not_requested":
+            continue
+        codes = ", ".join(t.get("codes") or [])
+        g = f" · 장부 그룹 [{groups[name]}]" if name in groups and t.get("state") == "answered" else ""
+        out.append(f"- {name}: {TASK_STATE.get(t.get('state'), t.get('state'))}{g}"
+                   + (f" ({codes})" if codes else "") + (f" — {t['note']}" if t.get("note") else ""))
+    return out
+
+
 def _extra_sections(data: AgentData) -> str:
-    """에이전트별 코드 표를 프롬프트에 넣습니다: 1 미확인 전제, 3 기준선 비교."""
-    out = []
+    """에이전트별 코드 표를 프롬프트에 넣습니다: 과업 계약, 1 미확인 전제, 3 기준선 비교."""
+    out = _task_section(data)
     prem = data.extra.get("premises")
     if prem:
         out += ["", "[미확인 전제] (확인되지 않은 것은 가정하지 말 것)"]
@@ -272,6 +300,11 @@ def label_terms(data: AgentData | None) -> set[str]:
     if data is not None:
         for v in data.facts.items.values():
             terms.update(LOOSE_NUMBER.findall(v["label"]))
+        # 사용자가 입력한 가정·질문 속 숫자(예: '환율 5% 상승, 금리 0.5%p 하락')는 값이 아니라 조건
+        opts = (data.extra or {}).get("opts") or {}
+        for k in ("scenario", "question"):
+            terms.update(LOOSE_NUMBER.findall(str(opts.get(k) or "")))
+    terms.update({t.lstrip("+-") for t in terms})   # '+5%' 라벨과 '5%' 문장을 같은 용어로
     return terms
 
 
@@ -286,7 +319,7 @@ def sentence_problems(text: str, valid: set[str], allowed: set[str] | None = Non
     banned = [w for w in BANNED if w in text] + [m.group(0) for m in BANNED_RE.finditer(text)]
     if banned:
         probs.append(f"금지 표현 {banned}")
-    intent = [m.group(0) for m in INTENT_RE.finditer(text) if not INTENT_NEG.search(text[m.end():m.end() + 30])]
+    intent = [m.group(0) for m in INTENT_RE.finditer(text) if not INTENT_NEG.search(text[m.end():m.end() + 60])]
     if intent:
         probs.append(f"수급만으로 의도·정보 보유 추정 {intent}")
     return probs
@@ -387,6 +420,19 @@ def check_output(result: dict, data: AgentData) -> dict[str, list[str]]:
             checks["근거"].append(f"근거 없는 {c.get('구분')}: {str(c.get('문장'))[:40]}")
         elif c.get("구분") == "사실" and refs and set(refs) <= opinion:
             checks["근거"].append(f"개인 의견 문서만 근거인 사실 주장(해석으로 바꾸거나 근거 추가): {str(c.get('문장'))[:40]}")
+    # 제작 기준(P01·P03): 참고용(tier=reference) 항목만으로 핵심 진단·주장을 세우지 않음 (반대근거는 허용)
+    ref = {k for k, it in data.facts.items.items() if it.get("tier") == "reference"}
+    if ref:
+        for c in claims:
+            if isinstance(c, dict):
+                ks = [k for k in [str(x) for x in c.get("근거") or []] + PLACEHOLDER.findall(str(c.get("문장", "")))
+                      if k in data.facts.items]
+                if ks and set(ks) <= ref:
+                    checks["근거"].append(f"참고용 항목만 근거인 주장(제작 기준 밖, 기준 항목 근거를 추가하거나 빼기): "
+                                         f"{str(c.get('문장'))[:40]}")
+        head = [k for k in PLACEHOLDER.findall(str(result.get("핵심진단", ""))) if k in data.facts.items]
+        if head and set(head) <= ref:
+            checks["근거"].append("핵심진단이 참고용 항목만 인용함 (제작 기준 항목을 중심으로)")
     return {k: v for k, v in checks.items() if v}
 
 
@@ -435,7 +481,7 @@ def sanitize(result: dict, data: AgentData) -> tuple[dict, list[str]]:
     out = dict(result)
     if bad(str(out.get("핵심진단", ""))):
         removed.append(str(out.get("핵심진단")))
-        out["핵심진단"] = "(검증되지 않은 숫자나 판정과 어긋난 표현이 있어 생략. 아래 주장을 참고)"
+        out["핵심진단"] = p01_mod.fallback_headline(data, "(검증되지 않은 숫자나 판정과 어긋난 표현이 있어 생략. 아래 주장을 참고)")
     for field in CLAIM_FIELDS:
         claims = []
         for c in out.get(field) or [] if isinstance(out.get(field), list) else []:
@@ -517,6 +563,11 @@ def _tables(data: AgentData) -> list[str]:
     """코드가 만든 표 (LLM 무관): 에이전트 1 노출 점검표, 에이전트 3 이상 징후·심리·수급 요약표."""
     r = lambda t: render(t, data)
     out: list[str] = []
+    px = data.extra.get("p01")
+    if px:
+        out += ["", "**세 줄 요약 (제작 기준 P01 20.2)**", ""]
+        out += [f"- {k}: {r(v)}" for k, v in (px.get("summary") or {}).items()]
+        out += p01_mod.plan_md(px["plan"])
     rows = data.extra.get("exposure")
     if rows:
         out += ["", "**노출 점검표 (규칙 기반: 업종 기본값 → 통계 근거 → 재무 구조)**", "",
@@ -525,6 +576,11 @@ def _tables(data: AgentData) -> list[str]:
     if prem:
         out += ["", "**미확인 전제 (노출 등급은 아래 전제가 확인되지 않은 상태의 참고치)**", "",
                 exposure_mod.premises_md(prem, r)]
+    if data.agent_id == 3 and data.extra.get("p03"):
+        p3 = data.extra["p03"]
+        out += ["", "**세 줄 요약 (제작 기준 P03 20장)**", ""]
+        out += [f"- {k}: {r(v)}" for k, v in (p3.get("summary") or {}).items()]
+        out += p03_mod.plan_md(p3["plan"]) + p03_mod.event_md(p3.get("events") or [])
     if data.agent_id == 3:
         an = data.extra.get("anomalies") or []
         out += ["", "**이상 징후**", ""] + ([f"- {r(x)}" for x in an] or ["- 없음 (코드 기준에 걸린 항목 없음)"])
@@ -617,11 +673,13 @@ def to_markdown(data: AgentData, result: dict, status: str, checks: dict, remove
 
 def run_agent(agent_id: int, ticker: str | None = None, mode: str = "expert", llm=None,
               data: AgentData | None = None, as_of: str | None = None, max_repair: int = 1,
-              focus: list[str] | None = None, period: int | None = None) -> dict:
+              focus: list[str] | None = None, period: int | None = None, scenario: str | None = None,
+              question: str | None = None) -> dict:
     """에이전트 하나를 실행해 팀 공통 출력 계약 dict 를 돌려줍니다.
     focus: 에이전트 1 관심 거시 변수(예: ["환율", "금리"]), period: 에이전트 3 관찰 기간(거래일). data 를 넘기면 무시됩니다."""
     if data is None:
-        data = fetch_agent_data(agent_id, ticker, as_of, focus=focus, period=period)
+        data = fetch_agent_data(agent_id, ticker, as_of, focus=focus, period=period, scenario=scenario,
+                                question=question)
     system, user = build_messages(data, mode)
     attempts: list[dict] = []
     result, checks, status, best_at, best_n = None, {}, "실패", -1, None

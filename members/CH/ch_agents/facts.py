@@ -11,7 +11,7 @@ from collections.abc import Iterable
 from itertools import pairwise
 from typing import Any
 
-KIND_LABEL = {"report": "회사 공시", "obs": "실측", "calc": "계산", "proxy": "대용치"}
+KIND_LABEL = {"report": "회사 공시", "obs": "실측", "calc": "계산", "proxy": "대용치", "forecast": "예측(기준선)"}
 
 
 def fmt(value: float | None, unit: str) -> str:
@@ -102,7 +102,8 @@ class Facts:
         for k, v in self.items.items():
             if v["group"] and v["group"] != group:
                 group = v["group"]
-                lines.append(f"[{group}]")
+                ref = " · 참고용(제작 기준 밖): 핵심 진단·주장의 유일한 근거로 쓰지 말 것" if v.get("tier") == "reference" else ""
+                lines.append(f"[{group}{ref}]")
             extra = f" ※{v['note']}" if v["note"] else ""
             lines.append(f"- {k}: {v['label']} = {v['text']} (기준 {v['as_of']}, {v['kind']}){extra}")
         if self.gaps:

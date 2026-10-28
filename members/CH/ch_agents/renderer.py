@@ -1,4 +1,4 @@
-"""페르소나 렌더러: 데이터 계약(r4-1.0·r4-1.1) 하나를 사용자 프로필에 맞춰 보여 줍니다. LLM 을 부르지 않습니다.
+"""페르소나 렌더러: 데이터 계약(r4-1.0~r4-1.2) 하나를 사용자 프로필에 맞춰 보여 줍니다. LLM 을 부르지 않습니다.
 
 원칙
 - 새 문장·새 숫자를 만들지 않습니다. 계약에 있는 문장(이미 Verifier 를 통과한 것)을 고르고 배치만 합니다.
@@ -19,18 +19,19 @@ from .profile import Level, Stance, UserProfile
 RENDER_VERSION = "1.0"
 
 # 공통 구역: 모든 프로필에 같은 항목이 같은 문장으로 들어감 (순서·꾸밈만 다름)
-COMMON = ("summary", "caveats", "signals", "exposure", "claims", "upside", "counter", "risks", "unverified",
+COMMON = ("summary", "scope", "caveats", "signals", "exposure", "claims", "upside", "counter", "risks", "unverified",
           "nextChecks", "disclaimer")
 ORDER = {
-    Stance.DEFENSIVE: ("summary", "caveats", "risks", "counter", "unverified", "claims", "upside", "exposure",
+    Stance.DEFENSIVE: ("summary", "caveats", "scope", "risks", "counter", "unverified", "claims", "upside", "exposure",
                        "signals", "nextChecks"),
-    Stance.AGGRESSIVE: ("summary", "caveats", "signals", "exposure", "claims", "upside", "counter", "risks",
+    Stance.AGGRESSIVE: ("summary", "caveats", "scope", "signals", "exposure", "claims", "upside", "counter", "risks",
                         "unverified", "nextChecks"),
 }
 TAIL = ("glossary", "method", "evidence", "disclaimer")
 
 TITLES = {
     "summary": ("한눈에 보기", "핵심 요약", "핵심 진단"),
+    "scope": ("이 답이 다루는 범위", "답한 것과 보류한 것", "과업 계약 (제작 기준)·상태 코드"),
     "caveats": ("읽기 전에 알아 둘 점", "해석 전 주의", "자료 주의 (시차·기준 시점·규모)"),
     "signals": ("최근 달라진 점", "변화 신호", "변화 신호 (코드 판정·이상 징후)"),
     "exposure": ("어떤 경제 변수에 영향을 받나", "거시 변수 노출", "거시 변수 노출 점검"),
@@ -47,6 +48,7 @@ TITLES = {
 }
 # L2: 보고서를 써 본 적 없는 투자자에게 각 구역을 보고서로 옮기는 법
 HOW_TO = {
+    "scope": "보고서 첫머리에 '이 보고서가 답하는 것/답하지 않는 것'으로 옮깁니다. 보류 사유도 그대로 적습니다.",
     "summary": "보고서 첫 문단에 그대로 쓰고, 뒤 구역에서 근거를 붙입니다.",
     "caveats": "결론보다 먼저 적어 독자가 자료의 한계를 알고 읽게 합니다.",
     "claims": "[사실]은 숫자로 확인된 것, [해석]은 그 숫자를 읽은 의견, [예측]은 앞으로의 가능성입니다. 보고서에서도 셋을 섞지 않습니다.",
@@ -57,6 +59,7 @@ HOW_TO = {
     "nextChecks": "보고서 끝 '다음에 볼 것'에 날짜와 함께 옮깁니다.",
 }
 L1_HINT = {
+    "scope": "숫자로 답할 수 없는 부분은 '보류'로 표시합니다. 보류는 오류가 아니라 근거가 부족하다는 뜻입니다.",
     "claims": "'확인된 사실'은 숫자로 확인한 것, '해석'과 '전망'은 그 숫자를 읽은 의견입니다.",
     "counter": "위 내용과 반대로 볼 수 있는 근거입니다. 함께 봐야 한쪽으로 치우치지 않습니다.",
     "unverified": "자료가 없거나 공시로 확인되지 않은 부분입니다. '수집 중'은 곧 채워지고, '공시 없음'은 회사가 밝히지 않는 내용입니다.",
@@ -75,6 +78,18 @@ def _sections(c: dict) -> dict[str, list[dict]]:
     sm = c.get("summary") or {}
     if sm.get("text"):
         s["summary"].append(_item("summary", sm["text"], sm.get("evidenceIds")))
+    px = c.get("p01") or c.get("p03")
+    if px:  # 제작 기준 과업 계약: 세 줄 요약과 과업별 답함/보류 (r4-1.2)
+        for k, v in (px.get("summary") or {}).items():
+            s["scope"].append(_item(f"S:{k}", f"{k}: {v}"))
+        state = {"answered": "답함", "held": "보류"}
+        reasons = {r.split(":")[0]: r for r in px.get("heldReasons") or []}
+        for name, t in (px.get("tasks") or {}).items():
+            if t.get("state") not in state:
+                continue
+            why = "; ".join(reasons.get(cd, cd) for cd in t.get("codes") or [])
+            note = why or t.get("note") or ""
+            s["scope"].append(_item(f"T:{name}", f"{name}: {state[t['state']]}" + (f" — {note}" if note else "")))
     if str(c.get("status", "")).startswith("규칙 기반 대체"):
         s["caveats"].append(_item("status", f"LLM 문장 없이 코드 규칙으로 만든 요약입니다. 상태: {c['status']}"))
     for i, f in enumerate(c.get("codeFindings") or [], 1):
@@ -156,6 +171,16 @@ def _method(c: dict) -> list[str]:
         out.append(f"- 전제 `{p['item']}` [{p['status']}]: {p['detail']}")
     for d in c.get("duplicateSignals") or []:
         out.append(f"- 중복 신호 `{d['clusterId']}`: {', '.join(d['signals'])} — {d['rule']}")
+    px = c.get("p01") or c.get("p03")
+    if px:
+        out.append(f"- 제작 기준: {px.get('standard')} · 정책 `{px.get('policy')}` · 상태 코드 {', '.join(px.get('statusCodes') or []) or '없음'}")
+        if px.get("tiers"):
+            out.append(f"- 근거 등급: 기준 부합 {px['tiers'].get('core')}개 · 참고용 {px['tiers'].get('reference')}개")
+        for r in px.get("eventStudy") or []:
+            if r.get("status") == "ok":
+                base = f", 모든 거래일 기준선 {r['base_median']:+.2f}%p" if r.get("base_median") is not None else ""
+                out.append(f"- 사건 연구 `{r['scope']} {r['who']} {r['signal']} {r['h']}일`: 사건 {r['n']}건·신호일 "
+                           f"{r['independent']}개, 초과수익률 중앙값 {r['median']:+.2f}%p{base} (과거 관계, 투자 신호 아님)")
     if c.get("sentimentModel"):
         out.append(f"- 감성 점수: {c['sentimentModel']}")
     for q in c.get("dataQuality") or []:

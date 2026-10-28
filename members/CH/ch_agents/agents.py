@@ -6,7 +6,7 @@ from datetime import datetime, timedelta, timezone
 from types import ModuleType
 from typing import Any
 
-from . import agent1_macro, agent3_sentiment_flow, db, exposure, financial, quality, rag
+from . import agent1_macro, agent3_sentiment_flow, db, etf, exposure, financial, forecast, p03, quality, rag
 from .facts import Facts
 
 KST = timezone(timedelta(hours=9))
@@ -49,6 +49,9 @@ AGENTS: dict[int, AgentSpec] = {
             "주가와 거시변수의 동조성: 상관의 크기(강함/보통/약함)와 통계적 유의성을 구분, 60일과 250일이 다르면 언급",
             "판단에 필요하지만 DB에 없는 변수(기업 노출, 유가 등)를 미확인에 명시",
             "미확인 전제(헤지 여부·결제 시점·판가 전가력 등)를 가정하지 않고 상태 그대로 전달",
+            "제작 기준(P01): 결과를 관측·공시 민감도·실적 예측(기준선, 승인 모델 없음)·시나리오(공시 정적 환산)로 구분, "
+            "시나리오 값을 매출 예측에 더하지 않고 인과효과·확률로 쓰지 않음",
+            "참고용(제작 기준 밖) 항목(주가 동조성·산업 변수·ETF 수익률)은 보조 맥락으로만, 핵심 진단의 근거로 쓰지 않음",
             "반대 근거·하방 위험 1~3개",
         ],
         next_checks=["다음 한국은행 금리 결정과 원/달러 방향", "다음 달 관세청 수출 통계", "미국 물가 발표"],
@@ -78,6 +81,9 @@ AGENTS: dict[int, AgentSpec] = {
             "가격과 수급의 엇갈림, 시장 전반(VIX·코스피 대비) 맥락",
             "규칙·사전 기준선과의 비교 (평소 범위인지 이례적인지)",
             "중복 신호(뉴스+거래량 등)는 하나의 사건 묶음으로, 독립 근거로 중복 계산하지 않음",
+            "제작 기준(P03): 관측·기준선 비교·과거 관계(사건 연구)·대용치(ETF 자금 흐름·순매수 금액)를 구분. "
+            "과거 관계는 예측·투자 신호가 아니며, 신호 뒤 중앙값을 '모든 거래일 기준선'과 함께 말함",
+            "참고용 항목(주가 수익률·외국인 순매수일 평균 가격)은 보조 맥락으로만",
             "반대 근거·하방 위험 1~3개",
         ],
         next_checks=["외국인 순매수 방향 전환 여부(5일 기준)", "대차잔고 수집 재개 후 추이", "검색 관심도 급변"],
@@ -108,6 +114,24 @@ def normalize_as_of(as_of) -> str:
                      "따옴표 없이 2026-10-26 이라고 쓰면 파이썬이 뺄셈으로 계산합니다.")
 
 
+# 종목과 무관한 시장 전체 조회(분기 매출 패널·KOSPI 200 사건 연구·ETF·금리 일정)는 같은 기준일이면 결과가 같아
+# 여러 종목을 돌릴 때 한 번만 조회합니다. 수집이 매시간 돌므로 10분만 보관합니다.
+SHARED_TTL = 600
+_SHARED: dict = {}
+
+
+def shared(name: str, as_of: str, fn):
+    import time
+
+    key = (name, as_of)
+    hit = _SHARED.get(key)
+    if hit and time.monotonic() - hit[0] < SHARED_TTL:
+        return hit[1]
+    val = fn()
+    _SHARED[key] = (time.monotonic(), val)
+    return val
+
+
 def fetch_bundle(agent_id: int, co: dict, as_of: str, use_rag: bool = True) -> dict:
     """관점 SQL 묶음 + (기본) RAG 후보 문서·공시. 'rag' 키는 스냅샷에도 그대로 저장됩니다."""
     mod = AGENTS[agent_id].module
@@ -127,9 +151,25 @@ def fetch_bundle(agent_id: int, co: dict, as_of: str, use_rag: bool = True) -> d
         except Exception:  # noqa: BLE001
             out["terms"] = None
         try:  # 금리 결정 일정 (kic-agent-data 021). 표가 아직 없으면 일정은 무자료로 남음
-            out["meetings"] = db.bundle(mod.MEETINGS_SQL, {"as_of": as_of})
+            out["meetings"] = shared("meetings", as_of, lambda: db.bundle(mod.MEETINGS_SQL, {"as_of": as_of}))
         except Exception:  # noqa: BLE001
             out["meetings"] = None
+        try:  # P01-F05 기준선 예측·순차평가용 전 종목 분기 매출 패널
+            out["panel"] = shared("panel", as_of, lambda: db.q(forecast.PANEL_SQL, {"as_of": as_of})[0])
+        except Exception:  # noqa: BLE001
+            out["panel"] = None
+    if agent_id in (1, 3):  # 대표 지수·배당 ETF (kic-agent-data 022). 1 은 참고용 시장 기준선, 3 은 ETF 자금 흐름
+        try:
+            out["etf"] = shared("etf", as_of,
+                                lambda: (db.q(etf.SQL, {"etf": etf.REP_TICKERS, "as_of": as_of})[0] or {}).get("etf"))
+        except Exception:  # noqa: BLE001
+            out["etf"] = None
+    if agent_id == 3:  # P03-F07 KOSPI 200 합산 사건 연구 (결과가 기준일까지 확정된 사건만)
+        try:
+            out["panel_events"] = shared("panel_events", as_of, lambda: db.bundle(
+                p03.PANEL_EVENT_SQL, {"as_of": as_of, "z": p03.Z_EVENT}) or None)
+        except Exception:  # noqa: BLE001
+            out["panel_events"] = None
     if agent_id in quality.SOURCES:
         try:
             out["quality"] = db.q(quality.SQL)
@@ -182,9 +222,17 @@ def newer_docs_flag(f, docs: list[dict], ledger_last: str | None) -> int:
 
 
 def fetch_agent_data(agent_id: int, ticker: str, as_of: str | None = None, co: dict | None = None,
-                     focus: list[str] | None = None, period: int | None = None) -> AgentData:
-    """focus: 에이전트 1 관심 거시 변수(예: ["환율", "금리"]), period: 에이전트 3 기간(거래일, 예: 20)."""
+                     focus: list[str] | None = None, period: int | None = None, scenario: str | None = None,
+                     question: str | None = None) -> AgentData:
+    """focus: 에이전트 1 관심 거시 변수(예: ["환율", "금리"]), period: 에이전트 3 기간(거래일, 예: 20).
+    scenario: 에이전트 1 조건(예: "환율 5% 상승, 금리 0.5%p 하락"), question: 사용자 질문 원문 (P01·P03 과업 계약)."""
     as_of = normalize_as_of(as_of)
     co = co or db.company(ticker)
-    opts = {"focus": focus} if agent_id == 1 else {"period": period} if agent_id == 3 else {}
+    if agent_id == 1:
+        opts = {"focus": focus, "scenario": scenario, "question": question}
+    elif agent_id == 3:
+        opts = {"period": period, "question": question}
+    else:
+        opts = {}
+    opts = {k: v for k, v in opts.items() if v not in (None, [], "")}
     return build_agent_data(agent_id, co, fetch_bundle(agent_id, co, as_of), as_of, opts)

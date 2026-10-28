@@ -27,7 +27,7 @@ from pathlib import Path
 
 from .availability import AVAILABILITY, availability
 
-SCHEMA_VERSION = "r4-1.1"   # r4-1.1: unverified[].availability 추가 (선택 필드)
+SCHEMA_VERSION = "r4-1.2"   # r4-1.1: unverified[].availability, r4-1.2: evidence[].tier·resultType, p01·p03 (모두 선택 필드)
 SCHEMA_PATH = Path(__file__).resolve().parent / "schema" / "agent_output.schema.json"
 KST = timezone(timedelta(hours=9))
 MODULES = {1: "agent1_macro", 3: "agent3_sentiment_flow"}
@@ -40,7 +40,7 @@ COUNTER_GAP = "반대 근거·하방 위험"
 # ---------------------------------------------------------------- 미확인 항목 중복 판단
 
 _TOKEN = re.compile(r"[가-힣A-Za-z]{2,}")
-_STOP = {"여부", "확인", "미확인", "조건", "실제", "기업의", "기업", "등의", "이나", "및"}
+_STOP = {"여부", "확인", "미확인", "조건", "실제", "기업의", "기업", "등의", "이나", "및", "다음", "분기"}  # 다음·분기: 시점어라 내용 판단에서 뺌
 
 
 def _tokens(text: str) -> set[str]:
@@ -96,7 +96,7 @@ def _evidence(data, emap: dict[str, str], cited: set[str]) -> list[dict]:
             "unit": it["unit"], "display": it["text"], "valueType": it["kind"], "group": it.get("group") or None,
             "dataDate": it.get("as_of"), "publishedAt": None, "source": it.get("source"),
             "sourceTag": f"[출처: {source_tag(it)}]", "url": None, "note": it.get("note") or None,
-            "cited": k in cited,
+            "cited": k in cited, "tier": it.get("tier"), "resultType": it.get("result_type"),
         })
     for i, d in enumerate(data.docs):
         k = f"D{i + 1}"
@@ -245,6 +245,16 @@ def build(run: dict, data, mode: str = "expert") -> dict:
         out["premises"] = [{"item": p["item"], "status": p["status"], "detail": p["detail"], "why": p["why"],
                             "evidenceIds": evidence_ids(p["keys"], emap)} for p in data.extra.get("premises") or []]
         cited.update(k for r in data.extra.get("exposure") or [] for k in r["keys"])
+        px = data.extra.get("p01")
+        if px:  # 제작 기준(P01) 과업 계약·상태 코드·세 줄 요약
+            plan = px["plan"]
+            out["p01"] = {"standard": plan["standard"], "policy": plan["policy"], "origin": plan["origin"],
+                          "question": plan.get("question"), "tasks": plan["tasks"],
+                          "statusCodes": plan["status_codes"], "heldReasons": plan["held_reasons"],
+                          "recheckConditions": plan["recheck_conditions"],
+                          "summary": {k: plain(v, data) for k, v in (px.get("summary") or {}).items()},
+                          "vintage": {k: v for k, v in (px.get("vintage") or {}).items() if k != "dropped"},
+                          "tiers": px.get("tiers")}
     if data.agent_id == 3:
         out["anomalies"] = [{"text": plain(t, data), "evidenceIds": evidence_ids(_keys_in(t), emap)}
                             for t in data.extra.get("anomalies") or []]
@@ -256,6 +266,16 @@ def build(run: dict, data, mode: str = "expert") -> dict:
                                     "rule": "같은 사건을 반영할 수 있어 독립 근거로 중복 계산하지 않음"}
                                    for c in data.extra.get("dup_clusters") or []]
         out["sentimentModel"] = data.extra.get("sentiment_model")
+        px = data.extra.get("p03")
+        if px:  # 제작 기준(P03) 과업 계약·사건 연구
+            plan = px["plan"]
+            out["p03"] = {"standard": plan["standard"], "policy": plan["policy"], "origin": plan["origin"],
+                          "question": plan.get("question"), "tasks": plan["tasks"],
+                          "statusCodes": plan["status_codes"], "heldReasons": plan["held_reasons"],
+                          "availability": {k: v for k, v in px["availability"].items()},
+                          "eventStudy": [{k: v for k, v in r.items() if k != "key"} for r in px.get("events") or []],
+                          "summary": {k: plain(v, data) for k, v in (px.get("summary") or {}).items()},
+                          "tiers": px.get("tiers")}
     out["evidence"] = _evidence(data, emap, cited)
     body = json.dumps({k: out[k] for k in ("agent", "target", "asOf", "mode", "claims")}, ensure_ascii=False,
                       sort_keys=True)
