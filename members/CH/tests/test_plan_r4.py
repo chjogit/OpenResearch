@@ -416,3 +416,62 @@ def test_market_baseline_contract_and_sql():
     _check_contract(c)
     assert any(b["signal"] == "외국인 순매수 강도(시장 대비)" and len(b["evidenceIds"]) == 3 for b in c["baseline"])
     assert "'market'" in a3.SQL and "f.company_id <> %(cid)s" in a3.SQL and "'KOSPI200' = ANY(c.index_tags)" in a3.SQL
+
+
+# ---------------------------------------------------------------- 에이전트 1: 금리 결정 일정 (금통위·FOMC)
+
+MEETINGS = {"meetings": [
+    {"bank": "BOK", "date": "2026-10-22", "kst": "2026-10-22T10:00", "sep": False, "status": "scheduled"},
+    {"bank": "FOMC", "date": "2026-10-28", "kst": "2026-10-29T03:00", "sep": False, "status": "scheduled"},
+    {"bank": "BOK", "date": "2026-11-26", "kst": "2026-11-26T10:00", "sep": False, "status": "scheduled"},
+    {"bank": "FOMC", "date": "2026-12-09", "kst": "2026-12-10T04:00", "sep": True, "status": "scheduled"},
+]}
+
+
+def test_policy_calendar_next_and_previous_in_kst(rng):
+    from ch_agents import agent1_macro as a1
+
+    f = Facts("M")
+    checks = a1.policy_calendar(f, MEETINGS, "2026-10-28")
+    k_bok = next(k for k, v in f.items.items() if v["label"].startswith("다음 한국은행 금통위"))
+    k_fomc = next(k for k, v in f.items.items() if v["label"].startswith("다음 FOMC"))
+    assert f.items[k_bok]["value"] == 29 and "2026년 11월 26일 10:00 한국시간" in f.items[k_bok]["label"]
+    # 10/28 미 동부 14시 발표 = 한국시간 10/29 03시 → 기준일 10/28 에는 아직 '다음'
+    assert f.items[k_fomc]["value"] == 1 and "2026년 10월 29일 03:00" in f.items[k_fomc]["label"]
+    assert any(fl.startswith("금리 이벤트 임박: 2026년 10월 29일 FOMC") for fl in f.flags)
+    assert not any("임박" in fl and "금통위" in fl for fl in f.flags)
+    k_prev = next(k for k, v in f.items.items() if v["label"].startswith("직전 한국은행 금통위"))
+    assert f.items[k_prev]["value"] == 6
+    assert checks == ["2026년 10월 29일 FOMC 결정 발표(한국시간)", "2026년 11월 26일 한국은행 금통위 통화정책방향 결정(한국시간)"] \
+        or checks == ["2026년 11월 26일 한국은행 금통위 통화정책방향 결정(한국시간)", "2026년 10월 29일 FOMC 결정 발표(한국시간)"]
+    # 하루 뒤에는 FOMC 가 '직전'이 되고 다음 FOMC 는 경제전망 회의
+    f2 = Facts("M")
+    a1.policy_calendar(f2, MEETINGS, "2026-10-29")
+    nxt = next(v for v in f2.items.values() if v["label"].startswith("다음 FOMC"))
+    assert nxt["value"] == 42 and "경제전망 발표 회의" in nxt["label"]
+    assert any(v["label"].startswith("직전 FOMC") and v["value"] == 0 for v in f2.items.values())
+
+
+def test_policy_calendar_gaps_when_missing():
+    from ch_agents import agent1_macro as a1
+
+    f = Facts("M")
+    assert a1.policy_calendar(f, None, AS_OF) == []
+    assert any(g["label"] == "금리 결정 일정" for g in f.gaps)
+    f2 = Facts("M")
+    a1.policy_calendar(f2, {"meetings": MEETINGS["meetings"][:3]}, "2026-11-27")   # 2027년 금통위 미공표
+    assert any(g["label"] == "다음 한국은행 금통위 통화정책방향 결정 일정" for g in f2.gaps)
+
+
+def test_policy_calendar_in_contract_and_next_checks(rng):
+    b = _macro_bundle(rng)
+    b["meetings"] = MEETINGS
+    d = build_agent_data(1, CO, b, "2026-10-28")
+    out = run_agent(1, data=d, llm=FakeLLM(TimeoutError()))
+    c = out["contract"]
+    _check_contract(c)
+    assert c["nextChecks"][0].startswith("2026년")                   # 규칙 기반 대체에도 실제 날짜가 들어감
+    assert any(e["label"].startswith("다음 FOMC") and e["source"].startswith("core.policy_meeting")
+               for e in c["evidence"])
+    from ch_agents import agent1_macro as a1
+    assert "AT TIME ZONE 'Asia/Seoul'" in a1.MEETINGS_SQL and "AS bundle" in a1.MEETINGS_SQL

@@ -29,6 +29,21 @@ from .facts import (
 
 SRC = "core.macro_obs"
 
+# 통화정책 결정 회의 일정 (kic-agent-data 021 core.policy_meeting). 발표 시각은 한국시간으로 비교합니다.
+# 일정은 미리 공표되므로 기준일 뒤의 회의를 써도 미래 정보 누설이 아닙니다(결정 내용은 쓰지 않음).
+MEETINGS_SQL = """
+SELECT json_build_object('meetings', (
+    SELECT json_agg(json_build_object(
+               'bank', bank, 'date', decision_date,
+               'kst', to_char(announce_at AT TIME ZONE 'Asia/Seoul', 'YYYY-MM-DD"T"HH24:MI'),
+               'sep', projections, 'status', status) ORDER BY announce_at)
+    FROM core.policy_meeting
+    WHERE announce_at >= %(as_of)s::date - 200 AND announce_at < %(as_of)s::date + 400)) AS bundle
+"""
+SRC_PM = "core.policy_meeting (한국은행·연준 공표 일정)"
+MEETING_NAMES = {"BOK": "한국은행 금통위 통화정책방향 결정", "FOMC": "FOMC 결정 발표"}
+EVENT_SOON = 7  # 다음 결정까지 이 일수 이하이면 '금리 이벤트 임박'
+
 # series_id: (이름, 단위, 변화 방식)  pp=%p 차이, pct=증감률
 MACRO_SERIES = {
     "ECOS_BASE_RATE": ("한국 기준금리", "%", "pp"),
@@ -368,6 +383,9 @@ def compute(b: dict, co: dict, as_of: str, focus: list[str] | None = None, **_) 
         if line.endswith("※"):
             f.gap(line.split(":")[0], "이 업종 경로에 필요하지만 DB에 없는 변수")
 
+    # 4-1) 금리 결정 일정 (금통위·FOMC)
+    next_checks = policy_calendar(f, b.get("meetings"), as_of)
+
     docs = [{"title": d["title"], "published": str(d["published"])[:10]} for d in (b.get("docs") or [])]
     # 5) 기업 노출도 (규칙 기반, exposure.py)
     rows = exposure.assess(f, sector, b.get("fund"), as_of, focus, b.get("report"), b.get("terms"))
@@ -377,7 +395,48 @@ def compute(b: dict, co: dict, as_of: str, focus: list[str] | None = None, **_) 
     if open_items:
         f.note("미확인 전제(가정하지 말 것): " + ", ".join(open_items))
     return {"facts": f, "docs": docs, "period": f"거시 지표 최근 12개월 · 동조성 {period}", "sector": sector,
-            "exposure": rows, "premises": prem, "focus": list(focus or [])}
+            "exposure": rows, "premises": prem, "focus": list(focus or []), "next_checks": next_checks}
+
+
+def kor_date(day: str) -> str:
+    """'2026-11-26' → '2026년 11월 26일' (Verifier 가 연·월·일 숫자를 장부 대조에서 빼는 형식)."""
+    y, m, d = (int(x) for x in day[:10].split("-"))
+    return f"{y}년 {m}월 {d}일"
+
+
+def policy_calendar(f: Facts, bundle: dict | None, as_of: str) -> list[str]:
+    """다음·직전 금리 결정까지 일수를 장부에 올리고, 다음 점검에 넣을 날짜 문장을 돌려줍니다.
+    기준일(한국시간) 하루가 끝나기 전에 발표된 결정은 '직전', 그 뒤는 '다음'입니다."""
+    from datetime import date, timedelta
+
+    if bundle is None:
+        f.gap("금리 결정 일정", "core.policy_meeting 없음 (kic-agent-data 021 적용 전)")
+        return []
+    rows = (bundle or {}).get("meetings") or []
+    cutoff = (date.fromisoformat(as_of) + timedelta(days=1)).isoformat() + "T00:00"
+    out: list[str] = []
+    for bank, name in MEETING_NAMES.items():
+        mine = [m for m in rows if m.get("bank") == bank and m.get("kst")]
+        past = [m for m in mine if m["kst"] < cutoff]
+        fut = [m for m in mine if m["kst"] >= cutoff]
+        if past:
+            m = past[-1]
+            f.add(f"직전 {name} 후 경과 일수({kor_date(m['kst'])} 한국시간)", days_between(m["kst"][:10], as_of), "일",
+                  as_of, SRC_PM, kind="calc", group="금리 일정")
+        if not fut:
+            f.gap(f"다음 {name} 일정", "공표 전이거나 core.policy_meeting 에 아직 없음")
+            continue
+        m = fut[0]
+        extra = ("경제전망 발표 회의" if m.get("sep") else "") + (", 일정 잠정" if m.get("status") == "tentative" else "")
+        when = kor_date(m["kst"])
+        days = days_between(as_of, m["kst"][:10])
+        k = f.add(f"다음 {name}까지 일수({when} {m['kst'][11:16]} 한국시간{', ' + extra.strip(', ') if extra else ''})",
+                  days, "일", as_of, SRC_PM, kind="calc", group="금리 일정",
+                  note="FOMC 는 미 동부시간 14시 발표라 한국시간으로는 다음 날 새벽" if bank == "FOMC" else None)
+        if k and days <= EVENT_SOON:
+            f.flag(f"금리 이벤트 임박: {when} {name} ({{{k}}} 남음)")
+        out.append(f"{when} {name}(한국시간)" + (" · 경제전망 포함" if m.get("sep") else ""))
+    return out
 
 
 def bisect_left_days(days: list[str], d: str) -> int:
