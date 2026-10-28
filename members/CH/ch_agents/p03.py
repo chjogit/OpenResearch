@@ -328,6 +328,7 @@ def add_event_facts(f, rows: list[dict], as_of: str, current: dict[str, int] | N
             pick.append(r)
     if not pick:
         pick = [r for r in rows if r["scope"] == "KOSPI 200 합산" and r["who"] == "외국인" and r["h"] == 20]
+    base_keys: dict = {}  # (범위, 기간) → 무조건부 기준선 키 (신호마다 다시 올리지 않음)
     for r in pick:
         name = f"{r['scope']} {r['who']} {r['signal']} 뒤 {r['h']}거래일 코스피 대비 초과수익률"
         if r["status"] != "ok":
@@ -342,8 +343,12 @@ def add_event_facts(f, rows: list[dict], as_of: str, current: dict[str, int] | N
         f.add(name + " 90% 분위", r["p90"], "%p", as_of, src, kind="calc", group=group)
         f.add(name + " 양(+) 비율", r["positive_share"], "%", as_of, src, kind="calc", group=group)
         if r.get("base_median") is not None:
-            kb = f.add(f"{r['scope']} 모든 거래일 {r['h']}거래일 초과수익률 중앙값(무조건부 기준선)", r["base_median"],
-                       "%p", as_of, src, kind="calc", group=group, note=f"{r.get('base_n')}개 종목·거래일")
+            bk = (r["scope"], r["h"])
+            if bk not in base_keys:
+                base_keys[bk] = f.add(f"{r['scope']} 모든 거래일 {r['h']}거래일 초과수익률 중앙값(무조건부 기준선)",
+                                      r["base_median"], "%p", as_of, src, kind="calc", group=group,
+                                      note=f"{r.get('base_n')}개 종목·거래일")
+            kb = base_keys[bk]
             kd = f.add(name + " 중앙값 − 무조건부 기준선", r["median"] - r["base_median"], "%p", as_of, src,
                        kind="calc", group=group, note="신호가 없을 때와의 차이. 0 근처면 신호의 추가 정보가 작음")
             if k and kb and kd:
