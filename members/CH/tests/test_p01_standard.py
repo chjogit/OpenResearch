@@ -144,3 +144,12 @@ def test_claim_citing_only_reference_items_is_flagged():
     ok = {"핵심진단": f"기준금리 {{{kr}}}.", "자체점수": 5,
           "주장": [{"문장": f"기준금리 변화 {{{kr}}}, 시장 베타 {{{kb}}}.", "구분": "사실", "근거": [kr, kb]}]}
     assert not any("참고용" in p for p in check_output(ok, d).get("근거", []))
+
+
+def test_prompt_carries_question_and_task_contract():
+    from ch_agents.llm import build_messages
+
+    d = build_agent_data(1, CO, _bundle(), AS_OF, {"scenario": "환율 5% 상승", "question": "다음 분기 매출은?"})
+    _, user = build_messages(d)
+    assert "질문: 다음 분기 매출은?" in user and "시나리오: 환율 5% 상승" in user
+    assert "[과업 계약]" in user and "장부 그룹 [실적 예측(기준선)]" in user and "MODEL_NOT_APPROVED" in user

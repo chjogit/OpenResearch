@@ -152,6 +152,10 @@ def build_messages(data: AgentData, mode: str = "expert") -> tuple[str, str]:
         asked.append("관심 거시 변수: " + ", ".join(opts["focus"]))
     if opts.get("period"):
         asked.append(f"관찰 기간: {data.extra.get('obs_period', opts['period'])}거래일")
+    if opts.get("scenario"):
+        asked.append("시나리오: " + str(opts["scenario"]))
+    if opts.get("question"):
+        asked.append("질문: " + str(opts["question"]))
     user = f"""[대상] {data.company['name']} ({data.company['ticker']}) · 기준일 {data.as_of}
 [사용자 입력] {' / '.join(asked) or '없음'}
 [관측 기간] {data.period}
@@ -170,9 +174,30 @@ def build_messages(data: AgentData, mode: str = "expert") -> tuple[str, str]:
     return system, user
 
 
+TASK_STATE = {"answered": "답함", "held": "보류", "not_requested": "요청 없음"}
+
+
+def _task_section(data: AgentData) -> list[str]:
+    """제작 기준(P01·P03) 과업 계약. 답함 과업은 해당 장부 키로 답하고, 보류 과업은 미확인에 사유를 적게 합니다."""
+    px = data.extra.get("p01") or data.extra.get("p03")
+    if not px:
+        return []
+    out = ["", "[과업 계약] (제작 기준. '답함' 과업은 그 그룹의 장부 키로 반드시 다루고, '보류' 과업은 숫자 없이 "
+                "미확인에 사유를 적을 것. 사용자 질문이 있으면 핵심진단 첫 문장이 질문에 답해야 함)"]
+    groups = {"예측": "실적 예측(기준선)", "시나리오": "시나리오(공시 정적 환산)", "과거관계": "과거 관계(사건 연구)"}
+    for name, t in (px["plan"].get("tasks") or {}).items():
+        if t.get("state") == "not_requested":
+            continue
+        codes = ", ".join(t.get("codes") or [])
+        g = f" · 장부 그룹 [{groups[name]}]" if name in groups and t.get("state") == "answered" else ""
+        out.append(f"- {name}: {TASK_STATE.get(t.get('state'), t.get('state'))}{g}"
+                   + (f" ({codes})" if codes else "") + (f" — {t['note']}" if t.get("note") else ""))
+    return out
+
+
 def _extra_sections(data: AgentData) -> str:
-    """에이전트별 코드 표를 프롬프트에 넣습니다: 1 미확인 전제, 3 기준선 비교."""
-    out = []
+    """에이전트별 코드 표를 프롬프트에 넣습니다: 과업 계약, 1 미확인 전제, 3 기준선 비교."""
+    out = _task_section(data)
     prem = data.extra.get("premises")
     if prem:
         out += ["", "[미확인 전제] (확인되지 않은 것은 가정하지 말 것)"]
