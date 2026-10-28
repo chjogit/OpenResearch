@@ -101,6 +101,14 @@ SELECT json_build_object(
               WHERE company_id = %(cid)s
                 AND fiscal_year <= extract(year FROM %(as_of)s::date - 90)::int - 1  -- 사업보고서 제출(3월 말) 전 시점에는 전전년
               ORDER BY fiscal_year DESC LIMIT 1) x),
+    -- 기준일에 공시돼 있던 최근 4개 분기 영업이익 (분기보고서 45일, 사업보고서 90일 제출 기한 뒤부터 사용)
+    'ttm_op', (SELECT row_to_json(t) FROM (
+              SELECT sum(amount) AS operating_income_ttm, max(period_end) AS ttm_end,
+                     min(period_end) AS first_end, count(*) AS n
+              FROM (SELECT period_end, amount FROM core.financial_quarter
+                    WHERE company_id = %(cid)s AND metric = 'operating_income' AND amount IS NOT NULL
+                      AND period_end + (CASE WHEN fiscal_q = 4 THEN 90 ELSE 45 END) <= %(as_of)s::date
+                    ORDER BY period_end DESC LIMIT 4) q) t),
     'price', (SELECT json_agg(json_build_object('d', trade_date, 'v', close) ORDER BY trade_date)
               FROM core.price_daily
               WHERE company_id = %(cid)s AND trade_date <= %(as_of)s::date
@@ -386,7 +394,8 @@ def compute(b: dict, co: dict, as_of: str, focus: list[str] | None = None, **_) 
 
     docs = [{"title": d["title"], "published": str(d["published"])[:10]} for d in (b.get("docs") or [])]
     # 5) 기업 노출도 (규칙 기반, exposure.py)
-    rows = exposure.assess(f, sector, b.get("fund"), as_of, focus, b.get("report"), b.get("terms"))
+    rows = exposure.assess(f, sector, b.get("fund"), as_of, focus, b.get("report"), b.get("terms"),
+                           b.get("ttm_op"))
     # 6) 미확인 전제 (R4): 헤지·결제 시점·판가 전가력 등. 노출 등급은 이 전제가 확인되지 않은 상태의 참고치
     prem = exposure.premises(f, rows, sector)
     open_items = [p["item"] for p in prem if p["status"] != "확인"]

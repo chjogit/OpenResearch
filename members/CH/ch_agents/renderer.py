@@ -1,4 +1,4 @@
-"""페르소나 렌더러: 데이터 계약(r4-1.0) 하나를 사용자 프로필에 맞춰 보여 줍니다. LLM 을 부르지 않습니다.
+"""페르소나 렌더러: 데이터 계약(r4-1.0·r4-1.1) 하나를 사용자 프로필에 맞춰 보여 줍니다. LLM 을 부르지 않습니다.
 
 원칙
 - 새 문장·새 숫자를 만들지 않습니다. 계약에 있는 문장(이미 Verifier 를 통과한 것)을 고르고 배치만 합니다.
@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import re
 
+from .availability import AVAIL_SHORT
 from .glossary import terms_for
 from .profile import Level, Stance, UserProfile
 
@@ -51,13 +52,14 @@ HOW_TO = {
     "claims": "[사실]은 숫자로 확인된 것, [해석]은 그 숫자를 읽은 의견, [예측]은 앞으로의 가능성입니다. 보고서에서도 셋을 섞지 않습니다.",
     "counter": "주장과 같은 무게로 적습니다. 반대 근거가 없는 보고서는 한쪽만 본 보고서입니다.",
     "risks": "어떤 조건에서 나빠지는지를 적습니다. 가격 전망이 아니라 조건입니다.",
-    "unverified": "모른다는 것도 결과입니다. '확인하지 못함'으로 적고 추측으로 채우지 않습니다.",
+    "unverified": "모른다는 것도 결과입니다. '확인하지 못함'으로 적고 추측으로 채우지 않습니다. "
+                  "[수집 중]은 시간이 지나면 채워지고, [공시 없음]은 앞으로도 대용치로만 짐작할 수 있습니다.",
     "nextChecks": "보고서 끝 '다음에 볼 것'에 날짜와 함께 옮깁니다.",
 }
 L1_HINT = {
     "claims": "'확인된 사실'은 숫자로 확인한 것, '해석'과 '전망'은 그 숫자를 읽은 의견입니다.",
     "counter": "위 내용과 반대로 볼 수 있는 근거입니다. 함께 봐야 한쪽으로 치우치지 않습니다.",
-    "unverified": "자료가 없거나 공시로 확인되지 않은 부분입니다. 모르는 채로 판단하지 마세요.",
+    "unverified": "자료가 없거나 공시로 확인되지 않은 부분입니다. '수집 중'은 곧 채워지고, '공시 없음'은 회사가 밝히지 않는 내용입니다.",
 }
 TYPE_L1 = {"사실": "확인된 사실", "해석": "해석", "예측": "전망"}
 CAVEAT_RE = re.compile(r"^(자료 시차|자료 지연|기준 시점 주의|규모 주의)")
@@ -95,7 +97,8 @@ def _sections(c: dict) -> dict[str, list[dict]]:
         s["risks"].append(_item(r["riskId"], r["text"], r.get("evidenceIds")))
     for i, u in enumerate(c.get("unverified") or [], 1):
         s["unverified"].append(_item(f"U{i:02d}", u["item"], u.get("evidenceIds"), reason=u.get("reason"),
-                                     category=u.get("category"), status=u.get("status")))
+                                     category=u.get("category"), status=u.get("status"),
+                                     availability=u.get("availability")))
     for i, t in enumerate(c.get("nextChecks") or [], 1):
         s["nextChecks"].append(_item(f"N{i:02d}", t))
     s["disclaimer"].append(_item("disclaimer", c.get("disclaimer") or ""))
@@ -115,12 +118,15 @@ def _line(sec: str, it: dict, lv: Level) -> str:
         tags = " ".join(it.get("sourceTags") or [])
         return f"- `{it['ref']}` [{t}] {it['text']}" + (f" — {ev}" if ev else "") + (f" {tags}" if tags else "")
     if sec == "unverified":
+        av = AVAIL_SHORT.get(it.get("availability") or "", "") if it.get("availability") != "unclassified" else ""
         if lv == Level.L1:
-            return f"- {it['text']}"
+            return f"- {it['text']}" + (f" _({av})_" if av else "")
         why = f": {it['reason']}" if it.get("reason") else ""
         if lv == Level.L2:
-            return f"- {it['text']}{why}"
-        return f"- `{it['ref']}` [{it.get('category')}·{it.get('status')}] {it['text']}{why}" + (f" — {ev}" if ev else "")
+            return f"- {it['text']}{why}" + (f" **[{av}]**" if av else "")
+        return (f"- `{it['ref']}` [{it.get('category')}·{it.get('status')}"
+                + (f"·{it['availability']}" if it.get("availability") else "") + f"] {it['text']}{why}"
+                + (f" — {ev}" if ev else ""))
     if sec == "exposure":
         if lv == Level.L1:
             return f"- {it['text']}"

@@ -15,6 +15,7 @@ CH 의 개인 작업 공간입니다. 실험 노트북, 스크립트, 메모를 
 | `ch_agents/agent3_sentiment_flow.py` | 에이전트 3 투자심리·수급 계산 (기준선 비교·중복 신호) |
 | `ch_agents/contract.py`, `ch_agents/schema/agent_output.schema.json` | 데이터 계약 (reportId·claimId·evidenceId). 설명은 `docs/DATA_CONTRACT.md` |
 | `ch_agents/profile.py`, `ch_agents/renderer.py` | 사용자 프로필(숙련도 L1~L3 × 성향 방어/공격)과 페르소나 렌더러. 설명은 `docs/DATA_CONTRACT.md` 7장 |
+| `ch_agents/availability.py`, `docs/DATA_NEEDS_A.md` | 미확인 항목의 채울 방법 분류(수집 중·공시 일부·공시 없음)와, 그 항목을 채우는 데 필요한 데이터 목록 |
 | `ch_agents/` 나머지 | 장부(`facts.py`), LLM 계층(`llm.py`), Verifier 연동(`verify.py`), RAG(`rag.py`), 첨삭(`review.py`). `financial.py`는 이관 참고용(7번) |
 | `ch_agents_agent1_agent3.ipynb` | 실행·확인 노트북 (데이터 확인 → 교차 검증 → 에이전트 실행 → 데이터 계약 → 첨삭 → 일괄 점검) |
 | `tests/` | 패키지 테스트. DB·LLM 없이 실행 |

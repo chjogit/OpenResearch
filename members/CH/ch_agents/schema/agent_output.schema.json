@@ -7,7 +7,7 @@
   "required": ["schemaVersion", "reportId", "agent", "target", "mode", "asOf", "generatedAt", "status", "summary",
                "claims", "downsideRisks", "unverified", "evidence", "verification", "disclaimer"],
   "properties": {
-    "schemaVersion": {"type": "string", "enum": ["r4-1.0"]},
+    "schemaVersion": {"type": "string", "enum": ["r4-1.0", "r4-1.1"]},
     "reportId": {"type": "string", "pattern": "^RPT-\\d+-[0-9A-Za-z.]+-\\d{8}-[0-9a-f]{8}$"},
     "agent": {
       "type": "object", "required": ["id", "module", "name"],
@@ -63,7 +63,10 @@
           "item": {"type": "string"}, "reason": {"type": "string"},
           "category": {"type": "string", "enum": ["무자료", "미확인 전제", "판단 보류"]},
           "status": {"type": "string", "enum": ["미확인", "일부 확인"]},
-          "evidenceIds": {"type": "array", "items": {"type": "string"}}
+          "evidenceIds": {"type": "array", "items": {"type": "string"}},
+          "availability": {"type": "string",
+                           "enum": ["collecting", "partial_disclosure", "not_disclosed", "not_verified", "unclassified"]},
+          "availabilityLabel": {"type": "string"}
         }
       }
     },

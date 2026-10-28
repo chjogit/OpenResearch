@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import re
 
+from .availability import AVAIL_SHORT, availability
 from .facts import Facts, corr_label, days_between, significant
 
 LEVELS = ("낮음", "중간", "높음")
@@ -73,6 +74,7 @@ HIGH_DEBT, LOW_DEBT = 200.0, 50.0
 SMALL_DEBT_SHARE = 1.0   # 사채·CP 미상환 잔액이 총부채의 이 % 미만이면 만기 비중·발행금리를 '참고'로만 표시
 FEW_BONDS = 3            # 발행금리 표본(미상환 회사채 건수)이 이보다 적으면 '표본 적음'
 STALE_REPORT_DAYS = 180  # 사업보고서 회계연도 말에서 기준일까지 이 일수가 넘으면 '기준 시점 주의'
+TTM_MAX_SPAN = 290       # 연속 4개 분기의 첫 분기말~마지막 분기말 (core.v_ttm 과 같은 기준)
 UNKNOWN_NOW = "사업보고서 원문 추출값 없음 (kic-agent-data report-exposure 수집 전이거나 표를 찾지 못함)"
 
 
@@ -222,7 +224,17 @@ FX_HIGH, FX_MID = 10.0, 3.0          # 환율 10% 상승 시 손익 영향 ÷ �
 EXP_HIGH, EXP_MID = 60.0, 30.0       # 수출 비중 (%)
 
 
-def _report_facts(f: Facts, report: list[dict] | None, fundamentals: dict | None) -> dict:
+def ttm_operating_income(ttm: dict | None) -> tuple[float, str] | None:
+    """기준일에 공시돼 있던 최근 4개 분기 영업이익 합 (agent1 SQL 'ttm_op'). 4개가 연속(약 1년 안)일 때만."""
+    t = ttm or {}
+    if t.get("n") != 4 or t.get("operating_income_ttm") is None or not t.get("ttm_end") or not t.get("first_end"):
+        return None
+    if days_between(str(t["first_end"]), str(t["ttm_end"])) > TTM_MAX_SPAN:
+        return None
+    return float(t["operating_income_ttm"]), str(t["ttm_end"])[:10]
+
+
+def _report_facts(f: Facts, report: list[dict] | None, fundamentals: dict | None, ttm: dict | None = None) -> dict:
     """원문 추출값을 장부에 올리고, 등급 판단에 쓸 값을 돌려줍니다."""
     got: dict = {}
     if not report:
@@ -252,6 +264,13 @@ def _report_facts(f: Facts, report: list[dict] | None, fundamentals: dict | None
             got["k_ratio"] = f.add(f"환율 10% 상승 시 손익 영향 ÷ 영업이익({when})", ratio, "%", when,
                                    SRC_REPORT + " × core.v_fundamentals_annual", kind="calc", group="노출 근거",
                                    note="변동 폭을 10%로 맞춘 값. +면 원화 약세(환율 상승)에 손익 증가, -면 감소")
+        t = ttm_operating_income(ttm)
+        if basis != "자본" and pct and t and t[0] > 0:
+            got["k_ratio_ttm"] = f.add(f"환율 10% 상승 시 손익 영향 ÷ 영업이익(TTM, {t[1][:7]}까지 4개 분기)",
+                                       total * (10.0 / pct) / t[0] * 100, "%", t[1],
+                                       SRC_REPORT + " × core.financial_quarter", kind="calc", group="노출 근거",
+                                       note=f"분자는 {when} 공시 민감도, 분모는 기준일에 공시돼 있던 최근 4개 분기 영업이익 합. "
+                                            "최근 실적 규모 대비 크기를 보는 참고치이고, 등급은 같은 회계연도끼리 비교한 연간 비율로 정함")
     exp = by.get(("export_share", "ALL"))
     if exp and exp.get("value") is not None:
         got["export"] = float(exp["value"])
@@ -274,7 +293,7 @@ def _report_facts(f: Facts, report: list[dict] | None, fundamentals: dict | None
 
 
 def _basis_check(f: Facts, report: list[dict] | None, fundamentals: dict | None, terms: dict | None,
-                 as_of: str) -> None:
+                 as_of: str, ttm_key: str | None = None) -> None:
     """노출 근거의 기준 시점이 섞이거나 오래됐는지 알립니다 (P0).
 
     환율 민감도·부채비율은 사업보고서 연간(FY) 기준이고, 매출채권 회수기간은 최근 정기보고서·4개 분기 매출 기준입니다.
@@ -290,9 +309,12 @@ def _basis_check(f: Facts, report: list[dict] | None, fundamentals: dict | None,
         return
     dso = (terms or {}).get("dso") or {}
     mixed = f" 매출채권 회수기간은 {str(dso['period_end'])[:7]} 정기보고서 기준이라 시점이 다름." if dso.get("period_end") else ""
+    tail = (f" 최근 4개 분기 영업이익 대비 비율은 {{{ttm_key}}}" if ttm_key
+            else " 영업이익 대비 비율은 최근 실적 규모에서는 달라질 수 있음")
     f.flag(f"기준 시점 주의: 환율·이자율 민감도와 부채비율은 FY{fy} 사업보고서(연간) 기준이라 이후 분기 실적 변화가 "
-           f"반영되지 않음.{mixed} 영업이익 대비 비율은 최근 실적 규모에서는 달라질 수 있음")
-    f.gap("최근 4개 분기(TTM) 영업이익 대비 환율 민감도", "TTM 영업이익을 노출 계산에 아직 연결하지 않음 (연간 기준만 사용)")
+           f"반영되지 않음.{mixed}{tail}")
+    if not ttm_key:
+        f.gap("최근 4개 분기(TTM) 영업이익 대비 환율 민감도", "기준일에 공시된 연속 4개 분기 영업이익 없음 (분기 재무 미수집 또는 결측)")
 
 
 def _when(d: str | None, code: str | None) -> str:
@@ -355,7 +377,7 @@ def _terms_facts(f: Facts, terms: dict | None, fundamentals: dict | None = None)
 
 
 def assess(f: Facts, sector: str, fundamentals: dict | None, as_of: str, focus: list[str] | None = None,
-           report: list[dict] | None = None, terms: dict | None = None) -> list[dict]:
+           report: list[dict] | None = None, terms: dict | None = None, ttm: dict | None = None) -> list[dict]:
     """노출 등급을 정해 판정 문장을 장부에 올리고, 표에 쓸 행 목록을 돌려줍니다.
     회사 공시값(사업보고서 원문)이 있으면 그것이 업종 기본값보다 먼저입니다."""
     prior = SECTOR_PRIOR.get(sector, DEFAULT_PRIOR)
@@ -370,9 +392,9 @@ def assess(f: Facts, sector: str, fundamentals: dict | None, as_of: str, focus: 
                              kind="calc", group="노출 근거", note="부채 ÷ 자본. 금리 노출 판단에만 사용")
     if fundamentals is None and sector not in FINANCIAL:
         f.gap("부채비율", "연간 재무 없음 (금리 노출은 업종 기본값만 사용)")
-    rep = _report_facts(f, report, fundamentals)
+    rep = _report_facts(f, report, fundamentals, ttm)
     rep.update(_terms_facts(f, terms, fundamentals))
-    _basis_check(f, report, fundamentals, terms, as_of)
+    _basis_check(f, report, fundamentals, terms, as_of, rep.get("k_ratio_ttm"))
 
     rows = []
     for i, var in enumerate(VARIABLES):
@@ -385,6 +407,9 @@ def assess(f: Facts, sector: str, fundamentals: dict | None, as_of: str, focus: 
             level = 2 if r >= FX_HIGH else 1 if r >= FX_MID else 0
             reasons = [f"회사 공시 민감도: 영업이익 대비 {{{rep['k_ratio']}}}"]
             keys.append(rep["k_ratio"])
+            if "k_ratio_ttm" in rep:
+                reasons.append(f"최근 4개 분기 영업이익 대비 {{{rep['k_ratio_ttm']}}}")
+                keys.append(rep["k_ratio_ttm"])
             company = True
         elif var == "환율" and "k_sens" in rep:
             why = "자본 기준이라" if rep.get("equity_basis") else "영업이익이 없어"
@@ -516,10 +541,12 @@ def premises(f: Facts, rows: list[dict], sector: str) -> list[dict]:
 
 
 def premises_md(items: list[dict], render) -> str:
-    out = ["| 전제 | 상태 | 내용 | 왜 필요한가 |", "| --- | --- | --- | --- |"]
+    out = ["| 전제 | 상태 | 내용 | 왜 필요한가 | 채울 방법 |", "| --- | --- | --- | --- | --- |"]
     for p in items:
         keys = " ".join("{" + k + "}" for k in p["keys"])
-        out.append(f"| {p['item']} | {p['status']} | {render(p['detail'] + (' ' + keys if keys else ''))} | {p['why']} |")
+        how = "-" if p["status"] == "확인" else AVAIL_SHORT.get(availability(p["item"], p["detail"]), "분류 전")
+        out.append(f"| {p['item']} | {p['status']} | {render(p['detail'] + (' ' + keys if keys else ''))} | {p['why']} "
+                   f"| {how} |")
     return "\n".join(out)
 
 
