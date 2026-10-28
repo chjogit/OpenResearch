@@ -145,9 +145,11 @@ def test_renderer_shows_scope_same_in_all_profiles():
     sets = {name: content_set(v) for name, v in views.items()}
     assert len({frozenset(x) for x in sets.values()}) == 1
     scope = [it for s in views["L1-defensive"]["sections"] if s["id"] == "scope" for it in s["items"]]
-    assert any(it["text"].startswith("의도: 보류") and "INTENT_NOT_INFERABLE" in it["text"] for it in scope)
+    assert any(it["text"].startswith("의도: 보류") and "INTENT_NOT_INFERABLE" in it["codes"] for it in scope)
+    assert "INTENT_NOT_INFERABLE" not in views["L1-defensive"]["markdown"]     # 입문자 화면엔 코드 원문 없음
+    assert "INTENT_NOT_INFERABLE" in views["L3-defensive"]["markdown"]          # 프로 화면엔 코드 표시
     ok = [r for r in c["p03"]["eventStudy"] if r["status"] == "ok"]
-    assert ("사건 연구" in views["L3-aggressive"]["markdown"]) == bool(ok)
+    assert ("- 사건 연구 `" in views["L3-aggressive"]["markdown"]) == bool(ok)
 
 
 def test_shared_market_queries_cached_per_as_of(monkeypatch):
@@ -161,3 +163,20 @@ def test_shared_market_queries_cached_per_as_of(monkeypatch):
     monkeypatch.setattr(agents, "SHARED_TTL", -1)
     assert agents.shared("x", "2026-10-28", f) == 3          # 보관 시간이 지나면 다시 조회
     agents._SHARED.clear()
+
+
+def test_latest_flow_row_without_price_does_not_drop_baselines():
+    """10-29: 당일 수급은 있고 시세는 아직 없을 때 65일 기준선·20일 강도가 통째로 빠지던 문제."""
+    b = _sent_bundle()
+    rows = b["flows"]
+    newest = dict(rows[0])
+    from datetime import date, timedelta
+    newest.update({"d": (date.fromisoformat(str(rows[0]["d"])[:10]) + timedelta(days=1)).isoformat(),
+                   "close": None, "tv": None})
+    base = sentiment.compute(_sent_bundle(), CO, AS_OF)["facts"]
+    out = sentiment.compute(_sent_bundle(flows=[newest] + [dict(r) for r in rows]), CO, AS_OF)
+    f = out["facts"]
+    for lab in ("외국인 최근 5일 강도의 직전 60일 대비 표준점수", "거래대금 배율(최근 5일 ÷ 직전 60일)",
+                "외국인 20일 순매수 강도(거래대금 대비)"):
+        assert (f.key_of(lab) is None) == (base.key_of(lab) is None), lab
+    assert any("시세 공개 전" in n for n in f.notes)
