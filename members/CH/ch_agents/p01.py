@@ -59,7 +59,6 @@ STATUS_TEXT = {
 CAUSAL_RE = re.compile(r"때문에|덕분에|탓에|인과|효과로|로 인해|영향으로 인해")
 FORECAST_RE = re.compile(r"다음\s*분기|전망|예측|예상\s*매출|매출\s*(은|이)?\s*얼마")
 SCENARIO_RE = re.compile(r"(환율|원달러|금리|이자율)[^.?!]{0,10}\d")
-EXPOSURE_RE = re.compile(r"노출|민감|헤지|외화|차입")
 
 
 # ---------------------------------------------------------------- 1. 등급·결과 종류
@@ -95,13 +94,11 @@ def plan(question: str | None, focus: list[str] | None, scenario: str | None, as
     q = " ".join(x for x in (question or "", scenario or "") if x)
     asked = {
         "관측": True,  # 기준일 거시 관측은 항상 제공
-        "노출": True if not q else bool(EXPOSURE_RE.search(q)) or not (FORECAST_RE.search(q) or SCENARIO_RE.search(q)),
+        "노출": True,  # 공시 노출 지도는 P01 필수 기능(F04)이라 질문과 무관하게 항상 제공
         "예측": bool(FORECAST_RE.search(q)) or not q,  # 질문이 없으면 기본 분석에 기준선 예측 포함
         "시나리오": bool(scenario) or bool(SCENARIO_RE.search(q)),
         "인과": bool(CAUSAL_RE.search(q)),
     }
-    if not q:
-        asked["노출"] = True
     origin = f"{as_of}T23:59:59+09:00"
     return {"standard": STANDARD, "policy": POLICY_VERSION, "question": question, "scenario_text": scenario,
             "focus": list(focus or []), "origin": origin, "metric": "revenue (연결, KRW)", "tasks": asked}
@@ -117,8 +114,7 @@ def finalize_plan(p: dict, *, vintage: dict | None, forecast: dict | None, scena
     if stale:
         codes.append("STALE_CORE_INPUT")
     tasks["관측"] = {"state": "answered", "grade": (vintage or {}).get("grade") or "D1"}
-    tasks["노출"] = {"state": "answered" if p["tasks"]["노출"] else "not_requested",
-                    "note": "공시 민감도만 숫자, 업종 기본값 등급은 참고용"}
+    tasks["노출"] = {"state": "answered", "note": "공시 민감도만 숫자, 업종 기본값 등급은 참고용"}
     if p["tasks"]["예측"]:
         fc = forecast or {}
         fcodes = list(fc.get("status") or [])

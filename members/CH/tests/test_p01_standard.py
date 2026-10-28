@@ -44,7 +44,8 @@ def test_scenario_and_question_do_not_shadow_modules():
                         question="환율 5% 상승, 금리 0.5%p 하락이면 다음 분기 매출은?")
     plan = out["p01"]["plan"]
     assert plan["tasks"]["시나리오"]["state"] == "answered"
-    assert plan["tasks"]["예측"]["state"] == "answered"
+    assert plan["tasks"]["시나리오"]["n"] == 2              # 시나리오 칸·질문의 같은 가정은 한 번만
+    assert plan["tasks"]["예측"]["state"] == "answered" and plan["tasks"]["노출"]["state"] == "answered"
     f = out["facts"]
     fx = next(it for it in f.items.values() if it["group"] == "시나리오(공시 정적 환산)" and "환율" in it["label"])
     assert abs(fx["value"] - 5e10) < 1                    # 공시 10% → +1,000억 를 5% 로 선형 환산

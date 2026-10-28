@@ -66,6 +66,13 @@ def parse(text: str, origin: str = "") -> tuple[list[ScenarioSpec], list[str]]:
                                   issue=issue))
         if issue:
             codes.append(issue)
+    seen, uniq = set(), []
+    for sp in specs:  # 시나리오 칸과 질문에 같은 가정이 함께 쓰이면 한 번만
+        key = (sp.variable, sp.change, sp.issue)
+        if key not in seen:
+            seen.add(key)
+            uniq.append(sp)
+    specs = uniq
     if CAUSAL_RE.search(text or ""):
         codes.append("CAUSAL_UNIDENTIFIED")
     return specs, list(dict.fromkeys(codes))
