@@ -279,6 +279,11 @@ def test_issuer_names_normalize_and_aliases():
     assert exposure.issuer_names({"ticker": "000270", "name": "기아"}) == ["기아"]
     assert exposure.issuer_names({"ticker": "035420", "name": "NAVER"}) == ["NAVER", "네이버"]
     assert exposure.issuer_names({"ticker": "036570", "name": "NC"}) == ["NC", "엔씨", "엔씨소프트"]
+    assert exposure.issuer_names({"ticker": "002380", "name": "KCC"}) == ["KCC", "케이씨씨"]
+    assert exposure.issuer_names({"ticker": "071320", "name": "지역난방공사"}) == ["지역난방공사", "한국지역난방공사"]
+    # OCI홀딩스는 자기 이름만. OCI주식회사 채권은 분할 신설 자회사 OCI(456040) 것
+    assert exposure.issuer_names({"ticker": "010060", "name": "OCI홀딩스"}) == ["OCI홀딩스"]
+    assert exposure.norm_issuer("OCI 홀딩스 주식회사") == "OCI홀딩스"
     # 자회사 이름은 별칭에 넣지 않음 (모회사 금리에 섞이지 않도록)
     for subs in ("한화오션", "신세계디에프", "두산에너빌리티", "카카오페이증권", "현대카드", "삼성카드"):
         assert all(subs not in v for v in exposure.ISSUER_ALIASES.values())
