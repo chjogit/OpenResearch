@@ -126,6 +126,10 @@ def fetch_bundle(agent_id: int, co: dict, as_of: str, use_rag: bool = True) -> d
             out["terms"] = db.bundle(exposure.TERMS_SQL, exposure.terms_params(co, as_of))
         except Exception:  # noqa: BLE001
             out["terms"] = None
+        try:  # 금리 결정 일정 (kic-agent-data 021). 표가 아직 없으면 일정은 무자료로 남음
+            out["meetings"] = db.bundle(mod.MEETINGS_SQL, {"as_of": as_of})
+        except Exception:  # noqa: BLE001
+            out["meetings"] = None
     if agent_id in quality.SOURCES:
         try:
             out["quality"] = db.q(quality.SQL)

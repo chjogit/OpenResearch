@@ -451,7 +451,7 @@ def fallback_result(data: AgentData) -> dict:
         "긍정요인": [],
         "리스크요인": [c["문장"] for c in claims if c["문장"].startswith(("경고", "주의"))],
         "미확인": [f"{g['label']} ({g['reason']})" for g in f.gaps],
-        "다음점검": list(spec.next_checks),
+        "다음점검": list(dict.fromkeys([*(data.extra.get("next_checks") or []), *spec.next_checks])),
         "자체점수": None,
         "점수이유": "LLM 없이 코드 판정만으로 만든 요약",
     }
