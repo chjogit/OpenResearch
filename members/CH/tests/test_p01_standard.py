@@ -129,3 +129,18 @@ def test_summary_uses_only_ledger_keys():
     raw = " ".join(s.values())
     assert "{M" in raw and "억원" not in raw and "조원" not in raw   # 값은 {M..} 키로만 (라벨의 가정 '5%' 는 사용자 입력)
     assert p01.STATUS_TEXT["MODEL_NOT_APPROVED"]
+
+
+def test_claim_citing_only_reference_items_is_flagged():
+    from ch_agents.llm import check_output
+
+    d = build_agent_data(1, CO, _bundle(), AS_OF)
+    kb = d.facts.key_of("주가-코스피 베타(250일)")
+    kr = d.facts.key_of("한국 기준금리 12개월 변화")
+    bad = {"핵심진단": f"시장 베타 {{{kb}}}.", "자체점수": 5,
+           "주장": [{"문장": f"주가는 시장과 함께 움직인다 {{{kb}}}.", "구분": "사실", "근거": [kb]}]}
+    probs = check_output(bad, d).get("근거", [])
+    assert any("참고용 항목만 근거인 주장" in p for p in probs) and any("핵심진단" in p for p in probs)
+    ok = {"핵심진단": f"기준금리 {{{kr}}}.", "자체점수": 5,
+          "주장": [{"문장": f"기준금리 변화 {{{kr}}}, 시장 베타 {{{kb}}}.", "구분": "사실", "근거": [kr, kb]}]}
+    assert not any("참고용" in p for p in check_output(ok, d).get("근거", []))

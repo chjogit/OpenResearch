@@ -389,6 +389,19 @@ def check_output(result: dict, data: AgentData) -> dict[str, list[str]]:
             checks["근거"].append(f"근거 없는 {c.get('구분')}: {str(c.get('문장'))[:40]}")
         elif c.get("구분") == "사실" and refs and set(refs) <= opinion:
             checks["근거"].append(f"개인 의견 문서만 근거인 사실 주장(해석으로 바꾸거나 근거 추가): {str(c.get('문장'))[:40]}")
+    # 제작 기준(P01·P03): 참고용(tier=reference) 항목만으로 핵심 진단·주장을 세우지 않음 (반대근거는 허용)
+    ref = {k for k, it in data.facts.items.items() if it.get("tier") == "reference"}
+    if ref:
+        for c in claims:
+            if isinstance(c, dict):
+                ks = [k for k in [str(x) for x in c.get("근거") or []] + PLACEHOLDER.findall(str(c.get("문장", "")))
+                      if k in data.facts.items]
+                if ks and set(ks) <= ref:
+                    checks["근거"].append(f"참고용 항목만 근거인 주장(제작 기준 밖, 기준 항목 근거를 추가하거나 빼기): "
+                                         f"{str(c.get('문장'))[:40]}")
+        head = [k for k in PLACEHOLDER.findall(str(result.get("핵심진단", ""))) if k in data.facts.items]
+        if head and set(head) <= ref:
+            checks["근거"].append("핵심진단이 참고용 항목만 인용함 (제작 기준 항목을 중심으로)")
     return {k: v for k, v in checks.items() if v}
 
 
