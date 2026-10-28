@@ -108,14 +108,22 @@ SELECT json_build_object(
               WHERE company_id = %(cid)s
                 AND fiscal_year <= extract(year FROM %(as_of)s::date - 90)::int - 1  -- 사업보고서 제출(3월 말) 전 시점에는 전전년
               ORDER BY fiscal_year DESC LIMIT 1) x),
-    -- 기준일에 공시돼 있던 최근 4개 분기 영업이익 (분기보고서 45일, 사업보고서 90일 제출 기한 뒤부터 사용)
+    -- 기준일에 공시돼 있던 최근 4개 분기 영업이익. 이용 가능일 = DART 보고서 접수일(정정본이면 정정 접수일),
+    -- 접수일이 없으면 분기보고서 45일·사업보고서 90일 제출 기한 (forecast.PANEL_SQL 과 같은 규칙)
     'ttm_op', (SELECT row_to_json(t) FROM (
               SELECT sum(amount) AS operating_income_ttm, max(period_end) AS ttm_end,
                      min(period_end) AS first_end, count(*) AS n
-              FROM (SELECT period_end, amount FROM core.financial_quarter
-                    WHERE company_id = %(cid)s AND metric = 'operating_income' AND amount IS NOT NULL
-                      AND period_end + (CASE WHEN fiscal_q = 4 THEN 90 ELSE 45 END) <= %(as_of)s::date
-                    ORDER BY period_end DESC LIMIT 4) q) t),
+              FROM (SELECT q.period_end, q.amount FROM core.financial_quarter q
+                    LEFT JOIN (SELECT fiscal_year, report_code, to_date(max(left(rcept_no, 8)), 'YYYYMMDD') AS k
+                               FROM core.financial_fact
+                               WHERE company_id = %(cid)s AND source = 'dart' AND rcept_no ~ '^[0-9]{8}'
+                               GROUP BY 1, 2) r
+                      ON q.source = 'dart' AND r.fiscal_year = q.fiscal_year
+                     AND r.report_code = CASE q.fiscal_q WHEN 1 THEN '11013' WHEN 2 THEN '11012'
+                                                         WHEN 3 THEN '11014' ELSE '11011' END
+                    WHERE q.company_id = %(cid)s AND q.metric = 'operating_income' AND q.amount IS NOT NULL
+                      AND coalesce(r.k, q.period_end + (CASE WHEN q.fiscal_q = 4 THEN 90 ELSE 45 END)) <= %(as_of)s::date
+                    ORDER BY q.period_end DESC LIMIT 4) q) t),
     'price', (SELECT json_agg(json_build_object('d', trade_date, 'v', close) ORDER BY trade_date)
               FROM core.price_daily
               WHERE company_id = %(cid)s AND trade_date <= %(as_of)s::date

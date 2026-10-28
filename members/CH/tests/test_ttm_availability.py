@@ -46,7 +46,8 @@ def test_ttm_needs_four_consecutive_quarters(bad):
 
 def test_ttm_sql_respects_filing_deadline():
     assert "'ttm_op'" in A1_SQL and "core.financial_quarter" in A1_SQL
-    assert "CASE WHEN fiscal_q = 4 THEN 90 ELSE 45 END" in A1_SQL        # 기준일에 아직 공시 전인 분기는 쓰지 않음
+    assert "CASE WHEN q.fiscal_q = 4 THEN 90 ELSE 45 END" in A1_SQL      # 기준일에 아직 공시 전인 분기는 쓰지 않음
+    assert "coalesce(r.k," in A1_SQL and "rcept_no" in A1_SQL           # 접수일이 있으면 접수일 기준
 
 
 @pytest.mark.parametrize("item,reason,code", [
