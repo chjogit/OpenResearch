@@ -128,3 +128,23 @@ def test_intent_negation_far_after_the_word_is_allowed():
     assert not [p for p in sentence_problems(ok, set()) if "의도" in p]
     bad = "외국인의 매수 의도가 분명해 보인다."
     assert [p for p in sentence_problems(bad, set()) if "의도" in p]
+
+
+def test_renderer_shows_scope_same_in_all_profiles():
+    from conftest import FakeLLM
+
+    from ch_agents import render_all
+    from ch_agents.renderer import content_set
+
+    d = build_agent_data(3, CO, _sent_bundle(), AS_OF, {"question": "세력이 매집하나?"})
+    k = d.facts.key_of("외국인 20일 순매수 수량")
+    res = {"핵심진단": f"외국인 20일 {{{k}}}.", "자체점수": 5,
+           "주장": [{"문장": f"외국인 20일 순매수 수량은 {{{k}}}이다.", "구분": "사실", "근거": [k]}]}
+    c = run_agent(3, data=d, llm=FakeLLM(res))["contract"]
+    views = render_all(c)
+    sets = {name: content_set(v) for name, v in views.items()}
+    assert len({frozenset(x) for x in sets.values()}) == 1
+    scope = [it for s in views["L1-defensive"]["sections"] if s["id"] == "scope" for it in s["items"]]
+    assert any(it["text"].startswith("의도: 보류") and "INTENT_NOT_INFERABLE" in it["text"] for it in scope)
+    ok = [r for r in c["p03"]["eventStudy"] if r["status"] == "ok"]
+    assert ("사건 연구" in views["L3-aggressive"]["markdown"]) == bool(ok)
