@@ -46,7 +46,7 @@ AGENTS: dict[int, AgentSpec] = {
         checklist=[
             "현재 금리·환율·물가 국면 (코드 판정 문장의 키를 인용)",
             "이 업종의 전달 경로 중 지금 가장 영향이 큰 경로 1~2개와 그 이유",
-            "주가와 거시변수의 동조성: 뚜렷한 것과 약한 것을 구분, 60일과 250일이 다르면 언급",
+            "주가와 거시변수의 동조성: 상관의 크기(강함/보통/약함)와 통계적 유의성을 구분, 60일과 250일이 다르면 언급",
             "판단에 필요하지만 DB에 없는 변수(기업 노출, 유가 등)를 미확인에 명시",
             "미확인 전제(헤지 여부·결제 시점·판가 전가력 등)를 가정하지 않고 상태 그대로 전달",
             "반대 근거·하방 위험 1~3개",
@@ -157,7 +157,28 @@ def build_agent_data(agent_id: int, co: dict, bundle: dict, as_of: str, opts: di
             extra["rag_error"] = raw["error"]
         else:
             docs = rag.select(agent_id, raw, co, as_of)  # 관점 프리셋으로 고른 문서가 모듈 기본 문서를 대신함
+    newer_docs_flag(out["facts"], docs, (extra.get("freshness") or {}).get("수급"))
     return AgentData(agent_id, spec.name, co, as_of, out["facts"], docs, out["period"], extra)
+
+
+FLOW_WORDS = ("외국인", "기관", "순매수", "순매도", "수급")
+
+
+def newer_docs_flag(f, docs: list[dict], ledger_last: str | None) -> int:
+    """장부(수급) 마지막 날짜보다 뒤에 나온 수급 관련 문서가 있으면 판정으로 알립니다.
+
+    문서 속 숫자는 확정값이 아니어서 장부를 고치지 않습니다. 판정 문구에는 건수를 넣지 않습니다
+    (LLM 이 '3건' 을 옮겨 쓰면 장부에 없는 숫자가 되어 문장이 지워짐). 대신 '장부가 최신 흐름보다 늦을 수 있음'을
+    판정으로 남겨, LLM 이 장부의 연속 일수 등을 오늘 상황처럼 쓰지 않게 합니다."""
+    if not ledger_last or not docs:
+        return 0
+    newer = [d for d in docs if str(d.get("published", ""))[:10] > ledger_last
+             and any(w in f"{d.get('title', '')} {d.get('summary', '')}" for w in FLOW_WORDS)]
+    if newer:
+        last = max(str(d["published"])[:10] for d in newer)
+        f.flag(f"자료 시차: 수급 장부({ledger_last}) 이후 날짜의 수급 관련 문서가 있음 (최신 {last}). "
+               "장부가 최근 흐름을 반영하지 못했을 수 있음, 확인 필요")
+    return len(newer)
 
 
 def fetch_agent_data(agent_id: int, ticker: str, as_of: str | None = None, co: dict | None = None,

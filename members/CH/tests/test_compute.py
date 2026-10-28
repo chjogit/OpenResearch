@@ -100,8 +100,8 @@ def test_macro_regimes_exports_and_comovement(rng):
     assert f.items[f.key_of("반도체 메모리 수출: 최근 6개월 중 전년 대비 증가한 달")]["value"] == 6
     beta = f.items[f.key_of("주가-코스피 베타(250일)")]["value"]
     assert 0.6 < beta < 1.0
-    assert any("주가-코스피: 뚜렷한 동조" in x for x in f.flags)
-    assert any("주가-원/달러: 약한 동조" in x for x in f.flags)
+    assert any("주가-코스피: 상관 강함·유의함" in x for x in f.flags)
+    assert any("주가-원/달러: 상관 약함·유의하지 않음" in x for x in f.flags)
     assert "주가-필라델피아 반도체지수 동조성" in [g["label"] for g in f.gaps]  # 반도체인데 SOX 없음 → 무자료
     assert out["sector"] == "반도체"
     assert any(n.startswith("전달 경로") for n in f.notes)

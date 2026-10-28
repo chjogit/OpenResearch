@@ -187,6 +187,27 @@ def significant(r: float | None, n: int) -> bool:
     return r is not None and n > 0 and abs(r) > 2 / math.sqrt(n)
 
 
+CORR_BANDS = ((0.4, "강함"), (0.2, "보통"))  # |r| 이 이 값 이상이면 해당 크기, 나머지는 '약함'
+
+
+def corr_size(r: float | None) -> str | None:
+    """상관의 '크기' 등급. 유의성(significant)과는 별개입니다.
+
+    표본이 250일이면 |r|=0.17 도 통계적으로 유의하지만 크기는 약합니다. 둘을 한 단어('뚜렷')로
+    합치면 -0.17 은 '뚜렷', 60일 -0.16 은 '약함'처럼 읽혀 기준이 섞이므로 따로 표시합니다."""
+    if r is None:
+        return None
+    for th, name in CORR_BANDS:
+        if abs(r) >= th:
+            return name
+    return "약함"
+
+
+def corr_label(r: float | None, n: int) -> str:
+    """판정 문구: '상관 약함·유의함' 처럼 크기와 유의성을 함께."""
+    return f"상관 {corr_size(r)}·{'유의함' if significant(r, n) else '유의하지 않음'}"
+
+
 def percentile_rank(values: list[float], x: float) -> float | None:
     """x 가 values 안에서 몇 백분위인지 (0~100). 값이 5개 미만이면 None."""
     vals = [v for v in values if v is not None]

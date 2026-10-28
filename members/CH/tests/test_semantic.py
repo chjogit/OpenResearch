@@ -11,13 +11,13 @@ def _facts():
     f.add("20일 코스피 대비 초과 수익률", 0.71, "%p", "2026-10-23", "t", kind="calc")          # S1
     f.add("외국인 20일 순매수 수량", -21805837, "주", "2026-10-23", "t", kind="calc")          # S2
     f.add("원/달러 환율 3개월 변화율", -9.87, "%chg", "2026-10-26", "t", kind="calc")          # S3
-    f.add("주가-미국 10년 국채금리 상관(250일)", -0.17, "coef", "-", "t", kind="calc")       # S4
+    f.add("주가-미국 10년 국채금리 상관(250일)", -0.45, "coef", "-", "t", kind="calc")       # S4
     f.add("주가-미국 10년 국채금리 상관(60일)", -0.12, "coef", "-", "t", kind="calc")        # S5
     f.add("뉴스 감성 변화", -0.187, "score", "-", "t", kind="calc")                         # S6
     f.add("한국 기준금리 12개월 변화", 0.5, "%p", "-", "t", kind="calc")                    # S7
     f.flag("20일 코스피 대비: 상회 ({S1})")
     f.flag("원/달러 3개월: 원화 강세(달러 약세) ({S3})")
-    f.flag("주가-미국 10년 국채금리: 뚜렷한 동조 ({S4}), 최근 60일은 같은 방향이지만 약함 ({S5})")
+    f.flag("주가-미국 10년 국채금리: 상관 강함·유의함 ({S4}), 최근 60일 상관 약함·유의하지 않음 ({S5})")
     f.flag("뉴스 논조 악화 ({S6})")
     f.flag("한국 기준금리: 인상 국면 (12개월 변화 {S7})")
     return f
@@ -26,14 +26,14 @@ def _facts():
 def test_flag_directions_per_segment():
     d = flag_directions(_facts())
     assert d["S1"] == {"상회"} and d["S3"] == {"원화 강세"} and d["S6"] == {"악화"} and d["S7"] == {"인상"}
-    assert d["S4"] == {"뚜렷"} and d["S5"] == {"약함"}  # 같은 판정 문장이라도 조각별로 따로 연결
+    assert d["S4"] == {"강함", "유의"} and d["S5"] == {"약함", "비유의"}  # 같은 판정 문장이라도 조각별로 따로 연결
 
 
 def test_real_errors_from_first_run_are_caught():
     f = _facts()
     # A4: +0.71%p(상회)를 '초과 손실'로 해석
     assert direction_problems("20일 코스피 대비 초과 손실은 {S1}로 작다.", f)
-    # A1: '뚜렷한 동조' 판정을 '약한 역방향 동조'로 표현
+    # A1: '상관 강함' 판정을 '약한 역방향 동조'로 표현
     assert direction_problems("주가는 미국 10년 국채금리와 {S4}로 약한 역방향 동조를 보인다.", f)
     # 판정과 반대 방향
     assert direction_problems("원/달러는 {S3}로 원화 약세 국면이다.", f)

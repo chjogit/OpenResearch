@@ -19,7 +19,7 @@ from .glossary import terms_for
 from .prompts import mode_guide
 from .rag import PROMPT_RULE as RAG_RULE
 from .rag import docs_for_prompt, docs_markdown
-from .semantic import direction_problems, flag_directions
+from .semantic import baseline_problems, direction_problems, flag_directions
 
 MODEL = os.getenv("UPSTAGE_MODEL_NAME", "solar-pro4")
 
@@ -31,8 +31,9 @@ COMMON_RULES = """[절대 준수 원칙]
 4. 각 주장은 사실(데이터가 직접 보여줌)·해석(원인·의미 설명)·예측(앞으로) 중 하나로 구분하고,
    사실과 해석에는 근거 키를 1개 이상 붙이십시오.
 5. 통계적 상관을 인과나 기업 노출로 표현하지 마십시오.
-6. [코드 판정]은 규칙으로 계산된 결과입니다. 판정의 강도·방향 표현(뚜렷한/약한, 상회/하회, 가속/둔화, 개선/악화)을
-   바꾸지 말고 그대로 쓰십시오. 판정과 반대되는 주장을 하려면 근거 키를 대십시오.
+6. [코드 판정]은 규칙으로 계산된 결과입니다. 판정의 강도·방향 표현(상관 강함/보통/약함, 유의함/유의하지 않음,
+   상회/하회, 가속/둔화, 개선/악화)을 바꾸지 말고 그대로 쓰십시오. 상관의 크기와 유의성은 서로 다른 말입니다.
+   판정과 반대되는 주장을 하려면 근거 키를 대십시오.
 7. 키 뒤에 단위나 수량 단어를 다시 붙이지 마십시오. 값에 이미 단위가 있습니다. 예: "{F18}개 분기"(X) → "{F18}"(O)
 8. 항목 설명(※)에 '아님'으로 적힌 해석은 하지 마십시오. 예: 외국인 순매수일 평균 가격은 실제 매입 단가가 아닙니다.
 9. "반대근거"에는 핵심진단과 반대 방향을 가리키는 근거나 하방 위험을 1~3개 쓰십시오. 사용자 성향과 상관없이 늘 씁니다.
@@ -358,15 +359,17 @@ def check_output(result: dict, data: AgentData) -> dict[str, list[str]]:
     for t in [str(result.get("핵심진단", ""))] + [str(x) for x in result.get("긍정요인") or []]:
         for p in duplicate_problems(t, None, data):
             checks["중복 신호"].append(f"{p}: {t[:60]}")
-    for c in claims:
+    baseline = data.extra.get("baseline")
+    for c in claims + counter:   # 반대근거도 같은 기준으로 점검
         if isinstance(c, dict):
             refs = [str(k) for k in (c.get("근거") or [])]
-            for p in direction_problems(str(c.get("문장", "")), data.facts, refs, dirs):
-                checks["방향"].append(f"{p}: {str(c.get('문장'))[:60]}")
+            text = str(c.get("문장", ""))
+            for p in direction_problems(text, data.facts, refs, dirs) + baseline_problems(text, refs, baseline):
+                checks["방향"].append(f"{p}: {text[:60]}")
     for key in ("핵심진단", "긍정요인", "리스크요인"):
         vals = result.get(key) or []
         for t in [vals] if isinstance(vals, str) else vals:
-            for p in direction_problems(str(t), data.facts, None, dirs):
+            for p in direction_problems(str(t), data.facts, None, dirs) + baseline_problems(str(t), None, baseline):
                 checks["방향"].append(f"{p}: {str(t)[:60]}")
     opinion = _opinion_keys(data)
     for c in claims + counter:
@@ -386,6 +389,37 @@ def check_output(result: dict, data: AgentData) -> dict[str, list[str]]:
     return {k: v for k, v in checks.items() if v}
 
 
+MAX_CLAIMS, MAX_COUNTER = 7, 3   # 프롬프트의 '주장 3~7개', '반대근거 1~3개'를 코드로도 지킴
+
+
+def cap_claims(result: dict) -> tuple[dict, list[str]]:
+    """주장·반대근거 개수 상한. 10/28 같은 입력으로 주장이 7개·20개로 달라졌는데, 상한이 프롬프트에만 있었습니다.
+    LLM 이 쓴 순서(중요한 것부터)대로 앞에서 자르고, 자른 문장은 따로 돌려줍니다(검증 실패와 구분)."""
+    out, trimmed = dict(result), []
+    for field, cap in (("주장", MAX_CLAIMS), ("반대근거", MAX_COUNTER)):
+        items = out.get(field) or []
+        if len(items) > cap:
+            trimmed += [str(c.get("문장", "")) for c in items[cap:] if isinstance(c, dict)]
+            out[field] = items[:cap]
+    return out, trimmed
+
+
+def claim_stats(result: dict | None, vlog: list[dict], removed: list[str], trimmed: list[str]) -> dict:
+    """품질 지표의 정의를 한 곳에 둡니다 (노트북 표가 '주장 6 · Verifier 통과 9'처럼 서로 다른 것을 세던 문제).
+
+    - claims / counters: 최종 출력에 남은 주장·반대근거 수
+    - verified_claims: Verifier 대조 기록 중 claimId 가 있고(주장·반대근거) 통과한 것
+    - checked_sentences / passed_sentences: claimId 없는 문장(핵심진단·리스크요인 등)까지 포함한 전체 대조 수
+    - removed / trimmed: 검증 실패로 뺀 문장 수 / 개수 상한으로 자른 문장 수"""
+    res = result or {}
+    return {
+        "claims": len(res.get("주장") or []), "counters": len(res.get("반대근거") or []),
+        "verified_claims": sum(1 for v in vlog if v.get("claimId") and v.get("ok")),
+        "checked_sentences": len(vlog), "passed_sentences": sum(1 for v in vlog if v.get("ok")),
+        "removed": len(removed), "trimmed": len(trimmed),
+    }
+
+
 def sanitize(result: dict, data: AgentData) -> tuple[dict, list[str]]:
     """검사를 통과하지 못한 문장을 빼서, 최종 출력에 검증 안 된 숫자·표현이 남지 않게 합니다."""
     valid, allowed = _valid_keys(data), label_terms(data)
@@ -393,7 +427,7 @@ def sanitize(result: dict, data: AgentData) -> tuple[dict, list[str]]:
 
     def bad(t: str, refs=None) -> bool:
         return bool(sentence_problems(t, valid, allowed) or direction_problems(t, data.facts, refs, dirs)
-                    or duplicate_problems(t, refs, data))
+                    or baseline_problems(t, refs, data.extra.get("baseline")) or duplicate_problems(t, refs, data))
 
     removed: list[str] = []
     opinion = _opinion_keys(data)
@@ -614,12 +648,14 @@ def run_agent(agent_id: int, ticker: str | None = None, mode: str = "expert", ll
         attempts.append({"error": f"{type(e).__name__}: {e}"})
     removed: list[str] = []
     vlog: list[dict] = []
+    trimmed: list[str] = []
     if result is None:
         err = next((a["error"] for a in attempts if "error" in a), None)
         result, vlog, _ = verifier.apply(fallback_result(data), data)
         status = "규칙 기반 대체" + (f" (LLM 호출 실패: {err.split(':')[0]})" if err else " (JSON 형식 아님)")
     else:
         result, removed = sanitize(result, data)
+        result, trimmed = cap_claims(result)
         if result["주장"]:  # 두 번째 관문: 팀 공용 fact_source_verifier 로 수치 1:1 대조 + 출처 태그
             result, vlog, vremoved = verifier.apply(result, data)
             removed += vremoved
@@ -634,6 +670,7 @@ def run_agent(agent_id: int, ticker: str | None = None, mode: str = "expert", ll
         "agent_id": agent_id, "agent_name": data.name, "status": status, "period": data.period,
         "as_of": data.as_of, "result": result, "facts": facts.items, "gaps": facts.gaps, "flags": facts.flags,
         "checks": checks, "removed": removed, "attempts": attempts, "seconds": round(time.monotonic() - t0, 1),
+        "claim_stats": claim_stats(result, vlog, removed, trimmed),
         "source": "Neon " + ", ".join(sorted({v["source"].split(" (")[0] for v in facts.items.values()}
                                              | ({"rag.document·core.disclosure"} if data.docs else set()))),
         "docs": data.docs, "verification": vlog,
