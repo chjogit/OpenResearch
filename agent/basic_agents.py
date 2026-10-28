@@ -9,6 +9,7 @@ from statistics import mean, pstdev
 from typing import Protocol
 
 from agent.business_sections import competition_candidates
+from agent.model_hooks import validate_model_output
 from agent.paragraph_labels import classify_result
 from agent.persona_presentation import build_presentation
 from agent.personas import (
@@ -138,6 +139,7 @@ def _finish(result, llm, settings, model_tool):
             required = {'modelVersion', 'trainingCutoff', 'status', 'output', 'limitations'}
             if not isinstance(model, dict) or not required <= model.keys():
                 raise ValueError('Invalid model tool contract')
+            validate_model_output(result['agentType'], model, result)
             json.dumps(model, allow_nan=False)
             result['modelResults'] = [deepcopy(model)]
         except Exception:  # noqa: BLE001 - isolate optional providers without exposing secrets
@@ -206,7 +208,8 @@ class IndustryBusinessAgent:
         if not r['claims'] or not ids:
             r['status'] = 'withheld'
             r['followUpRequests'].append('사업보고서 사업의 내용·제품별 수익성·경쟁기업 근거를 확보하세요.')
-        # ML/DL HOOK: pass a reviewed paragraph classifier as model_tool.
+        # 【ML/DL 연결 위치】 산업: model_tool=문단 분류기 (task='paragraph_classification').
+        # 기준선 agent.model_hooks.KeywordParagraphBaseline → ML: TF-IDF+로지스틱 → DL: 한국어 사전학습 분류기.
         return _finish(r, self.llm, self.settings, self.model_tool)
 
 
@@ -284,7 +287,8 @@ class TechnicalAnalysisAgent:
             r.update(status='withheld', calculations=[], claims=[],
                      limitations=['입력 오류·기간 부족 또는 실제 시세 검증 미구현: 계산 보류'],
                      followUpRequests=['기간·중복·결측·가격·자료 모드와 원문 형식을 확인하세요.'])
-        # ML/DL HOOK: a separately evaluated volatility model can be model_tool.
+        # 【ML/DL 연결 위치】 기술: model_tool=변동성 예측 (task='volatility_forecast').
+        # 기준선 agent.model_hooks.PersistenceVolatilityBaseline → ML: 회귀 → DL: 작은 LSTM/GRU.
         return _finish(r, self.llm, self.settings, self.model_tool)
 
 

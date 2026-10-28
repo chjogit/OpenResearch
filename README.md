@@ -114,3 +114,8 @@ notebooks/01_산업사업모델_Agent_Neon.ipynb, notebooks/02_기술적분석_A
 | notebooks/03_인수인계_기본구조_둘러보기.ipynb | 페르소나 8조합·설문, 주장·근거·버전 계약, 두 Agent 기본 계산, 품질 검사, Verifier |
 | notebooks/04_품질검사_문서선별_공통스냅샷.ipynb | 가격 검사, 공시 문서 선별, 사업의 내용 절 탐지, 공통 스냅샷, 저장 차단 |
 | notebooks/05_페르소나_문단분류_관측상태_평가.ipynb | 페르소나 결정·표현, 문단 분류 기준선, 관측 상태 규칙, 페르소나 보존 평가, ML 채택 판단 |
+| notebooks/06_산업사업모델_Agent_기본소스.ipynb | 산업 Agent 하나: 【Python】 계산·근거 → 【LLM】 설명 → 【ML/DL 연결 위치】 문단 분류기 |
+| notebooks/07_기술적분석_Agent_기본소스.ipynb | 기술 Agent 하나: 【Python】 지표 직접 계산·대조 → 【LLM】 설명 → 【ML/DL 연결 위치】 변동성 예측 |
+
+ML·DL 모델은 `agent/model_hooks.py`의 계약(task, modelVersion, trainingCutoff, status, output, limitations)에 맞춰 `model_tool=`로 연결합니다.
+학습 없는 기준선(키워드 문단 분류, 최근 변동성 유지)이 들어 있으며, 학습 모델은 이 기준선보다 나을 때만 씁니다.

@@ -42,7 +42,8 @@ def test_to_report_rejects_unknown_data_mode():
 
 
 GUIDE_NOTEBOOKS = ['03_인수인계_기본구조_둘러보기.ipynb', '04_품질검사_문서선별_공통스냅샷.ipynb',
-                   '05_페르소나_문단분류_관측상태_평가.ipynb']
+                   '05_페르소나_문단분류_관측상태_평가.ipynb', '06_산업사업모델_Agent_기본소스.ipynb',
+                   '07_기술적분석_Agent_기본소스.ipynb']
 
 
 @pytest.mark.parametrize('name', GUIDE_NOTEBOOKS)
