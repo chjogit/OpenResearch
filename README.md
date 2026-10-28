@@ -95,3 +95,14 @@ A기업 합성 예시와 두 Agent의 공통 입력 계약을 추가했습니다
 [구조와 적용 안내](docs/RESEARCH_CONTRACT.md)를 참고하세요.
 예시 생성·검증: python -m examples.research_example
 실제 자료·LLM 분석·공동 검토 권한 검증과는 구분합니다.
+
+## 산업·사업모델 / 기술적 분석 Agent 노트북 (Neon)
+
+notebooks/01_산업사업모델_Agent_Neon.ipynb, notebooks/02_기술적분석_Agent_Neon.ipynb 를 각각 독립 실행합니다.
+
+    pip install -r requirements-neon-agents.txt
+
+설정 셀의 INPUT_MODE 로 연결 대기(wait)·모의 입력(mock)·실제 조회(neon)·공통 스냅샷(snapshot)을 고릅니다.
+품질 검사(OHLC·가격제한폭·거래일·문서 선별·사업의 내용 절) → Python 계산 → 선택 Solar → Verifier 순서입니다.
+실행 방법은 [notebooks/Neon_두_Agent_독립실행_안내.md](notebooks/Neon_두_Agent_독립실행_안내.md) 를 보세요.
+실제 Neon 접속·Solar 호출은 아직 검증하지 않았습니다.

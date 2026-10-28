@@ -4,6 +4,7 @@ import math
 from datetime import date, datetime
 from zoneinfo import ZoneInfo
 
+from agent.price_checks import check_prices
 from agent.research_contract import validate_report
 
 NAMES = {'industry_business_model': '산업·사업모델', 'technical_analysis': '기술적 분석'}
@@ -19,8 +20,12 @@ def _finite(value):
     return isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(value)
 
 
-def assess_report(report, *, window=3, reference_date=None, max_price_age_days=5, max_doc_age_days=400):
-    """Reference date is explicit for reproducible historical inspection; defaults to KST today."""
+def assess_report(report, *, window=3, reference_date=None, max_price_age_days=5, max_doc_age_days=400,
+                  trading_dates=None, corporate_actions=None):
+    """Reference date is explicit for reproducible historical inspection; defaults to KST today.
+
+    trading_dates/corporate_actions are optional team-provided references (see agent.price_checks).
+    """
     validate_report(report)
     if type(window) is not int or window < 2 or min(max_price_age_days, max_doc_age_days) < 0:
         raise ValueError('Invalid quality policy')
@@ -63,6 +68,12 @@ def assess_report(report, *, window=3, reference_date=None, max_price_age_days=5
                 add(domain, 'document_date', 'hold', '공개일 미확인: 시점 검증 불가')
         if e['verificationStatus'] != 'support_checked':
             add(domain, 'support_check', 'partial', '원문이 주장을 지지하는지 검수 대기')
+    for item in report.get('sectionDetection') or []:
+        found = item.get('status') == 'found'
+        add(domain, 'business_section:' + str(item.get('doc_id')), 'pass' if found else 'partial',
+            ('사업의 내용 절 위치 확인(제목 기준, 내용 지지는 별도 검증)' if found else
+             '정기보고서에서 사업의 내용 절을 찾지 못해 해당 문서 발췌 제외'),
+            item.get('chunkRange') if found else item.get('status'))
     missing = list(dict.fromkeys(x for c in claims for x in c.get('missingInformation', [])))
     if missing or any(c['assessment'] == 'withheld' for c in claims):
         add(domain, 'business_gaps', 'partial', '미확보 자료·보류 결론: ' + '; '.join(missing))
@@ -107,6 +118,19 @@ def assess_report(report, *, window=3, reference_date=None, max_price_age_days=5
             basis = metadata.get('adjustment') in {'unadjusted', 'split_adjusted', 'total_return'}
             add(domain, 'price_basis', 'pass' if basis and metadata.get('sourceDescription') else 'hold',
                 '가격 조정 기준·설명 출처 필요(진위·기업행위 대조는 별도)')
+        # OHLC/limit/calendar checks need ISO, ordered dates (synthetic examples with labels are skipped).
+        try:
+            ordered = all(isinstance(p.get('day'), str) for p in prices) and [
+                _date(p['day']) for p in prices] == sorted(_date(p['day']) for p in prices)
+        except ValueError:
+            ordered = False
+        if ordered:
+            for item in check_prices(prices, market=report['subject'].get('market') or 'KR',
+                                     adjustment=(report.get('priceMetadata') or {}).get('adjustment'),
+                                     trading_dates=trading_dates, corporate_actions=corporate_actions,
+                                     ticker=report['subject'].get('ticker')):
+                add(domain, item['rule'], item['status'], item['reason'], item['observed'])
+        elif report['dataMode'] == 'actual':
             add(domain, 'calendar', 'partial', '공식 거래일·기업행위 대조는 별도 필요')
     gates = {}
     for domain, domain_name in NAMES.items():
@@ -116,7 +140,7 @@ def assess_report(report, *, window=3, reference_date=None, max_price_age_days=5
                           'reasons': [c['이유'] for c in own if c['판정'] != '실행 가능'],
                           'company': company, 'reportId': report['reportId'],
                           'inputDigest': report['digest'], 'window': window,
-                          'checkedAt': ref.isoformat(), 'ruleVersion': 'preflight-1',
+                          'checkedAt': ref.isoformat(), 'ruleVersion': 'preflight-2',
                           'checks': own}
     return gates, checks
 

@@ -27,7 +27,7 @@ def verify_result(report, result, settings):
             expected = run_checked(cls(settings=settings), report, gate)
             for field in ['status', 'claims', 'evidence', 'calculations', 'subject', 'asOf', 'dataMode']:
                 add(field, result.get(field) == expected.get(field), '동일 코드로 재실행한 기본 결과와 비교')
-            if gate['status'] == 'withheld':
+            if 'withheld' in {gate['status'], expected.get('status'), result.get('status')}:
                 add('보류 시 호출 차단', result.get('explanation') is None and not result.get('modelResults'),
                     '보류 결과에 LLM 설명·모델 결과가 없어야 함')
         except (ValueError, KeyError, TypeError):

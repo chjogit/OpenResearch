@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from statistics import mean, pstdev
 from typing import Protocol
 
+from agent.business_sections import competition_candidates
 from agent.research_contract import validate_report
 
 
@@ -78,6 +79,11 @@ def _base(report, domain, task):
 
 
 def _finish(result, llm, settings, model_tool):
+    # A withheld result never reaches optional models or LLMs, even when the Agent is called directly.
+    if result['status'] == 'withheld':
+        if model_tool is not None or llm is not None:
+            result['limitations'].append('보류 상태: ML/DL·LLM을 호출하지 않았습니다.')
+        return result
     # Extension point: model predictions are advisory and never replace verified facts/calculations.
     if model_tool is not None:
         try:
@@ -137,10 +143,8 @@ class IndustryBusinessAgent:
                     })
         r['observationPeriod'] = [c['horizon'] for c in r['claims']]
         r['businessMap'] = deepcopy(report['map'])
-        r['competitionTable'] = [
-            {'factor': factor, 'assessment': '자료 미확보', 'evidenceIds': []}
-            for factor in ['산업 내 경쟁', '진입 장벽', '대체재', '고객 교섭력', '공급자 교섭력']
-        ]
+        # Keyword-matched candidate excerpts only; relevance and competitive strength are not assessed.
+        r['competitionTable'] = competition_candidates(r['evidence'])
         r['limitations'] = list(dict.fromkeys(
             x for c in r['claims'] for x in c['missingInformation']))
         r['limitations'].append('초기 버전은 검수된 주장 재사용·근거 연결 도구이며 자유 원문 자동 추출은 미구현입니다.')
