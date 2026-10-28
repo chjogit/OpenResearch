@@ -39,3 +39,18 @@ def test_to_report_rejects_unknown_data_mode():
     with pytest.raises(ValueError):
         to_report(bundle(), {}, data_mode='mock')
     assert to_report(bundle(), {}, data_mode='synthetic')['dataMode'] == 'synthetic'
+
+
+GUIDE_NOTEBOOKS = ['03_인수인계_기본구조_둘러보기.ipynb', '04_품질검사_문서선별_공통스냅샷.ipynb',
+                   '05_페르소나_문단분류_관측상태_평가.ipynb']
+
+
+@pytest.mark.parametrize('name', GUIDE_NOTEBOOKS)
+def test_guide_notebooks_run_offline_without_errors(name):
+    nb = json.loads((Path(__file__).parents[1] / 'notebooks' / name).read_text(encoding='utf-8'))
+    src = '\n'.join(''.join(c['source']) for c in nb['cells'] if c['cell_type'] == 'code')
+    assert 'agent/neon_agents.py' in src  # 프로젝트 위치를 찾는 공통 첫 셀
+    for forbidden in ['fetch_snapshot(', 'fetch_reports(', 'open_connection(', 'SolarLLM(', 'DATABASE_URL']:
+        assert forbidden not in src
+    outputs = [o for c in nb['cells'] if c['cell_type'] == 'code' for o in c.get('outputs', [])]
+    assert not [o for o in outputs if o.get('output_type') == 'error']
