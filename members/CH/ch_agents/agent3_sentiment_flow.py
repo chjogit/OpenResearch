@@ -368,7 +368,7 @@ def compute(b: dict, co: dict, as_of: str, period: int | None = None, question: 
                              "measure": k_l, "status": "기준선 대비 이례적" if hit else "평소 범위",
                              "rule": f"20일 변화율 {LEND_JUMP:g}% 이상이면 이례적"})
     else:
-        f.gap("주식대차 잔고(공매도 대용)", "core.stock_lending_daily 20일 미만 (금융위 서버 접속 문제로 수집 지연)")
+        f.gap("주식대차 잔고(공매도 대용)", f"core.stock_lending_daily 기준일 전 공개분 {len(lend)}일 (20일 미만, 수집 중이거나 대차 거래 없는 종목)")
     f.note("근거 계열: 수급 / 거래 / 논조 / 관심 / 가격·시장. 같은 계열 안의 지표는 하나의 근거로 센다. "
            "'시장' 항목은 종목 수급·거래의 기준선이라 독립 근거로 세지 않는다.")
     f.note("감성 점수는 " + SENT_MODEL + "입니다. 긍정 문서가 많다는 것과 향후 수익률이 높다는 것은 별개의 가설입니다.")
