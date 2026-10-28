@@ -12,6 +12,7 @@ import time
 from typing import Any
 
 from .agents import AGENTS, MY_AGENTS, AgentData, fetch_agent_data
+from .availability import AVAIL_SHORT, availability
 from . import contract as contract_mod
 from . import exposure as exposure_mod
 from . import verify as verifier
@@ -585,7 +586,8 @@ def to_markdown(data: AgentData, result: dict, status: str, checks: dict, remove
         out += ["", "**코드 판정**", ""] + [f"- {r(x)}" for x in f.flags]
     out += ["", "**숫자 장부** (근거 ID = 장부 순서)", "", f.table_md(emap)]
     if f.gaps:
-        out += ["", "**무자료**", ""] + [f"- {g['label']}: {g['reason']}" for g in f.gaps]
+        out += ["", "**무자료**", ""] + [f"- {g['label']}: {g['reason']} [{AVAIL_SHORT[availability(g['label'], g['reason'])]}]"
+                                         for g in f.gaps]
     if data.docs:
         out += ["", "**참고 문서 (DB 검색)**", ""] + docs_markdown(data.docs)
     elif data.extra.get("rag_error"):
