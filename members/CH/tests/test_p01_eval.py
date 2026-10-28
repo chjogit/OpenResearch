@@ -55,4 +55,4 @@ def test_e02_uses_only_published_training_rows():
 
 def test_quarter_key_groups_52_53_week_ends():
     assert ev.quarter_key("2025-09-28") == ev.quarter_key("2025-10-03") == ev.quarter_key("2025-09-30") == "2025Q3"
-    assert ev.quarter_key("2025-12-27") == "2025Q4" and ev.quarter_key("2026-02-01") == "2026Q1"
+    assert ev.quarter_key("2025-12-27") == "2025Q4" and ev.quarter_key("2026-02-01") == "2025Q4"  # 1월 결산 4분기
