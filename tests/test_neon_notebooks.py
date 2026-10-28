@@ -51,7 +51,9 @@ def test_guide_notebooks_run_offline_without_errors(name):
     nb = json.loads((Path(__file__).parents[1] / 'notebooks' / name).read_text(encoding='utf-8'))
     src = '\n'.join(''.join(c['source']) for c in nb['cells'] if c['cell_type'] == 'code')
     assert 'agent/neon_agents.py' in src  # 프로젝트 위치를 찾는 공통 첫 셀
-    for forbidden in ['fetch_snapshot(', 'fetch_reports(', 'open_connection(', 'SolarLLM(', 'DATABASE_URL']:
+    for forbidden in ['fetch_snapshot(', 'fetch_reports(', 'open_connection(', 'DATABASE_URL']:
         assert forbidden not in src
+    if 'SolarLLM(' in src:  # 실제 LLM 셀은 기본값 꺼짐일 때만 허용
+        assert 'RUN_SOLAR = False' in src and 'RUN_SOLAR = True' not in src
     outputs = [o for c in nb['cells'] if c['cell_type'] == 'code' for o in c.get('outputs', [])]
     assert not [o for o in outputs if o.get('output_type') == 'error']
