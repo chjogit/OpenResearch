@@ -1,3 +1,0 @@
--r requirements-basic-agents.txt
-langchain-upstage>=0.6
-langchain>=0.3

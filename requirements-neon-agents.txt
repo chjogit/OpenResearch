@@ -1,2 +1,0 @@
--r requirements-quality-notebooks.txt
-tzdata>=2024.1

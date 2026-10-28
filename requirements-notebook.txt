@@ -1,4 +1,0 @@
-# Notebook viewer only; does not install the full Solar/Neon stack.
-jupyterlab>=4,<5
-ipywidgets>=8,<9
-ipykernel>=6,<8
