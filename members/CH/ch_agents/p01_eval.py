@@ -100,7 +100,14 @@ def samples(panel: list[dict], macro: dict, export: dict) -> list[dict]:
                 continue
             dfx = (f1 / f5 - 1) * 100
             exp_share = float(export.get(str(c), export.get(c, 0)) or 0) / 100
-            out.append({"c": c, "target": str(hist[i]["pe"])[:10], "tq": quarter_key(hist[i]["pe"]),
+            b1 = None  # 서비스 기준선 B1(계절·추세) = B0 × 최근 4개 분기 합 ÷ 그 전 4개 분기 합 (forecast.baselines 와 같음)
+            if i >= 8:
+                c8 = hist[i - 8:i + 1]
+                if all(80 <= (_d(b["pe"]) - _d(a["pe"])).days <= 100 for a, b in zip(c8, c8[1:])):
+                    last4 = sum(float(h["v"]) for h in hist[i - 4:i])
+                    prev4 = sum(float(h["v"]) for h in hist[i - 8:i - 4])
+                    b1 = y4 * last4 / prev4 if prev4 > 0 else None
+            out.append({"c": c, "target": str(hist[i]["pe"])[:10], "tq": quarter_key(hist[i]["pe"]), "b1": b1,
                         "origin": origin.isoformat(),
                         "known": avail(hist[i]["pe"], hist[i]["fq"], hist[i].get("k")).isoformat(),
                         "y": math.log(y / y4), "base": y4, "actual": y,
@@ -155,6 +162,12 @@ def run(panel, macro, export, as_of: str, seed: int = 7) -> dict:
     for m in ("B0", "B2", "M1"):
         out[f"rel_mae_{m}"] = equal_weight_mae(preds, m)
     out["m1_vs_b2_pct"] = (1 - out["rel_mae_M1"] / out["rel_mae_B2"]) * 100 if out["rel_mae_B2"] else None
+    # 서비스 기준선 비교 (같은 표본): 지금 에이전트가 쓰는 B1 vs 재무 전용 회귀 B2. 팀 결정용 근거 (자동 교체 안 함)
+    sub = [{**p, "B1": p["b1"]} for p in preds if p.get("b1")]
+    if sub:
+        out["b1_vs_b2"] = {"n": len(sub), "quarters": sorted({p["tq"] for p in sub}),
+                           "rel_mae_B1": equal_weight_mae(sub, "B1"), "rel_mae_B2": equal_weight_mae(sub, "B2"),
+                           "b2_minus_b1_ci90": list(block_bootstrap(sub, "B2", "B1", seed))}
     lo, hi = block_bootstrap(preds, "M1", "B2", seed)
     out["m1_minus_b2_ci90"] = [lo, hi]
     ok = out["m1_vs_b2_pct"] is not None and out["m1_vs_b2_pct"] >= 3 and hi is not None and hi < 0

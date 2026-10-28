@@ -56,3 +56,10 @@ def test_e02_uses_only_published_training_rows():
 def test_quarter_key_groups_52_53_week_ends():
     assert ev.quarter_key("2025-09-28") == ev.quarter_key("2025-10-03") == ev.quarter_key("2025-09-30") == "2025Q3"
     assert ev.quarter_key("2025-12-27") == "2025Q4" and ev.quarter_key("2026-02-01") == "2025Q4"  # 1월 결산 4분기
+
+
+def test_b1_compared_with_b2_on_same_samples():
+    panel, macro, export = _world(macro_effect=0.0, seed=3)
+    out = ev.run(panel, macro, export, "2026-10-28")
+    bb = out.get("b1_vs_b2")
+    assert bb and bb["n"] > 0 and bb["rel_mae_B1"] > 0 and bb["rel_mae_B2"] > 0
