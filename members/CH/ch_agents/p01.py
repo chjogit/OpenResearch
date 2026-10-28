@@ -178,7 +178,7 @@ def quarter_check(f, rows: list[dict] | None, cid, as_of: str, group: str = "분
     mine = sorted([r for r in rows or [] if r.get("c") == cid and avail(r) <= cut], key=lambda r: str(r["pe"]))
     out = {"n": len(mine), "review": [], "gaps": 0}
     if not mine:
-        f.gap("단독분기 매출 이력", "기준일에 공시된 분기 매출 없음 (QUARTER_MAPPING_CONFLICT)")
+        f.gap("단독분기 매출 이력", "기준일에 공시된 분기 매출 없음 (금융업처럼 매출 계정이 없거나 분기 자료가 아직 없음)")
         return out
     for a, b in zip(mine, mine[1:]):
         days = (date.fromisoformat(str(b["pe"])[:10]) - date.fromisoformat(str(a["pe"])[:10])).days

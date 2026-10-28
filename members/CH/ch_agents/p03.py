@@ -332,7 +332,7 @@ def add_event_facts(f, rows: list[dict], as_of: str, current: dict[str, int] | N
     for r in pick:
         name = f"{r['scope']} {r['who']} {r['signal']} 뒤 {r['h']}거래일 코스피 대비 초과수익률"
         if r["status"] != "ok":
-            f.gap(name, f"표본 {r['n']}건 (최소 {MIN_EVENTS}건) → SMALL_SAMPLE 보류")
+            f.gap(name, f"표본 {r['n']}건 (최소 {MIN_EVENTS}건) → 표본 부족으로 수치 보류")
             continue
         src = ("core.investor_flow_daily × core.price_daily × ^KS11"
                + (" (KOSPI 200 합산)" if r["scope"] != "종목" else ""))

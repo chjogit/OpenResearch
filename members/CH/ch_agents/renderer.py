@@ -51,7 +51,8 @@ HOW_TO = {
     "scope": "보고서 첫머리에 '이 보고서가 답하는 것/답하지 않는 것'으로 옮깁니다. 보류 사유도 그대로 적습니다.",
     "summary": "보고서 첫 문단에 그대로 쓰고, 뒤 구역에서 근거를 붙입니다.",
     "caveats": "결론보다 먼저 적어 독자가 자료의 한계를 알고 읽게 합니다.",
-    "claims": "[사실]은 숫자로 확인된 것, [해석]은 그 숫자를 읽은 의견, [예측]은 앞으로의 가능성입니다. 보고서에서도 셋을 섞지 않습니다.",
+    "claims": "[사실]은 숫자로 확인된 것, [해석]은 그 숫자를 읽은 의견, [예측]은 앞으로의 가능성입니다. 보고서에서도 셋을 섞지 않습니다. "
+              "문장 끝의 [출처: …] 를 그대로 옮기면 독자가 원자료를 찾을 수 있습니다.",
     "counter": "주장과 같은 무게로 적습니다. 반대 근거가 없는 보고서는 한쪽만 본 보고서입니다.",
     "risks": "어떤 조건에서 나빠지는지를 적습니다. 가격 전망이 아니라 조건입니다.",
     "unverified": "모른다는 것도 결과입니다. '확인하지 못함'으로 적고 추측으로 채우지 않습니다. "
@@ -59,6 +60,7 @@ HOW_TO = {
     "nextChecks": "보고서 끝 '다음에 볼 것'에 날짜와 함께 옮깁니다.",
 }
 L1_HINT = {
+    "signals": "최근 평소와 달라진 점입니다. 중요한 것 몇 가지만 펼쳐 두고 나머지는 접어 두었습니다.",
     "scope": "숫자로 답할 수 없는 부분은 '보류'로 표시합니다. 보류는 오류가 아니라 근거가 부족하다는 뜻입니다.",
     "claims": "'확인된 사실'은 숫자로 확인한 것, '해석'과 '전망'은 그 숫자를 읽은 의견입니다.",
     "counter": "위 내용과 반대로 볼 수 있는 근거입니다. 함께 봐야 한쪽으로 치우치지 않습니다.",
@@ -127,6 +129,19 @@ def _sections(c: dict) -> dict[str, list[dict]]:
     return s
 
 
+L1_SIGNALS = 3
+SIGNAL_PRIORITY = ("이상 징후", "거시 이상", "금리 이벤트 임박", "과거 관계", "중복 신호", "엇갈림", "분기 자료 검토")
+
+
+def _signal_rank(it: dict) -> tuple:
+    """입문자에게 먼저 보일 변화 신호: 이상 징후·임박 일정 → 국면 판정 → 나머지 (같은 순위는 원래 순서)."""
+    t = it["text"]
+    for i, word in enumerate(SIGNAL_PRIORITY):
+        if t.startswith(word) or word in t[:20]:
+            return (i,)
+    return (len(SIGNAL_PRIORITY) + ("국면" not in t),)
+
+
 def _line(sec: str, it: dict, lv: Level) -> str:
     ev = ", ".join(it["evidenceIds"])
     if it["ref"].endswith("-none"):                       # '확인하지 못함' 안내는 꾸밈 없이
@@ -135,8 +150,9 @@ def _line(sec: str, it: dict, lv: Level) -> str:
         t = it.get("typeLabel") or "해석"
         if lv == Level.L1:
             return f"- ({TYPE_L1.get(t, t)}) {it['text']}"
-        if lv == Level.L2:
-            return f"- [{t}] {it['text']}" + (f" _(근거 {ev})_" if ev else "")
+        if lv == Level.L2:  # 보고서에 그대로 붙일 출처 문구를 함께 (10-29 페르소나 점검 A2)
+            tags = " ".join(it.get("sourceTags") or [])
+            return f"- [{t}] {it['text']}" + (f" {tags}" if tags else "") + (f" _(근거 {ev})_" if ev else "")
         tags = " ".join(it.get("sourceTags") or [])
         return f"- `{it['ref']}` [{t}] {it['text']}" + (f" — {ev}" if ev else "") + (f" {tags}" if tags else "")
     if sec == "unverified":
@@ -254,6 +270,13 @@ def render(contract: dict, profile: UserProfile | dict | None = None) -> dict:
         md.append("")
         if sid == "evidence" and lv == Level.L1:
             md += ["<details><summary>근거 자료 보기</summary>", "", *s["lines"], "", "</details>", ""]
+            continue
+        if sid == "signals" and lv == Level.L1 and len(s["items"]) > L1_SIGNALS:
+            # 입문자 첫 화면에 변화 신호가 16~17개 나오던 문제: 중요한 3개만 펼치고 나머지는 접음 (내용은 그대로)
+            items = sorted(s["items"], key=_signal_rank)
+            md += [_line(sid, it, lv) for it in items[:L1_SIGNALS]]
+            md += ["", f"<details><summary>나머지 변화 신호 {len(items) - L1_SIGNALS}개 보기</summary>", "",
+                   *[_line(sid, it, lv) for it in items[L1_SIGNALS:]], "", "</details>", ""]
             continue
         md += s["lines"] if "lines" in s else [_line(sid, it, lv) for it in s["items"]]
         md.append("")

@@ -122,3 +122,27 @@ def test_signals_are_not_duplicated():
     r = render(c, UserProfile(Level.L1, Stance.AGGRESSIVE))
     texts = [it["text"] for s in r["sections"] if s["id"] == "signals" for it in s["items"]]
     assert texts and len(texts) == len(set(texts))
+
+
+def test_l1_signals_folded_after_three_and_content_unchanged():
+    from ch_agents import render_all
+    from ch_agents.renderer import content_set
+
+    c = {"agent": {"name": "a"}, "target": {}, "summary": {"text": "s"}, "disclaimer": "d",
+         "codeFindings": [{"text": f"지표{i}: 인상 국면", "evidenceIds": []} for i in range(8)]
+                         + [{"text": "이상 징후: 거래대금 급증", "evidenceIds": []}]}
+    views = render_all(c)
+    md = views["L1-aggressive"]["markdown"]
+    head = md.split("<details><summary>나머지 변화 신호")[0]
+    assert "나머지 변화 신호 6개 보기" in md and "이상 징후: 거래대금 급증" in head   # 이상 징후가 먼저 펼쳐짐
+    assert "<details><summary>나머지 변화 신호" not in views["L2-aggressive"]["markdown"]
+    assert len({frozenset(content_set(v)) for v in views.values()}) == 1
+
+
+def test_l2_claims_show_source_tags():
+    from ch_agents import render
+
+    c = {"agent": {}, "target": {}, "summary": {"text": "s"}, "disclaimer": "d",
+         "claims": [{"claimId": "C01", "role": "main", "text": "x", "typeLabel": "사실", "evidenceIds": ["E01"],
+                     "sourceTags": ["[출처: Neon core.macro_obs, 2026-10-28]"]}]}
+    assert "[출처: Neon core.macro_obs, 2026-10-28]" in render(c, {"level": "L2"})["markdown"]
