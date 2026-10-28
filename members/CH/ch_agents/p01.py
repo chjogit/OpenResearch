@@ -258,3 +258,15 @@ def plan_md(p: dict) -> list[str]:
     if p.get("held_reasons"):
         out += ["", "보류·주의 코드: " + "; ".join(p["held_reasons"])]
     return out
+
+
+def fallback_headline(data, default: str) -> str:
+    """LLM 핵심진단이 검사·Verifier 에서 빠졌을 때 쓰는 코드 요약 (장부 키만 있어 대조를 통과함).
+    에이전트 1(p01)·3(p03) 공통. 세 줄 요약이 없으면 default."""
+    px = (getattr(data, "extra", None) or {}).get("p01") or (getattr(data, "extra", None) or {}).get("p03")
+    s = (px or {}).get("summary") or {}
+    first = s.get("확인한 사실")
+    if not first or "{" not in first:
+        return default
+    held = s.get("아직 답 못한 부분")
+    return f"(규칙 요약) 확인한 사실: {first}" + (f". 보류: {held}" if held and held != "없음" else "")

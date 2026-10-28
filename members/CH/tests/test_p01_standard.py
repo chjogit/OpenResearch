@@ -163,3 +163,15 @@ def test_user_scenario_numbers_are_terms_not_values():
     text = f"환율 5% 상승·금리 0.5%p 하락 시나리오는 공시 민감도 기준 {{{k}}}로 환산됩니다."
     assert not [p for p in sentence_problems(text, set(d.facts.items), label_terms(d)) if "키 밖 숫자" in p]
     assert [p for p in sentence_problems("환율 7% 상승이면 …", set(d.facts.items), label_terms(d)) if "키 밖" in p]
+
+
+def test_dropped_headline_falls_back_to_rule_summary():
+    from conftest import FakeLLM
+
+    d = build_agent_data(1, CO, _bundle(), AS_OF)
+    k = d.facts.key_of("한국 기준금리 12개월 변화")
+    res = {"핵심진단": "환율이 123.45% 올랐다.", "자체점수": 5,      # 장부에 없는 숫자 → 빠짐
+           "주장": [{"문장": f"한국 기준금리 12개월 변화는 {{{k}}}이다.", "구분": "사실", "근거": [k]}]}
+    out = run_agent(1, data=d, llm=FakeLLM(res), max_repair=0)
+    head = out["contract"]["summary"]["text"]
+    assert head.startswith("(규칙 요약) 확인한 사실:") and "{" not in head

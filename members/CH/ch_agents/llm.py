@@ -481,7 +481,7 @@ def sanitize(result: dict, data: AgentData) -> tuple[dict, list[str]]:
     out = dict(result)
     if bad(str(out.get("핵심진단", ""))):
         removed.append(str(out.get("핵심진단")))
-        out["핵심진단"] = "(검증되지 않은 숫자나 판정과 어긋난 표현이 있어 생략. 아래 주장을 참고)"
+        out["핵심진단"] = p01_mod.fallback_headline(data, "(검증되지 않은 숫자나 판정과 어긋난 표현이 있어 생략. 아래 주장을 참고)")
     for field in CLAIM_FIELDS:
         claims = []
         for c in out.get(field) or [] if isinstance(out.get(field), list) else []:

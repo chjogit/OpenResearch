@@ -37,6 +37,7 @@ CLAIM_FIELDS = ("주장", "반대근거")
 from .contract import assign_claim_ids, evidence_ids, evidence_map  # noqa: E402
 from .contract import doc_tag as _doc_tag  # noqa: E402
 from .contract import source_tag as _source_tag  # noqa: E402
+from .p01 import fallback_headline  # noqa: E402
 
 
 def plain(text: str, data) -> str:
@@ -107,7 +108,8 @@ def apply(result: dict, data) -> tuple[dict, list[dict], list[str]]:
         v = check_text(t, KEY.findall(t), data, terms)
         if not v["ok"]:
             removed.append(t)
-            out[field] = "(Verifier 대조에서 맞지 않는 수치가 있어 생략)"
+            msg = "(Verifier 대조에서 맞지 않는 수치가 있어 생략)"
+            out[field] = fallback_headline(data, msg) if field == "핵심진단" else msg
             log.append({"문장": t, **v})
     for field in ("긍정요인", "리스크요인", "미확인", "다음점검", "스스로질문"):
         kept = []
