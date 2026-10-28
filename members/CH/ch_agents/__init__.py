@@ -10,10 +10,15 @@
 - financial.py              (이관 참고) 재무 계산. 7번에 임시 등록
 - llm.py       프롬프트, 출력 검사, 1회 수정 요청, 규칙 기반 대체 요약, 렌더링
 - review.py    보고서 첨삭 모드
+- profile.py   사용자 프로필 (숙련도 L1~L3 × 성향 방어/공격)
+- renderer.py  페르소나 렌더러: 계약 하나를 프로필별 화면으로 (LLM 없음, 내용 불변)
 - evaluate.py  여러 종목 일괄 점검 성적표
 """
 from .agents import AGENTS, AgentData, fetch_agent_data
 from .llm import run_agent, run_my_agents
+from .profile import UserProfile
+from .renderer import render, render_all
 from .review import review_report
 
-__all__ = ["AGENTS", "AgentData", "fetch_agent_data", "review_report", "run_agent", "run_my_agents"]
+__all__ = ["AGENTS", "AgentData", "fetch_agent_data", "UserProfile", "render", "render_all", "review_report", "run_agent",
+           "run_my_agents"]

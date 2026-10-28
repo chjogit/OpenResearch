@@ -14,6 +14,7 @@ CH 의 개인 작업 공간입니다. 실험 노트북, 스크립트, 메모를 
 | `ch_agents/agent1_macro.py` | 에이전트 1 거시경제 계산 (`exposure.py`: 노출 점검표·미확인 전제) |
 | `ch_agents/agent3_sentiment_flow.py` | 에이전트 3 투자심리·수급 계산 (기준선 비교·중복 신호) |
 | `ch_agents/contract.py`, `ch_agents/schema/agent_output.schema.json` | 데이터 계약 (reportId·claimId·evidenceId). 설명은 `docs/DATA_CONTRACT.md` |
+| `ch_agents/profile.py`, `ch_agents/renderer.py` | 사용자 프로필(숙련도 L1~L3 × 성향 방어/공격)과 페르소나 렌더러. 설명은 `docs/DATA_CONTRACT.md` 7장 |
 | `ch_agents/` 나머지 | 장부(`facts.py`), LLM 계층(`llm.py`), Verifier 연동(`verify.py`), RAG(`rag.py`), 첨삭(`review.py`). `financial.py`는 이관 참고용(7번) |
 | `ch_agents_agent1_agent3.ipynb` | 실행·확인 노트북 (데이터 확인 → 교차 검증 → 에이전트 실행 → 데이터 계약 → 첨삭 → 일괄 점검) |
 | `tests/` | 패키지 테스트. DB·LLM 없이 실행 |
@@ -57,6 +58,14 @@ r1["contract"]                                         # 데이터 계약 JSON
 | `quality` | 데이터 품질 주의 원천 (quality.api_status 기준) |
 
 `result`의 문장은 숫자 대신 `{M1}` 같은 키를 담고 있습니다. `contract`에서는 값을 채운 문장(`text`)과 근거 ID(`E01`…)로 바뀝니다.
+
+사용자에게 보여 줄 때는 계약을 프로필별로 렌더링합니다. LLM 을 다시 부르지 않고, 수치·근거·판정은 프로필과 무관합니다.
+
+```python
+from ch_agents import render, render_all
+view = render(out["contract"], {"level": "L1", "stance": "defensive"})   # view["markdown"], view["sections"]
+views = render_all(out["contract"])                                       # 6개 프로필 모두
+```
 
 ## DB 기반 RAG (`ch_agents/rag.py`)
 
