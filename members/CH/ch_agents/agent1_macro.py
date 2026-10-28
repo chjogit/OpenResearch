@@ -8,12 +8,18 @@
   거친 유의 기준(2/√n)을 따로 표시
 - 업종별 전달 경로 가이드(숫자 없음): 어떤 변수가 어떤 경로로 실적에 닿는지, DB에 없는 변수는 무자료로
 
-한계: 동조성은 통계적 관계이지 기업의 노출(수출 비중·외화 부채·헤지)이 아닙니다. 노출 데이터는 DB에 없습니다.
-거시 통계의 관측일(obs_date)은 발표일이 아니므로 과거 시점 평가에는 발표 지연을 따로 고려해야 합니다.
+제작 기준 (10-28): 모두의 리서치 P01 거시경제 상세 개발기획서 v1.0 (p01.py). 기준에 맞춰 추가한 것
+- 공표 시점 규칙(vintage.py, P01-F02): 기준일에 아직 공표 전이었을 월별 관측을 뺌. 수정 이력이 없어 D1 사후 탐색 등급
+- 분기 자료 점검(p01.quarter_check, P01-F03), 다음 분기 매출 기준선 B0/B1·80% 구간·순차평가(forecast.py, P01-F05)
+- 공시 민감도의 시나리오 정적 환산(scenario.py, P01-F07), 거시 입력 이상 점검(anomaly.py, P01-F08 1단계)
+- 질문 계약·상태 코드·세 줄 요약(p01.py, P01-F01·23장·20.2)
+기준과 맞지 않는 기존 출력(주가 동조성, 산업 통제 변수, ETF 시장 기준선)은 지우지 않고 '참고용' 등급으로 낮춥니다.
+
+한계: 동조성은 통계적 관계이지 기업의 노출(수출 비중·외화 부채·헤지)이 아닙니다.
 """
 from __future__ import annotations
 
-from . import exposure
+from . import anomaly, etf, exposure, forecast, p01, scenario, vintage
 from .facts import (
     Facts,
     check_freshness,
@@ -211,9 +217,13 @@ def _last_change(points: list[tuple[str, float]]) -> str | None:
     return None
 
 
-def compute(b: dict, co: dict, as_of: str, focus: list[str] | None = None, **_) -> dict:
+def compute(b: dict, co: dict, as_of: str, focus: list[str] | None = None, scenario: str | None = None,
+            question: str | None = None, **_) -> dict:
     f = Facts("M")
+    plan = p01.plan(question, focus, scenario, as_of)
     series = {k: series_points(v) for k, v in (b.get("series") or {}).items()}
+    # P01-F02: 관측 대상 기간(obs_date)이 아니라 '기준일에 공표돼 있었는가' 로 거름 (보수 규칙)
+    series, vrep = vintage.apply(series, as_of, f)
     sector = sector_of(co)
 
     # 1) 지표 패널과 국면
@@ -401,8 +411,32 @@ def compute(b: dict, co: dict, as_of: str, focus: list[str] | None = None, **_) 
     open_items = [p["item"] for p in prem if p["status"] != "확인"]
     if open_items:
         f.note("미확인 전제(가정하지 말 것): " + ", ".join(open_items))
+
+    # 7) P01 기준 추가 과업 (p01.py)
+    macro_anom = anomaly.check(f, series)                                   # P01-F08 1단계
+    panel = (b.get("panel") or {}).get("rows")
+    qchk = p01.quarter_check(f, panel, co.get("company_id"), as_of)         # P01-F03
+    fc = None
+    if plan["tasks"]["예측"]:
+        fc = forecast.company_forecast(panel, co.get("company_id"), as_of)  # P01-F05
+        forecast.add_facts(f, fc, as_of)
+    scen = []
+    if plan["tasks"]["시나리오"]:
+        specs, codes = scenario.parse(" ".join(x for x in (scenario, question) if x), origin=as_of)
+        scen = [scenario.evaluate(sp, b.get("report")) for sp in specs]       # P01-F07 (공시 정적 환산)
+        scenario.add_facts(f, scen, as_of)
+        if "CAUSAL_UNIDENTIFIED" in codes:
+            plan["tasks"]["인과"] = True
+    etf.add_market_facts(f, b.get("etf"))                                    # 참고용 시장 기준선
+    stale = [x for x in f.flags if x.startswith("자료 지연")]
+    tiers = p01.annotate(f)
+    plan = p01.finalize_plan(plan, vintage=vrep, forecast=fc, scenarios=scen, anomalies=macro_anom, quarter=qchk,
+                             stale=stale)
+    f.note(f"제작 기준: {p01.STANDARD}. 참고용 항목 {tiers['reference']}개는 기준 밖 정보(주가 동조성·산업 변수·ETF)")
     return {"facts": f, "docs": docs, "period": f"거시 지표 최근 12개월 · 동조성 {period}", "sector": sector,
-            "exposure": rows, "premises": prem, "focus": list(focus or []), "next_checks": next_checks}
+            "exposure": rows, "premises": prem, "focus": list(focus or []), "next_checks": next_checks,
+            "p01": {"plan": plan, "vintage": vrep, "forecast": fc, "scenarios": scen, "macro_anomalies": macro_anom,
+                    "quarter": qchk, "tiers": tiers, "summary": p01.summary3(f, plan)}}
 
 
 def kor_date(day: str) -> str:

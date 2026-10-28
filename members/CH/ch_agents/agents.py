@@ -6,7 +6,7 @@ from datetime import datetime, timedelta, timezone
 from types import ModuleType
 from typing import Any
 
-from . import agent1_macro, agent3_sentiment_flow, db, exposure, financial, quality, rag
+from . import agent1_macro, agent3_sentiment_flow, db, etf, exposure, financial, forecast, quality, rag
 from .facts import Facts
 
 KST = timezone(timedelta(hours=9))
@@ -130,6 +130,15 @@ def fetch_bundle(agent_id: int, co: dict, as_of: str, use_rag: bool = True) -> d
             out["meetings"] = db.bundle(mod.MEETINGS_SQL, {"as_of": as_of})
         except Exception:  # noqa: BLE001
             out["meetings"] = None
+        try:  # P01-F05 기준선 예측·순차평가용 전 종목 분기 매출 패널
+            out["panel"] = db.q(forecast.PANEL_SQL, {"as_of": as_of})[0]
+        except Exception:  # noqa: BLE001
+            out["panel"] = None
+    if agent_id in (1, 3):  # 대표 지수·배당 ETF (kic-agent-data 022). 1 은 참고용 시장 기준선, 3 은 ETF 자금 흐름
+        try:
+            out["etf"] = (db.q(etf.SQL, {"etf": etf.REP_TICKERS, "as_of": as_of})[0] or {}).get("etf")
+        except Exception:  # noqa: BLE001
+            out["etf"] = None
     if agent_id in quality.SOURCES:
         try:
             out["quality"] = db.q(quality.SQL)
@@ -182,9 +191,17 @@ def newer_docs_flag(f, docs: list[dict], ledger_last: str | None) -> int:
 
 
 def fetch_agent_data(agent_id: int, ticker: str, as_of: str | None = None, co: dict | None = None,
-                     focus: list[str] | None = None, period: int | None = None) -> AgentData:
-    """focus: 에이전트 1 관심 거시 변수(예: ["환율", "금리"]), period: 에이전트 3 기간(거래일, 예: 20)."""
+                     focus: list[str] | None = None, period: int | None = None, scenario: str | None = None,
+                     question: str | None = None) -> AgentData:
+    """focus: 에이전트 1 관심 거시 변수(예: ["환율", "금리"]), period: 에이전트 3 기간(거래일, 예: 20).
+    scenario: 에이전트 1 조건(예: "환율 5% 상승, 금리 0.5%p 하락"), question: 사용자 질문 원문 (P01·P03 과업 계약)."""
     as_of = normalize_as_of(as_of)
     co = co or db.company(ticker)
-    opts = {"focus": focus} if agent_id == 1 else {"period": period} if agent_id == 3 else {}
+    if agent_id == 1:
+        opts = {"focus": focus, "scenario": scenario, "question": question}
+    elif agent_id == 3:
+        opts = {"period": period, "question": question}
+    else:
+        opts = {}
+    opts = {k: v for k, v in opts.items() if v not in (None, [], "")}
     return build_agent_data(agent_id, co, fetch_bundle(agent_id, co, as_of), as_of, opts)

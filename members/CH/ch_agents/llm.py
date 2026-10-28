@@ -617,11 +617,13 @@ def to_markdown(data: AgentData, result: dict, status: str, checks: dict, remove
 
 def run_agent(agent_id: int, ticker: str | None = None, mode: str = "expert", llm=None,
               data: AgentData | None = None, as_of: str | None = None, max_repair: int = 1,
-              focus: list[str] | None = None, period: int | None = None) -> dict:
+              focus: list[str] | None = None, period: int | None = None, scenario: str | None = None,
+              question: str | None = None) -> dict:
     """에이전트 하나를 실행해 팀 공통 출력 계약 dict 를 돌려줍니다.
     focus: 에이전트 1 관심 거시 변수(예: ["환율", "금리"]), period: 에이전트 3 관찰 기간(거래일). data 를 넘기면 무시됩니다."""
     if data is None:
-        data = fetch_agent_data(agent_id, ticker, as_of, focus=focus, period=period)
+        data = fetch_agent_data(agent_id, ticker, as_of, focus=focus, period=period, scenario=scenario,
+                                question=question)
     system, user = build_messages(data, mode)
     attempts: list[dict] = []
     result, checks, status, best_at, best_n = None, {}, "실패", -1, None
