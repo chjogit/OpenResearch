@@ -9,7 +9,17 @@ from statistics import mean, pstdev
 from typing import Protocol
 
 from agent.business_sections import competition_candidates
+from agent.paragraph_labels import classify_result
+from agent.persona_presentation import build_presentation
+from agent.personas import (
+    DOMAIN_RULES,
+    LEVEL_DEFINITIONS,
+    STYLE_DEFINITIONS,
+    PersonaProfile,
+    assess_questionnaire,
+)
 from agent.research_contract import validate_report
+from agent.technical_states import describe_states
 
 
 class LanguageModel(Protocol):
@@ -53,12 +63,46 @@ class AgentSettings:
     window: int = 3
     literacy: str = 'L2'
     style: str = 'U'
+    persona_status: str = 'not_set'  # not_set / user_confirmed / suggested / unresolved
 
     def __post_init__(self):
         if type(self.window) is not int or self.window < 2:
             raise ValueError('window must be an integer >= 2')
         if self.literacy not in {'L1', 'L2', 'L3', 'L4'} or self.style not in {'A', 'C', 'U'}:
             raise ValueError('Invalid presentation settings')
+        if self.persona_status not in {'not_set', 'user_confirmed', 'suggested', 'unresolved'}:
+            raise ValueError('Invalid persona status')
+
+    @classmethod
+    def from_persona(cls, profile, window=3):
+        """Only a user-confirmed profile changes the presentation; otherwise L2 and neutral U."""
+        if not isinstance(profile, PersonaProfile):
+            raise TypeError('PersonaProfile required')
+        if not profile.confirmed:
+            return cls(window=window, persona_status=profile.status)
+        return cls(window=window, literacy=str(profile.literacy_level or 'L2'),
+                   style=str(profile.investment_style or 'U'), persona_status=profile.status)
+
+
+def select_persona(*, literacy=None, style=None, knowledge_answers=None, style_answers=None,
+                   confirmed=False):
+    """Direct selection (literacy/style) or the existing questionnaire rules -> PersonaProfile.
+
+    Direct selection is the user's own choice. Questionnaire output stays a suggestion until confirmed=True.
+    """
+    if knowledge_answers is not None or style_answers is not None:
+        if literacy is not None or style is not None:
+            raise ValueError('직접 선택과 설문 중 하나만 사용하세요.')
+        assessed = assess_questionnaire(knowledge_answers, style_answers)
+        profile = PersonaProfile.from_dict(assessed['profile'])
+        if confirmed and profile.status != 'unresolved':
+            profile = PersonaProfile(profile.literacy_level, profile.investment_style, confirmed=True,
+                                     source='questionnaire')
+        return profile, assessed['reasons']
+    style = None if style == 'U' else style
+    if literacy is None and style is None:
+        return PersonaProfile(), ['선택 없음: L2·중립으로 표시합니다.']
+    return PersonaProfile(literacy, style, confirmed=True), ['사용자 직접 선택']
 
 
 def _number(value):
@@ -79,6 +123,9 @@ def _base(report, domain, task):
 
 
 def _finish(result, llm, settings, model_tool):
+    # Presentation only orders and annotates; it is computed from the finished values, never feeds them.
+    result['presentation'] = build_presentation(result, settings.literacy, settings.style)
+    result['presentation']['personaStatus'] = settings.persona_status
     # A withheld result never reaches optional models or LLMs, even when the Agent is called directly.
     if result['status'] == 'withheld':
         if model_tool is not None or llm is not None:
@@ -100,7 +147,12 @@ def _finish(result, llm, settings, model_tool):
         '입력의 주장 ID·버전·근거·계산값·기준일·자료 모드·반대 근거·보류를 유지한다. '
         '새 숫자·원문 위치·매수매도·목표가·확률을 만들지 않는다. 모델 결과는 관측 사실과 구분한다. '
         '수치는 코드 계산값만 설명한다. 작성자 응답은 승인·반론 해결이 아니다. '
-        f'설명 수준 {settings.literacy}, 강조 성향 {settings.style}. U는 중립 표현이며 사용자 성향 확정이 아니다.'
+        f'설명 수준 {settings.literacy}, 강조 성향 {settings.style}. U는 중립 표현이며 사용자 성향 확정이 아니다. '
+        + LEVEL_DEFINITIONS[settings.literacy]['instruction'] + ' '
+        + (STYLE_DEFINITIONS[settings.style]['instruction'] if settings.style != 'U'
+           else '기회와 위험을 중립적으로 균형 있게 제시한다.') + ' '
+        + DOMAIN_RULES[result['agentType']]
+        + ' presentation의 sections 순서·glossary·checkQuestions를 따르되 값과 판정은 바꾸지 않는다.'
     )
     if llm is None:
         result['limitations'].append('LLM 미설정: Python 분석만 반환합니다.')
@@ -145,6 +197,8 @@ class IndustryBusinessAgent:
         r['businessMap'] = deepcopy(report['map'])
         # Keyword-matched candidate excerpts only; relevance and competitive strength are not assessed.
         r['competitionTable'] = competition_candidates(r['evidence'])
+        # Keyword rule baseline per paragraph; unreviewed until people label paragraphs (agent.paragraph_labels).
+        r['paragraphClassification'] = classify_result(r)
         r['limitations'] = list(dict.fromkeys(
             x for c in r['claims'] for x in c['missingInformation']))
         r['limitations'].append('초기 버전은 검수된 주장 재사용·근거 연결 도구이며 자유 원문 자동 추출은 미구현입니다.')
@@ -214,6 +268,11 @@ class TechnicalAnalysisAgent:
                             'horizon': e['observationPeriod'], 'assessment': 'provisional',
                             'evidenceLinks': [{'evidenceId': price_evidence_id, 'relation': 'supports'}],
                             'calculationIds': ['TECH_SMA']}]
+            # Observation-state rules over the values above (descriptive bands, not signals).
+            state_calcs, state_claims = describe_states(closes, w, r['calculations'], price_evidence_id,
+                                                        e['observationPeriod'])
+            r['calculations'] += state_calcs
+            r['claims'] += state_claims
             if report['dataMode'] == 'synthetic':
                 r['limitations'].append('합성 비조정 가격·원문 순서 기준이며 실제 거래일 분석이 아닙니다.')
             r['priceMetadata'] = deepcopy(price_metadata)

@@ -166,6 +166,9 @@ def run_checked(agent, report, gate):
         result = _base(report, domain, 'quality-blocked')
         result.update(status='withheld', limitations=gate['reasons'],
                       followUpRequests=['품질 표의 보류 사유를 보완한 후 다시 검사하세요.'])
+        from agent.persona_presentation import build_presentation
+        result['presentation'] = build_presentation(result, agent.settings.literacy, agent.settings.style)
+        result['presentation']['personaStatus'] = agent.settings.persona_status
     else:
         kwargs = {'price_metadata': report.get('priceMetadata')} if domain == 'technical_analysis' else {}
         result = agent.run(report, **kwargs)

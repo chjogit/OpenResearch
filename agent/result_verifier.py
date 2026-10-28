@@ -1,5 +1,5 @@
 """Deterministic output checks, not a semantic or investment approval."""
-from agent.basic_agents import IndustryBusinessAgent, TechnicalAnalysisAgent
+from agent.basic_agents import AgentSettings, IndustryBusinessAgent, TechnicalAnalysisAgent
 from agent.quality_gate import run_checked
 from agent.research_contract import content_digest, validate_report
 
@@ -27,6 +27,11 @@ def verify_result(report, result, settings):
             expected = run_checked(cls(settings=settings), report, gate)
             for field in ['status', 'claims', 'evidence', 'calculations', 'subject', 'asOf', 'dataMode']:
                 add(field, result.get(field) == expected.get(field), '동일 코드로 재실행한 기본 결과와 비교')
+            # Persona invariance: neutral presentation must give the same values and decisions.
+            neutral = run_checked(cls(settings=AgentSettings(window=settings.window)), report, gate)
+            add('페르소나 불변', all(result.get(f) == neutral.get(f) for f in
+                                ['status', 'claims', 'evidence', 'calculations', 'qualityGate']),
+                '표현 설정(L1~L4·A/C/U)과 관계없이 수치·근거·판정이 같아야 함')
             if 'withheld' in {gate['status'], expected.get('status'), result.get('status')}:
                 add('보류 시 호출 차단', result.get('explanation') is None and not result.get('modelResults'),
                     '보류 결과에 LLM 설명·모델 결과가 없어야 함')

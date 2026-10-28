@@ -142,3 +142,62 @@ python -m agent.persona_cli assess docs/persona_questionnaire_example.json
 다음 검증은 동일 원천 자료에서 8개 설명의 사실·위험 유지 여부, 사용자 등급 수정률,
 설명 이해도, 근거 적합성, 투자성향 중립 처리의 적절성이다.
 공용 코드 변경이므로 CONTRIBUTING.md에 따라 팀원 리뷰 후 PR로 main에 합친다.
+
+## 두 Agent 적용 순서 (2026-10-28)
+
+노트북 01(산업)·02(기술적)에서 아래 순서로 동작합니다. 모든 단계는 DB·LLM 없이 모의 입력으로 확인했습니다.
+
+### 1. 페르소나 결정
+설정 셀에서 직접 선택(`LITERACY`, `STYLE`) 또는 기존 설문(`KNOWLEDGE_ANSWERS`, `STYLE_ANSWERS`) 중 하나를 씁니다.
+- 직접 선택은 사용자 확인으로 봅니다. 설문 결과는 `CONFIRM_QUESTIONNAIRE=True`일 때만 적용하고, 그 전에는 L2·중립(U)으로 표시합니다.
+- `select_persona()` → `AgentSettings.from_persona()` (agent/basic_agents.py)
+- 결과의 `presentation`(agent/persona_presentation.py)이 제시 순서·상세도·용어 풀이(L1·L2)·확인 질문을 정합니다.
+- 적극형은 기회 절을, 신중형은 위험 절을 앞에 둡니다. 어느 쪽도 다른 절을 빼지 않습니다.
+- LLM을 쓰면 같은 규칙이 시스템 지시로 전달됩니다.
+
+### 2. 산업 Agent: 문단 분류 기준선
+- 결과의 `paragraphClassification`은 키워드 규칙(`paragraph-keyword-1`) 결과이며 `unreviewed`입니다.
+- 저장 셀의 `EXPORT_LABEL_SHEET=True`로 `private_data/paragraph_labels/labels_*.csv`를 만듭니다. 규칙 예측은 넣지 않습니다(앵커링 방지).
+- 사람이 `human_label`(아래 코드 또는 한글 이름)과 `labeler`를 채웁니다. 의견이 갈리면 합의한 한 줄만 남깁니다.
+
+| 코드 | 이름 |
+|---|---|
+| business_overview | 사업 개요 |
+| products_services | 제품·서비스 |
+| revenue_orders | 매출·수주 |
+| customers | 고객·판매처 |
+| suppliers_materials | 원재료·공급·생산설비 |
+| competition | 경쟁·시장점유율 |
+| barriers_regulation | 진입장벽·규제·특허 |
+| rnd_contracts | 연구개발·주요계약 |
+| risk_management | 위험관리·파생거래 |
+| other | 기타·분류 불가 |
+
+- `load_labels()` → `evaluate()`로 정확도·macro F1·분류별 정밀도/재현율·혼동 쌍을 봅니다.
+  정답 50문단 미만이거나 문서 3건 미만이면 경고가 붙습니다.
+- 평가 데이터는 `split_by_document()`로 문서 단위로 나눕니다(같은 공시의 문단이 학습·평가에 섞이지 않게).
+
+### 3. 기술 Agent: 관측 상태 규칙
+기존 계산값에 설명용 구간을 붙입니다(agent/technical_states.py, `technical-states-1`). 예측·매매 신호가 아닙니다.
+
+| 상태 | 규칙 |
+|---|---|
+| 추세 | 종가/SMA−1이 ±1% 미만이면 "이동평균 부근", 그 외 위/아래 |
+| 수익률 | 절댓값 3% 미만 작은 변동, 10% 미만 뚜렷한 변동, 그 이상 큰 폭 변동 |
+| 변동성 | 최근 window 수익률 표준편차 ÷ 전체 기간(관측 2×window 이상일 때만): 0.67 미만 축소, 1.5 초과 확대 |
+| 거래량 | 직전 window 평균 대비 −50% 이하 감소, +50% 이상 증가, +100% 이상 급증 |
+
+임계값은 검증 전 초기 규칙입니다. 바꾸면 RULE_VERSION을 올립니다.
+
+### 4. 평가: 페르소나 변경 전후 보존
+Verifier 셀이 `evaluate_persona_invariance()`로 12개 설정(L1~L4 × A/C/U)을 같은 입력·품질 판정으로 다시 실행합니다.
+수치·근거·주장·품질 판정·보류 상태·입력이 중립(L2-U)과 하나라도 다르면 `failed`입니다.
+Verifier에도 "페르소나 불변" 검사가 들어 있습니다. 설명 문장의 품질이나 LLM 출력은 평가하지 않습니다.
+
+### 5. ML 확장 판단
+`agent/model_comparison.py`의 `compare()`는 아래를 모두 만족할 때만 모델 채택을 제안합니다. 모델 학습은 하지 않습니다.
+- 규칙 기준선에 약점이 있음(지원 5문단 이상인 분류의 F1 < 0.6)
+- 기준선과 모델이 같은 평가 정답셋(goldDigest), 학습 정답셋과 평가 정답셋이 다름
+- 평가 문단 50개 이상, macro F1이 0.05 이상 개선, 어떤 분류도 0.05 넘게 나빠지지 않음
+- 모델 정보(modelVersion, trainingCutoff, trainingGoldDigest) 기록
+최종 채택은 사람이 결정합니다.
