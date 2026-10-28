@@ -331,3 +331,88 @@ def test_terms_sql_reads_legal_name_without_requiring_column():
     sql = exposure.TERMS_SQL
     assert "to_jsonb(c) ->> 'legal_name'" in sql and "c.legal_name" not in sql
     assert "x.issuer_norm = (SELECT legal FROM me)" in sql
+
+
+# ---------------------------------------------------------------- 에이전트 3: 시장 기준선 (KOSPI 200 합산, 대용치)
+
+
+def _market_rows(fv, tv=50e12, n=130, recent_tv=None, cos=199):
+    from conftest import trading_days as _td
+
+    days = _td(n)[::-1]  # 최신순
+    return [{"d": d, "n": cos, "fv": fv, "iv": -fv / 2, "tv": (recent_tv if recent_tv and i < 5 else tv)}
+            for i, d in enumerate(days)]
+
+
+def _agent3(market, flows=None):
+    from ch_agents import agent3_sentiment_flow as a3
+
+    b = _sent_bundle(market=market, **({"flows": flows} if flows else {}))
+    return a3.compute(b, CO, AS_OF)
+
+
+def test_market_baseline_same_direction():
+    out = _agent3(_market_rows(fv=-3e11))          # 종목·시장 모두 외국인 순매도
+    f = out["facts"]
+    k_m = f.key_of("시장 외국인 20일 순매수 강도(KOSPI 200 합산, 대용치)")
+    k_g = f.key_of("외국인 20일 순매수 강도의 시장 대비 차이")
+    assert k_m and round(f.items[k_m]["value"], 6) == -0.6 and f.items[k_m]["kind"] == "대용치"
+    assert k_g and f.items[k_g]["unit"] == "%p"
+    assert any("외국인 20일 순매도: 시장과 같은 방향" in fl and "{" + k_m + "}" in fl for fl in f.flags)
+    row = next(r for r in out["baseline"] if r["signal"] == "외국인 순매수 강도(시장 대비)")
+    assert row["status"] == "시장과 같은 방향" and row["base"] == k_m and row["measure"] == k_g
+
+
+def test_market_baseline_opposite_direction_and_llm_cannot_flip_it():
+    from ch_agents.semantic import direction_problems
+
+    out = _agent3(_market_rows(fv=+3e11))          # 시장은 순매수, 종목은 순매도
+    f = out["facts"]
+    k_s = f.key_of("외국인 20일 순매수 강도(거래대금 대비)")
+    assert any("시장과 반대 방향(시장은 순매수)" in fl for fl in f.flags)
+    row = next(r for r in out["baseline"] if r["signal"] == "외국인 순매수 강도(시장 대비)")
+    assert row["status"] == "시장과 반대 방향"
+    assert direction_problems(f"외국인 강도 {{{k_s}}}는 시장과 같은 방향이다.", f)      # 판정을 뒤집으면 잡힘
+    assert not direction_problems(f"외국인 강도 {{{k_s}}}는 시장과 반대 방향이다.", f)
+
+
+def test_market_volume_surge_separates_market_wide_from_stock_only():
+    flows = _flow_rows()
+    for r in flows[:5]:
+        r["tv"] = 3e12                               # 종목 거래대금 3배
+    wide = _agent3(_market_rows(fv=-3e11, recent_tv=125e12), flows=flows)   # 시장도 2.5배
+    f = wide["facts"]
+    k_rel = f.key_of("거래대금 배율의 시장 대비(종목 배율 ÷ 시장 배율)")
+    assert round(f.items[k_rel]["value"], 6) == 1.2
+    assert any(fl.startswith("거래대금 급증은 시장 전체 거래 증가와 함께 나타남") for fl in f.flags)
+    row = next(r for r in wide["baseline"] if r["signal"] == "거래대금(시장 대비)")
+    assert row["status"] == "평소 범위"
+    flows2 = _flow_rows()
+    for r in flows2[:5]:
+        r["tv"] = 3e12
+    only = _agent3(_market_rows(fv=-3e11), flows=flows2)                   # 시장은 평소
+    row = next(r for r in only["baseline"] if r["signal"] == "거래대금(시장 대비)")
+    assert row["status"] == "기준선 대비 이례적"
+    assert any(fl.startswith("거래대금이 시장 전체보다 크게 늘어남") for fl in only["facts"].flags)
+
+
+def test_market_baseline_skips_thin_days_and_missing_data():
+    rows = _market_rows(fv=-3e11)
+    for r in rows[:15]:
+        r["n"] = 50                                  # 수집 누락일 (종목 수가 적음) → 빼면 20일 창이 부족
+    out = _agent3(rows)
+    f = out["facts"]
+    assert not f.key_of("시장 외국인 20일 순매수 강도(KOSPI 200 합산, 대용치)")
+    assert any(g["label"] == "시장 20일 수급 기준선" for g in f.gaps)
+    none = _agent3(None)["facts"]
+    assert any(g["label"] == "시장 수급 기준선" for g in none.gaps)
+
+
+def test_market_baseline_contract_and_sql():
+    from ch_agents import agent3_sentiment_flow as a3
+
+    d = build_agent_data(3, CO, _sent_bundle(market=_market_rows(fv=-3e11)), AS_OF)
+    c = run_agent(3, data=d, llm=FakeLLM(TimeoutError()))["contract"]
+    _check_contract(c)
+    assert any(b["signal"] == "외국인 순매수 강도(시장 대비)" and len(b["evidenceIds"]) == 3 for b in c["baseline"])
+    assert "'market'" in a3.SQL and "f.company_id <> %(cid)s" in a3.SQL and "'KOSPI200' = ANY(c.index_tags)" in a3.SQL
