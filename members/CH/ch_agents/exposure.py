@@ -15,7 +15,7 @@ LLM은 이 등급을 바꾸지 못하고, 판정 문장에 붙은 근거 키만 
 - 수출·경기: 수출 매출 비중 (60%↑ 높음, 30%↑ 중간)
 - 달러 순자산과 외환 파생상품 사용 여부는 근거로 보여 주기만 하고 등급에는 쓰지 않습니다.
 - 금리: 이자율 1%p 상승 시 손익 영향(주석 민감도 표)과 차입 조건(TERMS_SQL: 회사채·CP·단기사채 1년 내 만기 비중,
-  미상환 회사채 가중평균 발행금리)은 근거로 보여 주고 미확인 전제의 상태만 바꿉니다(등급 규칙은 그대로).
+  미상환 회사채 가중평균 발행금리, 자회사 포함 발행금리)은 근거로 보여 주고 미확인 전제의 상태만 바꿉니다(등급 규칙은 그대로).
 - 매출채권 회수기간(DSO)은 '결제 시점' 전제의 근거로만 씁니다. 판가 전가력은 숫자로 만들지 않습니다.
 """
 from __future__ import annotations
@@ -166,13 +166,20 @@ WITH due AS (
     WHERE company_id = %(cid)s
       AND stlm_dt + CASE WHEN reprt_code = '11011' THEN 90 ELSE 45 END <= %(as_of)s::date
     GROUP BY fiscal_year, reprt_code ORDER BY max(stlm_dt) DESC LIMIT 1
-), iss AS (
-    SELECT i.* FROM core.debt_issue i JOIN iss_rep r USING (fiscal_year, reprt_code)
+), bonds AS (  -- 회사채만 (녹색·사회적·지속가능채권 포함). 전자단기사채는 1년 내 만기 비중에서 따로 봄
+    SELECT i.*, (i.issuer ~ '^\\s*당\\s*사\\s*$'  -- 발행사를 '당사'로 적은 경우 (기아)
+                 OR upper(regexp_replace(regexp_replace(i.issuer, '\\(제[^)]*\\)|\\(?주\\d+\\)', '', 'g'),
+                                         '\\(주\\)|㈜|주식회사|\\s', '', 'g')) = ANY(%(issuers)s::text[])) AS own,
+           upper(regexp_replace(regexp_replace(i.issuer, '\\(제[^)]*\\)|\\(?주\\d+\\)', '', 'g'),
+                                         '\\(주\\)|㈜|주식회사|\\s', '', 'g')) AS issuer_norm
+    FROM core.debt_issue i JOIN iss_rep r USING (fiscal_year, reprt_code)
     WHERE i.company_id = %(cid)s AND i.rate > 0 AND i.face_amount_raw > 0
-      AND i.kind_nm ~ '회사채|사채' AND coalesce(i.repaid, '') !~ '^상환'
-      AND (i.issuer ~ '^\\s*당\\s*사\\s*$'  -- 발행사를 '당사'로 적은 경우 (기아)
-           OR upper(regexp_replace(regexp_replace(i.issuer, '\\(제[^)]*\\)|\\(?주\\d+\\)', '', 'g'),
-                                   '\\(주\\)|㈜|주식회사|\\s', '', 'g')) = ANY(%(issuers)s::text[]))
+      AND i.kind_nm ~ '회사채' AND coalesce(i.repaid, '') !~ '^상환'
+), iss AS (
+    SELECT * FROM bonds WHERE own
+), grp AS (  -- 자회사 포함(연결 발행실적). 유동화 SPC(제N차·제N호·유동화)는 그룹 조달이 아니라 뺌
+    SELECT * FROM bonds
+    WHERE own OR issuer !~ '제\\s*[일이삼사오육칠팔구십백0-9]+\\s*(차|호)|유동화'
 ), dso AS (
     SELECT * FROM core.v_dso
     WHERE ticker = (SELECT ticker FROM core.company WHERE company_id = %(cid)s) AND market = 'KR'
@@ -186,6 +193,10 @@ SELECT json_build_object(
                     'stlm_dt', (SELECT stlm_dt FROM iss_rep), 'n', count(*),
                     'wavg', sum(rate * face_amount_raw) / NULLIF(sum(face_amount_raw), 0),
                     'min', min(rate), 'max', max(rate)) FROM iss),
+    'bond_rate_group', (SELECT json_build_object(
+                    'n', count(*), 'issuers', count(DISTINCT CASE WHEN own THEN '' ELSE issuer_norm END),
+                    'wavg', sum(rate * face_amount_raw) / NULLIF(sum(face_amount_raw), 0),
+                    'min', min(rate), 'max', max(rate)) FROM grp),
     'dso', (SELECT row_to_json(dso) FROM dso),
     'price_excerpts', (SELECT count(*) FROM rag.document d
                        WHERE d.company_id = %(cid)s AND d.source = 'dart_report' AND d.title ~ '가격변동'
@@ -274,6 +285,15 @@ def _terms_facts(f: Facts, terms: dict | None) -> dict:
         got["k_rate"] = f.add(f"미상환 회사채 가중평균 발행금리({br['n']}건, {(br.get('stlm_dt') or '')[:7]} 기준)",
                               float(br["wavg"]), "%", br.get("stlm_dt"), SRC_TERMS, kind="calc", group="노출 근거",
                               note=f"발행 당시 표면금리를 권면총액으로 가중. 범위 {br.get('min')}~{br.get('max')}%")
+    grp = terms.get("bond_rate_group") or {}
+    if grp.get("n") and grp.get("wavg") is not None and grp["n"] > (br.get("n") or 0):
+        # 자회사 발행분이 있을 때만: 금융지주·지주사는 실제 조달 대부분을 자회사가 하므로 회사 자체 금리와 나란히 보여 줌
+        got["k_rate_grp"] = f.add(
+            f"자회사 포함 미상환 회사채 가중평균 발행금리({grp['n']}건·발행사 {grp.get('issuers')}곳, "
+            f"{(br.get('stlm_dt') or '')[:7]} 기준)", float(grp["wavg"]), "%", br.get("stlm_dt"), SRC_TERMS,
+            kind="calc", group="노출 근거",
+            note=f"정기보고서 연결 발행실적 기준(유동화 SPC 제외). 범위 {grp.get('min')}~{grp.get('max')}%. "
+                 "발행실적에 통화 구분이 없어 해외 자회사 외화채 금리가 섞일 수 있음. 등급에는 쓰지 않음")
     dso = terms.get("dso")
     if dso and dso.get("dso_days") is not None:
         got["k_dso"] = f.add(f"매출채권 회수기간({_when(dso.get('period_end'), dso.get('report_code'))})",
@@ -336,7 +356,8 @@ def assess(f: Facts, sector: str, fundamentals: dict | None, as_of: str, focus: 
             reasons.append(f"주가와 뚜렷한 동조 {{{k}}}")
             keys.append(k)
         if var == "금리":
-            for k, label in (("k_ir", "회사 공시 이자율 민감도"), ("k_mat", "1년 내 만기 비중"), ("k_rate", "회사채 발행금리")):
+            for k, label in (("k_ir", "회사 공시 이자율 민감도"), ("k_mat", "1년 내 만기 비중"), ("k_rate", "회사채 발행금리"),
+                             ("k_rate_grp", "자회사 포함 회사채 발행금리")):
                 if k in rep:
                     reasons.append(f"{label} {{{rep[k]}}}")
                     keys.append(rep[k])
@@ -393,6 +414,7 @@ def premises(f: Facts, rows: list[dict], sector: str) -> list[dict]:
     k_net, k_exp = _key_prefix(f, "달러 화폐성 순자산"), _key_prefix(f, "수출 매출 비중")
     k_debt = _key_prefix(f, "부채비율(")
     k_ir, k_mat, k_rate, k_dso = (basis.get(k) for k in ("k_ir", "k_mat", "k_rate", "k_dso"))
+    k_grp = basis.get("k_rate_grp")
     k_sens = basis.get("k_sens")
     out = []
     for item, why in PREMISES:
@@ -421,13 +443,13 @@ def premises(f: Facts, rows: list[dict], sector: str) -> list[dict]:
         elif item.startswith("수출 매출"):
             detail = "사업보고서 원문에서 회사 전체 내수·수출 표를 찾지 못했거나 미수집 (업종 기본값 사용)"
         elif item.startswith("차입"):
-            keys = [k for k in (k_mat, k_rate, k_ir) if k]
+            keys = [k for k in (k_mat, k_rate, k_grp, k_ir) if k]
             if sector in FINANCIAL and not keys:
                 detail = "금융업: 예대 금리 구조·자산 부채 만기 차이 자료 없음"
             elif keys:
                 status = "일부 확인"
                 got = [x for x, k in (("사채·CP 만기 구조", k_mat), ("회사채 발행금리", k_rate),
-                                      ("이자율 민감도", k_ir)) if k]
+                                      ("자회사 포함 회사채 발행금리", k_grp), ("이자율 민감도", k_ir)) if k]
                 detail = f"{'·'.join(got)} 확인. 변동·고정금리 비중과 은행 차입 조건은 공시 정형 자료가 없어 미확인"
                 keys += [k_debt] if k_debt else []
             elif k_debt:

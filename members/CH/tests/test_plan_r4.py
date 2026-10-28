@@ -297,3 +297,30 @@ def test_terms_sql_matches_issuer_by_equality(monkeypatch):
     monkeypatch.setattr(agents.rag, "fetch", lambda *a, **k: [])
     agents.fetch_bundle(1, {**CO, "company_id": 1}, AS_OF)
     assert any(isinstance(x, dict) and x.get("issuers") == ["삼성전자"] for x in seen)
+
+
+def test_group_bond_rate_is_evidence_only():
+    """자회사 포함(연결) 발행금리: 자회사 발행분이 있을 때만 별도 근거로 올리고 등급은 바꾸지 않습니다."""
+    fund = {"fiscal_year": 2025, "liabilities": 50.0, "equity": 100.0, "operating_income": 20_000_000e6}
+    grp = {"n": 9, "issuers": 3, "wavg": 3.9, "min": 3.1, "max": 4.6}
+    f = Facts("M")
+    rows = exposure.assess(f, "기타금융", fund, AS_OF, report=REPORT_IR, terms={**TERMS, "bond_rate_group": grp})
+    k = rows[0]["basis"]["k_rate_grp"]
+    assert f.items[k]["value"] == 3.9 and "발행사 3곳" in f.items[k]["label"] and "등급에는 쓰지 않음" in f.items[k]["note"]
+    assert "외화채" in f.items[k]["note"]
+    prem = {p["item"]: p for p in exposure.premises(f, rows, "기타금융")}
+    debt = prem["차입 조건(변동·고정금리 비중, 만기)"]
+    assert k in debt["keys"] and "자회사 포함 회사채 발행금리" in debt["detail"]
+    base = exposure.assess(Facts("M"), "기타금융", fund, AS_OF, report=REPORT_IR, terms=TERMS)
+    assert [r["level"] for r in rows] == [r["level"] for r in base]               # 등급 규칙은 그대로
+    # 자회사 발행분이 없으면(그룹 건수 = 자체 건수) 따로 올리지 않음
+    f2 = Facts("M")
+    same = {**grp, "n": TERMS["bond_rate"]["n"]}
+    rows2 = exposure.assess(f2, "기타금융", fund, AS_OF, report=REPORT_IR, terms={**TERMS, "bond_rate_group": same})
+    assert "k_rate_grp" not in rows2[0]["basis"]
+
+
+def test_terms_sql_uses_bonds_only_and_drops_spc():
+    sql = exposure.TERMS_SQL
+    assert "i.kind_nm ~ '회사채'" in sql and "'회사채|사채'" not in sql      # 전자단기사채는 금리에서 제외
+    assert "'bond_rate_group'" in sql and "유동화" in sql
