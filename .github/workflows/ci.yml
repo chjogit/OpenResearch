@@ -19,3 +19,5 @@ jobs:
       - run: pytest -q
       # members/ 는 testpaths 밖이라 따로 돌립니다 (DB·LLM 없이 실행되는 CH 에이전트 테스트)
       - run: pytest -q members/CH/tests
+      # SH 두 Agent(산업·사업모델, 기술적 분석) 테스트. DB·LLM 없이 실행
+      - run: pytest -q members/SH/tests
