@@ -114,6 +114,24 @@ def normalize_as_of(as_of) -> str:
                      "따옴표 없이 2026-10-26 이라고 쓰면 파이썬이 뺄셈으로 계산합니다.")
 
 
+# 종목과 무관한 시장 전체 조회(분기 매출 패널·KOSPI 200 사건 연구·ETF·금리 일정)는 같은 기준일이면 결과가 같아
+# 여러 종목을 돌릴 때 한 번만 조회합니다. 수집이 매시간 돌므로 10분만 보관합니다.
+SHARED_TTL = 600
+_SHARED: dict = {}
+
+
+def shared(name: str, as_of: str, fn):
+    import time
+
+    key = (name, as_of)
+    hit = _SHARED.get(key)
+    if hit and time.monotonic() - hit[0] < SHARED_TTL:
+        return hit[1]
+    val = fn()
+    _SHARED[key] = (time.monotonic(), val)
+    return val
+
+
 def fetch_bundle(agent_id: int, co: dict, as_of: str, use_rag: bool = True) -> dict:
     """관점 SQL 묶음 + (기본) RAG 후보 문서·공시. 'rag' 키는 스냅샷에도 그대로 저장됩니다."""
     mod = AGENTS[agent_id].module
@@ -133,21 +151,23 @@ def fetch_bundle(agent_id: int, co: dict, as_of: str, use_rag: bool = True) -> d
         except Exception:  # noqa: BLE001
             out["terms"] = None
         try:  # 금리 결정 일정 (kic-agent-data 021). 표가 아직 없으면 일정은 무자료로 남음
-            out["meetings"] = db.bundle(mod.MEETINGS_SQL, {"as_of": as_of})
+            out["meetings"] = shared("meetings", as_of, lambda: db.bundle(mod.MEETINGS_SQL, {"as_of": as_of}))
         except Exception:  # noqa: BLE001
             out["meetings"] = None
         try:  # P01-F05 기준선 예측·순차평가용 전 종목 분기 매출 패널
-            out["panel"] = db.q(forecast.PANEL_SQL, {"as_of": as_of})[0]
+            out["panel"] = shared("panel", as_of, lambda: db.q(forecast.PANEL_SQL, {"as_of": as_of})[0])
         except Exception:  # noqa: BLE001
             out["panel"] = None
     if agent_id in (1, 3):  # 대표 지수·배당 ETF (kic-agent-data 022). 1 은 참고용 시장 기준선, 3 은 ETF 자금 흐름
         try:
-            out["etf"] = (db.q(etf.SQL, {"etf": etf.REP_TICKERS, "as_of": as_of})[0] or {}).get("etf")
+            out["etf"] = shared("etf", as_of,
+                                lambda: (db.q(etf.SQL, {"etf": etf.REP_TICKERS, "as_of": as_of})[0] or {}).get("etf"))
         except Exception:  # noqa: BLE001
             out["etf"] = None
     if agent_id == 3:  # P03-F07 KOSPI 200 합산 사건 연구 (결과가 기준일까지 확정된 사건만)
         try:
-            out["panel_events"] = db.bundle(p03.PANEL_EVENT_SQL, {"as_of": as_of, "z": p03.Z_EVENT}) or None
+            out["panel_events"] = shared("panel_events", as_of, lambda: db.bundle(
+                p03.PANEL_EVENT_SQL, {"as_of": as_of, "z": p03.Z_EVENT}) or None)
         except Exception:  # noqa: BLE001
             out["panel_events"] = None
     if agent_id in quality.SOURCES:

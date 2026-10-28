@@ -148,3 +148,16 @@ def test_renderer_shows_scope_same_in_all_profiles():
     assert any(it["text"].startswith("의도: 보류") and "INTENT_NOT_INFERABLE" in it["text"] for it in scope)
     ok = [r for r in c["p03"]["eventStudy"] if r["status"] == "ok"]
     assert ("사건 연구" in views["L3-aggressive"]["markdown"]) == bool(ok)
+
+
+def test_shared_market_queries_cached_per_as_of(monkeypatch):
+    from ch_agents import agents
+
+    agents._SHARED.clear()
+    calls = []
+    f = lambda: calls.append(1) or len(calls)
+    assert agents.shared("x", "2026-10-28", f) == 1 and agents.shared("x", "2026-10-28", f) == 1
+    assert agents.shared("x", "2026-10-27", f) == 2          # 기준일이 다르면 다시 조회
+    monkeypatch.setattr(agents, "SHARED_TTL", -1)
+    assert agents.shared("x", "2026-10-28", f) == 3          # 보관 시간이 지나면 다시 조회
+    agents._SHARED.clear()
