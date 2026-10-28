@@ -48,6 +48,18 @@ def avail(pe, fq) -> date:
     return _d(pe) + timedelta(days=90 if int(fq) == 4 else 45)
 
 
+def quarter_key(pe) -> str:
+    """가장 가까운 달력 분기말로 묶은 이름 (예: 2025-09-28·2025-10-03 → 2025Q3). 52/53주 회계연도 해외 기업용."""
+    d = _d(pe)
+    best = None
+    for y in (d.year - 1, d.year, d.year + 1):
+        for q, (m, dd) in enumerate(((3, 31), (6, 30), (9, 30), (12, 31)), start=1):
+            gap = abs((date(y, m, dd) - d).days)
+            if best is None or gap < best[0]:
+                best = (gap, f"{y}Q{q}")
+    return best[1]
+
+
 def _value_at(series: list, day: date):
     """day 이전(포함) 마지막 관측 값. 일별 자료라 공표 지연 0일 (vintage.RULES 와 같음)."""
     last = None
@@ -79,7 +91,8 @@ def samples(panel: list[dict], macro: dict, export: dict) -> list[dict]:
                 continue
             dfx = (f1 / f5 - 1) * 100
             exp_share = float(export.get(str(c), export.get(c, 0)) or 0) / 100
-            out.append({"c": c, "target": str(hist[i]["pe"])[:10], "origin": origin.isoformat(),
+            out.append({"c": c, "target": str(hist[i]["pe"])[:10], "tq": quarter_key(hist[i]["pe"]),
+                        "origin": origin.isoformat(),
                         "known": avail(hist[i]["pe"], hist[i]["fq"]).isoformat(),
                         "y": math.log(y / y4), "base": y4, "actual": y,
                         "x_b2": [math.log(y1 / y5)], "x_m1": [math.log(y1 / y5), dfx, r1 - r5, dfx * exp_share]})
@@ -118,14 +131,14 @@ def run(panel, macro, export, as_of: str, seed: int = 7) -> dict:
     for origin in sorted({s["origin"] for s in S}):
         test = [s for s in S if s["origin"] == origin and s["known"] <= as_of]
         train = [s for s in S if s["known"] <= origin]
-        if not test or len(train) < MIN_TRAIN or len({s["target"] for s in train}) < MIN_TRAIN_PERIODS:
+        if not test or len(train) < MIN_TRAIN or len({s["tq"] for s in train}) < MIN_TRAIN_PERIODS:
             continue
         fb2 = ridge_fit([s["x_b2"] for s in train], [s["y"] for s in train])
         fm1 = ridge_fit([s["x_m1"] for s in train], [s["y"] for s in train])
         for s in test:
             preds.append({**s, "B0": s["base"], "B2": s["base"] * math.exp(fb2(s["x_b2"])),
                           "M1": s["base"] * math.exp(fm1(s["x_m1"])), "n_train": len(train)})
-    out = {"n_samples": len(S), "n_eval": len(preds), "targets": sorted({p["target"] for p in preds}),
+    out = {"n_samples": len(S), "n_eval": len(preds), "targets": sorted({p["tq"] for p in preds}),
            "companies": len({p["c"] for p in preds})}
     if not preds:
         out["verdict"] = "평가 불가: 학습 가능한 origin 없음 (분기 이력 부족)"
@@ -154,7 +167,7 @@ def block_bootstrap(preds, a, b, seed=7):
     """목표 분기 단위로 다시 뽑아 (a 오차 − b 오차) 평균의 90% 구간 (%p)."""
     blocks = defaultdict(list)
     for p in preds:
-        blocks[p["target"]].append(abs(p[a] / p["actual"] - 1) - abs(p[b] / p["actual"] - 1))
+        blocks[p["tq"]].append(abs(p[a] / p["actual"] - 1) - abs(p[b] / p["actual"] - 1))
     keys = sorted(blocks)
     if len(keys) < 2:
         return None, None
