@@ -1,4 +1,4 @@
-# 에이전트 출력 데이터 계약 (r4-1.1)
+# 에이전트 출력 데이터 계약 (r4-1.2)
 
 기초기획서 R4 3장과 교재 제2판 27장(주장과 원문 연결)을 코드로 옮긴 계약입니다.
 에이전트 1(거시경제)·에이전트 3(투자심리·수급)은 `run_agent()` 결과의 `contract`에 이 JSON을 담습니다.
@@ -30,6 +30,8 @@
 | `unverified[]` | 미확인 상태. `category`: 무자료 / 미확인 전제 / 판단 보류, `status`: 미확인 / 일부 확인. 반대 근거와 하방 위험이 모두 비면 `item: "반대 근거·하방 위험"`(판단 보류)이 들어감 | 미확인 상태 |
 | `unverified[].availability` | (r4-1.1, 선택) 채울 방법: `collecting` 수집 중 · `partial_disclosure` 공시에 일부 있음 · `not_disclosed` 공시 없음(대용치만) · `not_verified` 검증 미통과 · `unclassified` 분류 전. `availabilityLabel`은 한글 설명. 규칙은 `ch_agents/availability.py` | 미확인 상태 |
 | `evidence[]` | 근거 목록. 숫자(`number`)·문서(`document`)·공시(`disclosure`) | |
+| `evidence[].tier`, `evidence[].resultType` | (r4-1.2, 선택) 제작 기준 등급: `core`(기준 부합) / `reference`(참고용, 핵심 진단·주장의 유일한 근거로 쓰지 않음). 결과 종류: 관측·공시 민감도·과거 관계·실적 예측·시나리오·대용치 등. 규칙은 `ch_agents/p01.py`·`p03.py` | 근거 구분 |
+| `p01` (에이전트 1), `p03` (에이전트 3) | (r4-1.2, 선택) 제작 기준 과업 계약: `standard`, `origin`(예측 기준 시각), `tasks`(과업별 answered/held/not_requested), `statusCodes`(MODEL_NOT_APPROVED·OUT_OF_SUPPORT·INTENT_NOT_INFERABLE 등), `heldReasons`, `summary`(세 줄 요약). `p03.eventStudy`는 사건 연구 표 | 답할 수 없는 부분 |
 | `evidence[].dataDate` | 자료 기준일 (관측 시점, 사업보고서는 `FY2025`) | 자료 기준일 |
 | `evidence[].publishedAt` | 공개시각 (문서·공시). 원천에 시각이 없으면 날짜만(`2026-10-13`). 숫자 근거는 공표 시각 미수집이라 `null` | 공개시각 |
 | `evidence[].valueType` | 실측·계산·대용치·회사 공시 / 문서 종류 | |
@@ -358,7 +360,7 @@
 
 | # | 항목 | 현재 | 제안 |
 | --- | --- | --- | --- |
-| 1 | `status` 기계 판독 | 자유 문장 (`규칙 기반 대체 (LLM 호출 실패: TimeoutError)`) | 화면·오케스트레이터가 분기할 수 있게 `statusCode`(`completed` / `completed_partial` / `fallback`)를 추가하고 `status` 문장은 그대로 둠. 추가 필드라 r4-1.2 (r4-1.1은 `availability`에 씀) |
+| 1 | `status` 기계 판독 | 자유 문장 (`규칙 기반 대체 (LLM 호출 실패: TimeoutError)`) | 화면·오케스트레이터가 분기할 수 있게 `statusCode`(`completed` / `completed_partial` / `fallback`)를 추가하고 `status` 문장은 그대로 둠. 추가 필드라 r4-1.3 (r4-1.1은 `availability`, r4-1.2는 제작 기준 필드에 씀) |
 | 2 | 다른 에이전트 모듈 이름 | 스키마는 `agent.id` 1~7, `module`은 `agent<번호>_…` 형식만 검사. 1·3 외 이름 미정 | 각 담당자가 `agent2_…` 식 이름을 정해 이 표에 적음 (스키마 변경 없음) |
 | 3 | 반대 근거의 근거 ID 검사 | 생성 단계는 반대 근거도 검사, `link_errors`는 `main`만 | `link_errors`도 `counter`까지 검사 (다른 에이전트가 생성 단계 없이 계약만 맞출 때 대비) |
 | 4 | 공개시각 형식 | 문서는 시각이 없으면 날짜만 | 날짜만 있는 값을 허용하고, 화면은 날짜만 보여 줌 (현행 유지) |
@@ -370,6 +372,7 @@
 - 필드 이름·의미 변경, 필수 필드 추가, 허용 값 축소: `r4-2.0`
 - 버전을 올릴 때는 `contract.SCHEMA_VERSION`, 스키마 파일의 `schemaVersion.enum`, 이 문서 제목을 함께 바꿉니다.
 - 이력: `r4-1.1` (2026-10-28) `unverified[].availability`·`availabilityLabel` 추가 (선택 필드). 스키마는 `r4-1.0` 출력도 그대로 받습니다.
+- 이력: `r4-1.2` (2026-10-28 밤) `evidence[].tier`·`resultType`, 에이전트별 `p01`·`p03` 추가 (선택 필드). 제작 기준: `docs/P01_거시경제_상세개발기획서.md`, `docs/P03_투자심리수급_상세개발기획서.md`.
 
 ## 6. 다른 에이전트가 맞출 최소 요건
 

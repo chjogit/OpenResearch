@@ -7,7 +7,7 @@
   "required": ["schemaVersion", "reportId", "agent", "target", "mode", "asOf", "generatedAt", "status", "summary",
                "claims", "downsideRisks", "unverified", "evidence", "verification", "disclaimer"],
   "properties": {
-    "schemaVersion": {"type": "string", "enum": ["r4-1.0", "r4-1.1"]},
+    "schemaVersion": {"type": "string", "enum": ["r4-1.0", "r4-1.1", "r4-1.2"]},
     "reportId": {"type": "string", "pattern": "^RPT-\\d+-[0-9A-Za-z.]+-\\d{8}-[0-9a-f]{8}$"},
     "agent": {
       "type": "object", "required": ["id", "module", "name"],
@@ -90,7 +90,10 @@
           "source": {"type": ["string", "null"]},
           "sourceTag": {"type": "string"},
           "url": {"type": ["string", "null"]},
-          "cited": {"type": "boolean"}
+          "cited": {"type": "boolean"},
+          "tier": {"type": ["string", "null"], "enum": ["core", "reference", null],
+                   "description": "r4-1.2: 제작 기준(P01·P03) 부합 core / 참고용 reference"},
+          "resultType": {"type": ["string", "null"], "description": "r4-1.2: 관측·공시 민감도·과거 관계·실적 예측·시나리오·대용치 등"}
         }
       }
     },

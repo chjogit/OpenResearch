@@ -27,7 +27,7 @@ from pathlib import Path
 
 from .availability import AVAILABILITY, availability
 
-SCHEMA_VERSION = "r4-1.1"   # r4-1.1: unverified[].availability 추가 (선택 필드)
+SCHEMA_VERSION = "r4-1.2"   # r4-1.1: unverified[].availability, r4-1.2: evidence[].tier·resultType, p01·p03 (모두 선택 필드)
 SCHEMA_PATH = Path(__file__).resolve().parent / "schema" / "agent_output.schema.json"
 KST = timezone(timedelta(hours=9))
 MODULES = {1: "agent1_macro", 3: "agent3_sentiment_flow"}

@@ -11,6 +11,13 @@ CH 의 개인 작업 공간입니다. 실험 노트북, 스크립트, 메모를 
 
 | 파일 | 내용 |
 | --- | --- |
+| `docs/P01_거시경제_상세개발기획서.md` | **에이전트 1 제작 기준** (10-28). 기준과 맞지 않는 기존 출력은 지우지 않고 참고용(`tier=reference`)으로 낮춤 |
+| `docs/P03_투자심리수급_상세개발기획서.md` | **에이전트 3 제작 기준** (P01 구조 준용, 10-28) |
+| `ch_agents/p01.py` | P01 연결: 등급·결과 종류, 과업 계약(P01Plan)·상태 코드, 분기 자료 점검, 세 줄 요약 |
+| `ch_agents/vintage.py`, `forecast.py`, `scenario.py`, `anomaly.py` | P01 기능: 공표 시점 규칙(F02), 다음 분기 매출 기준선 B0/B1·80% 구간·순차평가(F05), 공시 민감도 시나리오 정적 환산(F07), 거시 이상 점검(F08) |
+| `ch_agents/p03.py` | P03 연결: 공개 시점 규칙(대차·검색), 등급, 과업 계약(의도 질문 보류), 사건 연구(종목·KOSPI 200 합산) |
+| `ch_agents/etf.py` | 지수·배당 ETF: 에이전트 1 참고용 시장 기준선, 에이전트 3 설정·환매 추정 자금 흐름 |
+| `scripts/smoke_p01_p03.py` | 실데이터 점검 (LLM 없이): `python scripts\smoke_p01_p03.py 005930 000660` |
 | `ch_agents/agent1_macro.py` | 에이전트 1 거시경제 계산 (`exposure.py`: 노출 점검표·미확인 전제) |
 | `ch_agents/agent3_sentiment_flow.py` | 에이전트 3 투자심리·수급 계산 (기준선 비교·중복 신호) |
 | `ch_agents/contract.py`, `ch_agents/schema/agent_output.schema.json` | 데이터 계약 (reportId·claimId·evidenceId). 설명은 `docs/DATA_CONTRACT.md` |
@@ -35,6 +42,9 @@ python -m pytest members\CH\tests -q
 from ch_agents import run_agent
 r1 = run_agent(1, "005930", focus=["환율", "금리"])   # 에이전트 1, 관심 거시 변수
 r3 = run_agent(3, "005930", period=10, mode="guide")  # 에이전트 3, 관찰 기간(거래일 5~120)
+# 제작 기준 과업 계약: 질문·시나리오를 주면 과업별로 답함/보류를 나눔 (계약의 p01·p03)
+r1s = run_agent(1, "005930", scenario="환율 5% 상승, 금리 0.5%p 하락", question="그러면 다음 분기 매출은?")
+r3q = run_agent(3, "005930", question="외국인이 알고 사는 거야?")   # 의도 부분은 INTENT_NOT_INFERABLE 로 보류
 r1["contract"]                                         # 데이터 계약 JSON
 ```
 
@@ -55,6 +65,7 @@ r1["contract"]                                         # 데이터 계약 JSON
 | `docs` | RAG로 고른 참고 문서 목록 (`D1`부터 순서대로). 공시는 `kind="공시"` |
 | `verification` | Verifier 대조 기록: claimId, 문장, ok, unmatched, sources(출처 태그), evidenceIds |
 | `exposure`, `premises` | 에이전트 1 노출 점검표 행, 미확인 전제 목록 |
+| `contract["p01"]`, `contract["p03"]` | 제작 기준 과업 계약: 과업 상태·상태 코드·보류 사유·세 줄 요약 (P03 은 사건 연구 표 포함). 근거마다 `tier`·`resultType` |
 | `anomalies`, `baseline`, `dup_clusters` | 에이전트 3 이상 징후, 기준선 비교 행, 중복 신호 묶음 |
 | `quality` | 데이터 품질 주의 원천 (quality.api_status 기준) |
 

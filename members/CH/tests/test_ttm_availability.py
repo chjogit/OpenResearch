@@ -74,7 +74,7 @@ def test_contract_carries_availability_and_validates(rng):
     b["report"] = REPORT
     out = run_agent(1, data=build_agent_data(1, CO, b, AS_OF), llm=FakeLLM(TimeoutError()))
     c = out["contract"]
-    assert c["schemaVersion"] == "r4-1.1" and contract.validate(c) == [] and contract.link_errors(c) == []
+    assert c["schemaVersion"] == contract.SCHEMA_VERSION and contract.validate(c) == [] and contract.link_errors(c) == []
     assert c["unverified"] and all(u["availability"] and u["availabilityLabel"] for u in c["unverified"])
     by = {u["item"]: u["availability"] for u in c["unverified"]}
     assert by["판가 전가력"] == "not_disclosed"
