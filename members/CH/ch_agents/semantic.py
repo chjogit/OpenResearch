@@ -4,7 +4,7 @@
 뜻을 반대로 쓴 문장(예: 코스피 대비 +0.71%p 를 '초과 손실'로 해석)은 통과합니다. 여기서는 두 가지를 봅니다.
 
 1. 판정 방향: 코드 판정에 쓰인 방향어(상회/하회, 가속/둔화, 개선/악화, 인상/인하, 원화 강세/약세,
-   뚜렷한/약한)를 판정 속 키에 연결해 두고, 그 키를 인용한 문장이 반대 방향어만 쓰면 불일치로 봅니다.
+   상관 강함/보통/약함, 유의함/유의하지 않음)를 판정 속 키에 연결해 두고, 그 키를 인용한 문장이 반대 방향어만 쓰면 불일치로 봅니다.
 2. 부호 방향: 증감을 나타내는 값(%, %p, 주, 원±, 점수)의 키 바로 뒤에 반대 부호의 서술어
    (값이 +인데 '감소·하락·순매도', 값이 -인데 '증가·상승·순매수')가 오면 불일치로 봅니다.
 
@@ -30,8 +30,13 @@ DIRECTIONS = [
     ("인하", ("인하",), ("인상",)),
     ("원화 강세", ("원화 강세", "원화가 강세", "달러 약세"), ("원화 약세", "원화가 약세", "달러 강세")),
     ("원화 약세", ("원화 약세", "원화가 약세", "달러 강세"), ("원화 강세", "원화가 강세", "달러 약세")),
-    ("뚜렷", ("뚜렷",), ("약한 동조", "약하게 동조", "동조가 약", "동조는 약", "약한 역방향")),
-    ("약함", ("약한", "약하", "약함"), ("뚜렷",)),
+    # 동조성: 크기(강함/보통/약함)와 유의성(유의함/유의하지 않음)을 따로 봅니다 (facts.corr_label)
+    ("강함", ("강한", "강하", "강함", "뚜렷"), ("약한 동조", "약하게 동조", "동조가 약", "동조는 약", "약한 역방향",
+                                             "상관 약", "상관이 약", "상관은 약")),
+    ("보통", ("보통", "중간"), ("뚜렷", "강한 동조", "강하게 동조", "상관 강", "상관이 강")),
+    ("약함", ("약한", "약하", "약함"), ("뚜렷", "강한 동조", "강하게 동조", "상관 강", "상관이 강", "상관 보통")),
+    ("유의", ("유의함", "유의한", "유의하다", "유의미"), ("유의하지 않", "유의하지않", "무의미")),
+    ("비유의", ("유의하지 않", "유의하지않", "무의미"), ("유의함", "유의한", "유의하다", "유의미")),
     ("시장 동행", ("같은 방향", "동행", "함께"), ("반대 방향", "역행", "시장과 달리", "시장과 다른")),
     ("시장 역행", ("반대 방향", "역행", "시장과 달리", "시장과 다른"), ("같은 방향", "동행")),
 ]
@@ -39,7 +44,9 @@ DIRECTIONS = [
 FLAG_MARKERS = {
     "상회": ("상회",), "하회": ("하회",), "가속": ("가속",), "둔화": ("둔화",), "개선": ("개선",),
     "악화": ("악화",), "인상": ("인상 국면",), "인하": ("인하 국면",), "원화 강세": ("원화 강세",),
-    "원화 약세": ("원화 약세",), "뚜렷": ("뚜렷",), "약함": ("약한", "약함"),
+    "원화 약세": ("원화 약세",),
+    "강함": ("상관 강함",), "보통": ("상관 보통",), "약함": ("상관 약함",),
+    "유의": ("·유의함",), "비유의": ("·유의하지 않음",),
     "시장 동행": ("시장과 같은 방향",), "시장 역행": ("시장과 반대 방향",),   # 에이전트 3 시장 기준선 판정
 }
 
@@ -69,8 +76,9 @@ def flag_directions(f: Facts) -> dict[str, set[str]]:
             for name, markers in FLAG_MARKERS.items():
                 if any(mk in text for mk in markers):
                     found.add(name)
-            if "뚜렷" in found:  # 한 조각에 둘 다 있으면 판정이 모호하므로 강도는 점검하지 않음
-                found -= {"뚜렷", "약함"} if "약함" in found else set()
+            sizes = found & {"강함", "보통", "약함"}
+            if len(sizes) > 1:  # 한 조각에 크기가 둘 이상이면 판정이 모호하므로 크기는 점검하지 않음
+                found -= sizes
             for k in keys:
                 out.setdefault(k, set()).update(found)
     return out
@@ -110,4 +118,87 @@ def direction_problems(text: str, f: Facts, refs: list[str] | None = None,
         pos, neg = any(w in after for w in POS_WORDS), any(w in after for w in NEG_WORDS)
         if it["value"] > 0 and neg and not pos or it["value"] < 0 and pos and not neg:
             probs.append(f"부호 불일치: {m.group(1)}={it['text']} 인데 '{after.strip()}'")
+    inline = set(KEY_RE.findall(text))
+    probs += ref_sign_problems(plain, f, [k for k in (refs or []) if k not in inline])
+    return probs
+
+
+# ------------------------------------------------------------ 숫자 없이 근거 키만 단 문장의 증감 서술
+# 가이드 모드는 숫자를 빼고 '마이너스·플러스·증가' 처럼 말로 쓰는 경우가 많아, 위의 '키 바로 뒤' 점검에 걸리지 않습니다.
+# (10/28 가이드 실행: 거래대금 배율 0.56배를 근거로 달고 '거래대금 증가'라고 쓴 문장이 통과)
+# 근거 키 항목 이름의 앞부분(주어)을 문장에서 찾아, 그 뒤에 오는 증감 서술과 값의 방향을 비교합니다.
+RATIO_DEADBAND = 0.05  # 배율이 1±이 값 안이면 방향 없음으로 봄
+HIGH_WORDS = ("높", "많", "커", "크게 늘", "웃돌")
+LOW_WORDS = ("낮", "적", "작", "줄", "밑돌")
+SUBJECT_CUT = re.compile(r"\s*(?:\d|\(|최근|직전|변화|배율|강도|수량|금액|평균|비율)")
+
+
+def _direction_of(it: dict) -> int:
+    """항목 값의 방향: +1 증가 쪽, -1 감소 쪽, 0 방향 없음/판단 안 함."""
+    v, unit = it.get("value"), it.get("unit")
+    if v is None:
+        return 0
+    if unit in SIGN_UNITS:
+        return (v > 0) - (v < 0)
+    if unit == "배" and "배율" in it.get("label", ""):
+        return 0 if abs(v - 1) < RATIO_DEADBAND else (1 if v > 1 else -1)
+    return 0
+
+
+def _subject(label: str) -> str:
+    m = SUBJECT_CUT.search(label)
+    return (label[:m.start()] if m else label).strip()
+
+
+def ref_sign_problems(plain: str, f: Facts, refs: list[str]) -> list[str]:
+    """근거 키(문장에 숫자로 안 나온 것)의 방향과 문장 서술의 방향이 반대인지. 주어가 겹치면 판단하지 않습니다."""
+    cands = []
+    for k in refs:
+        it = f.items.get(k)
+        if not it:
+            continue
+        d = _direction_of(it)
+        subj = _subject(it["label"])
+        if d and len(subj) >= 3:
+            cands.append((k, it, d, subj))
+    subjects = [s for *_, s in cands]
+    probs = []
+    for k, it, d, subj in cands:
+        if subjects.count(subj) > 1 or plain.count(subj) != 1:  # 같은 주어가 여럿(5일·20일 등)이면 어느 값인지 모름
+            continue
+        after = _after(plain, plain.index(subj) + len(subj))
+        up = any(w in after for w in POS_WORDS) or (it["unit"] == "배" and any(w in after for w in HIGH_WORDS))
+        down = any(w in after for w in NEG_WORDS) or (it["unit"] == "배" and any(w in after for w in LOW_WORDS))
+        if d > 0 and down and not up or d < 0 and up and not down:
+            probs.append(f"부호 불일치: 근거 {k}={it['text']} 인데 '{subj}{after.rstrip()}'")
+    return probs
+
+
+# ------------------------------------------------------------ 기준선 판정과 다른 서술
+OUTSIDE_WORDS = ("평소보다 높", "평소보다 낮", "평소보다 많", "평소보다 적", "평소보다 크", "평소보다 작",
+                 "이례적", "급증", "급감")
+
+
+def baseline_problems(text: str, refs: list[str] | None, baseline: list[dict] | None) -> list[str]:
+    """기준선 비교에서 '평소 범위'로 판정된 신호를 '평소보다 높다·이례적'이라고 쓴 문장.
+
+    (10/28 가이드 실행: 검색 관심도 배율 1.44배 → 기준선 판정 '평소 범위'인데 '평소보다 높은 편'으로 서술)"""
+    if not baseline:
+        return []
+    plain = KEY_RE.sub("", text)
+    keys = set(KEY_RE.findall(text)) | set(refs or [])
+    probs = []
+    for row in baseline:
+        k = row.get("measure")
+        if k not in keys or row.get("status") != "평소 범위":
+            continue
+        name = str(row.get("signal", ""))
+        head = name.split("(")[0].split()[0] if name else ""
+        if head and head not in plain:   # 같은 문장의 다른 신호에 대한 서술일 수 있음
+            continue
+        start = plain.index(head) if head else 0
+        seg = plain[start:start + len(head) + 20]   # 신호 이름 뒤 20자 안의 서술만 봄
+        used = [w for w in OUTSIDE_WORDS if w in seg]
+        if used:
+            probs.append(f"기준선 판정 불일치: {name}({k})는 '평소 범위'인데 '{used[0]}' 서술")
     return probs

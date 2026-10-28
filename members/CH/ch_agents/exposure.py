@@ -22,7 +22,7 @@ from __future__ import annotations
 
 import re
 
-from .facts import Facts, significant
+from .facts import Facts, corr_label, days_between, significant
 
 LEVELS = ("낮음", "중간", "높음")
 VARIABLES = ("환율", "금리", "원자재·물가", "수출·경기")
@@ -70,6 +70,9 @@ STAT_DRIVERS = {
 FINANCIAL = {"은행", "증권", "보험", "기타금융"}
 STRONG_CORR = 0.3
 HIGH_DEBT, LOW_DEBT = 200.0, 50.0
+SMALL_DEBT_SHARE = 1.0   # 사채·CP 미상환 잔액이 총부채의 이 % 미만이면 만기 비중·발행금리를 '참고'로만 표시
+FEW_BONDS = 3            # 발행금리 표본(미상환 회사채 건수)이 이보다 적으면 '표본 적음'
+STALE_REPORT_DAYS = 180  # 사업보고서 회계연도 말에서 기준일까지 이 일수가 넘으면 '기준 시점 주의'
 UNKNOWN_NOW = "사업보고서 원문 추출값 없음 (kic-agent-data report-exposure 수집 전이거나 표를 찾지 못함)"
 
 
@@ -270,19 +273,56 @@ def _report_facts(f: Facts, report: list[dict] | None, fundamentals: dict | None
     return got
 
 
+def _basis_check(f: Facts, report: list[dict] | None, fundamentals: dict | None, terms: dict | None,
+                 as_of: str) -> None:
+    """노출 근거의 기준 시점이 섞이거나 오래됐는지 알립니다 (P0).
+
+    환율 민감도·부채비율은 사업보고서 연간(FY) 기준이고, 매출채권 회수기간은 최근 정기보고서·4개 분기 매출 기준입니다.
+    10/28 실행에서 FY2025 영업이익을 분모로 쓴 비율이 2026년 실적 규모와 맞지 않았는데 표시가 없었습니다."""
+    fy = (report or [{}])[0].get("fiscal_year") or (fundamentals or {}).get("fiscal_year")
+    if not fy:
+        return
+    try:
+        age = days_between(f"{int(fy)}-12-31", as_of)
+    except (TypeError, ValueError):
+        return
+    if age <= STALE_REPORT_DAYS:
+        return
+    dso = (terms or {}).get("dso") or {}
+    mixed = f" 매출채권 회수기간은 {str(dso['period_end'])[:7]} 정기보고서 기준이라 시점이 다름." if dso.get("period_end") else ""
+    f.flag(f"기준 시점 주의: 환율·이자율 민감도와 부채비율은 FY{fy} 사업보고서(연간) 기준이라 이후 분기 실적 변화가 "
+           f"반영되지 않음.{mixed} 영업이익 대비 비율은 최근 실적 규모에서는 달라질 수 있음")
+    f.gap("최근 4개 분기(TTM) 영업이익 대비 환율 민감도", "TTM 영업이익을 노출 계산에 아직 연결하지 않음 (연간 기준만 사용)")
+
+
 def _when(d: str | None, code: str | None) -> str:
     q = {"11013": "1분기", "11012": "반기", "11014": "3분기", "11011": "사업"}.get(code or "", "")
     return f"{(d or '')[:7]} {q}보고서".strip()
 
 
-def _terms_facts(f: Facts, terms: dict | None) -> dict:
-    """차입 조건·매출채권 회수기간을 장부에 올립니다. 금액 단위는 원문 표를 따르므로 비율만 씁니다."""
+def _terms_facts(f: Facts, terms: dict | None, fundamentals: dict | None = None) -> dict:
+    """차입 조건·매출채권 회수기간을 장부에 올립니다. 금액 단위는 원문 표를 따르므로 비율만 씁니다.
+
+    규모(P0): 10/28 실행에서 삼성전자 '1년 내 만기 50%'·'발행금리 7.70%'가 미상환 회사채 1건(총부채의 0.01% 수준)
+    에서 나온 값인데 총부채 기준 지표와 같은 무게로 보였습니다. 총부채 대비 잔액 비중과 표본 수를 함께 올리고,
+    작으면 '참고'로 표시합니다(등급 규칙은 원래대로 이 값들을 쓰지 않음)."""
     got: dict = {}
     if not terms:
         return got
     mat = [m for m in terms.get("maturity") or [] if m.get("total")]
     if mat:
         tot = sum(float(m["total"]) for m in mat)
+        liab = (fundamentals or {}).get("liabilities")
+        if liab and float(liab) > 0:
+            share = tot / float(liab) * 100
+            got["k_mat_share"] = f.add(
+                f"사채·CP 미상환 잔액 ÷ 총부채(FY{(fundamentals or {}).get('fiscal_year')} 부채 기준)", share, "%",
+                f"FY{(fundamentals or {}).get('fiscal_year')}", SRC_TERMS + " × core.v_fundamentals_annual", kind="calc",
+                group="노출 근거", note="정기보고서 미상환 잔액(원문 표 단위를 원으로 봄) ÷ 연간 부채총계. 규모 판단용")
+            if share < SMALL_DEBT_SHARE:
+                got["small_debt"] = True
+                f.flag(f"규모 주의: 사채·CP 미상환 잔액이 총부채에서 차지하는 비중이 작음 ({{{got['k_mat_share']}}}). "
+                       "만기 비중·회사채 발행금리는 전체 차입 조건을 대표하지 않는 참고치")
         within = sum(float(m["within_1y"] or 0) for m in mat)
         last = max(mat, key=lambda m: m["stlm_dt"] or "")
         kinds = "·".join({"bond": "회사채", "cp": "CP", "stb": "단기사채"}.get(m["kind"], m["kind"]) for m in mat)
@@ -290,6 +330,8 @@ def _terms_facts(f: Facts, terms: dict | None) -> dict:
                              within / tot * 100 if tot else None, "%", last["stlm_dt"], SRC_TERMS, kind="calc",
                              group="노출 근거", note="잔여만기 구간별 미상환 잔액에서 계산. 은행 차입금은 포함하지 않음")
     br = terms.get("bond_rate") or {}
+    if br.get("n") and br["n"] < FEW_BONDS:
+        got["few_bonds"] = True
     if br.get("n") and br.get("wavg") is not None:
         got["k_rate"] = f.add(f"미상환 회사채 가중평균 발행금리({br['n']}건, {(br.get('stlm_dt') or '')[:7]} 기준)",
                               float(br["wavg"]), "%", br.get("stlm_dt"), SRC_TERMS, kind="calc", group="노출 근거",
@@ -329,7 +371,8 @@ def assess(f: Facts, sector: str, fundamentals: dict | None, as_of: str, focus: 
     if fundamentals is None and sector not in FINANCIAL:
         f.gap("부채비율", "연간 재무 없음 (금리 노출은 업종 기본값만 사용)")
     rep = _report_facts(f, report, fundamentals)
-    rep.update(_terms_facts(f, terms))
+    rep.update(_terms_facts(f, terms, fundamentals))
+    _basis_check(f, report, fundamentals, terms, as_of)
 
     rows = []
     for i, var in enumerate(VARIABLES):
@@ -362,13 +405,18 @@ def assess(f: Facts, sector: str, fundamentals: dict | None, as_of: str, focus: 
         if k and r is not None and n and significant(r, n) and abs(r) >= STRONG_CORR:
             if not company:
                 level = min(2, level + 1)
-            reasons.append(f"주가와 뚜렷한 동조 {{{k}}}")
+            reasons.append(f"주가와 {corr_label(r, n)} {{{k}}}")
             keys.append(k)
         if var == "금리":
             for k, label in (("k_ir", "회사 공시 이자율 민감도"), ("k_mat", "1년 내 만기 비중"), ("k_rate", "회사채 발행금리"),
                              ("k_rate_grp", "자회사 포함 회사채 발행금리")):
                 if k in rep:
-                    reasons.append(f"{label} {{{rep[k]}}}")
+                    tag = ""
+                    if k in ("k_mat", "k_rate", "k_rate_grp") and rep.get("small_debt"):
+                        tag = "(규모 작음, 참고) "
+                    elif k == "k_rate" and rep.get("few_bonds"):
+                        tag = "(표본 적음, 참고) "
+                    reasons.append(f"{label} {tag}{{{rep[k]}}}")
                     keys.append(rep[k])
         if var == "금리" and debt is not None and debt_key:
             if debt >= HIGH_DEBT:

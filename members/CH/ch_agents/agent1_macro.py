@@ -4,7 +4,8 @@
 - 지표별 최신값, 3·12개월 변화, 국면 판정(인상/인하/보합, 원화 강세/약세, 물가 가속/둔화)
 - 반도체 수출: 최근 달 전년 대비, 최근 3개월 합계 전년 대비, 최근 6개월 중 전년 대비 증가한 달 수
 - 동조성: 종목 일간 수익률과 원/달러·코스피(같은 날), 미국 10년물·필라델피아 반도체(전날) 변화의
-  상관·베타를 60·250거래일로 계산하고, 거친 유의 기준(2/√n)으로 '뚜렷함/약함'을 표시
+  상관·베타를 60·250거래일로 계산하고, 크기(|r| 0.2·0.4 기준 약함/보통/강함)와
+  거친 유의 기준(2/√n)을 따로 표시
 - 업종별 전달 경로 가이드(숫자 없음): 어떤 변수가 어떤 경로로 실적에 닿는지, DB에 없는 변수는 무자료로
 
 한계: 동조성은 통계적 관계이지 기업의 노출(수출 비중·외화 부채·헤지)이 아닙니다. 노출 데이터는 DB에 없습니다.
@@ -17,13 +18,13 @@ from .facts import (
     Facts,
     check_freshness,
     corr_beta,
+    corr_label,
     daily_diffs,
     daily_returns,
     days_between,
     pct_change,
     series_points,
     shift_months,
-    significant,
     value_on_or_before,
 )
 
@@ -362,17 +363,14 @@ def compute(b: dict, co: dict, as_of: str, focus: list[str] | None = None, **_) 
                     note=f"{n250}거래일, 통계적 동조성이며 노출·인과 아님" + (" (미국 전날 기준)" if lag else ""))
         f.add(f"주가-{name} 베타(250일)", b250, "coef", period, src, kind="calc", group="동조성", note=unit_note)
         k_r60 = f.add(f"주가-{name} 상관(60일)", r60, "coef", f"최근 {n60}거래일", src, kind="calc", group="동조성")
-        strong = significant(r250, n250)
-        same_dir = r60 is not None and (r60 > 0) == (r250 > 0)
+        # 크기(|r|)와 유의성(표본 수 기준)을 따로 표시합니다. '뚜렷/약함' 한 단어로 합치면
+        # 250일 -0.17(유의) 과 60일 -0.16(비유의) 이 다른 말로 읽혀 기준이 섞입니다.
         recent = ""
-        if strong and k_r60:
-            if same_dir and significant(r60, n60):
-                recent = ", 최근 60일도 같은 방향으로 뚜렷함"
-            elif same_dir:
-                recent = f", 최근 60일은 같은 방향이지만 약함 ({{{k_r60}}})"
-            else:
-                recent = f", 최근 60일은 방향이 반대 ({{{k_r60}}})"
-        f.flag(f"주가-{name}: {'뚜렷한' if strong else '약한'} 동조 ({{{k_r}}}){recent}")
+        if k_r60 and r60 is not None:
+            same_dir = (r60 > 0) == (r250 > 0)
+            recent = (f", 최근 60일 {corr_label(r60, n60)}" + ("" if same_dir else "·방향 반대")
+                      + f" ({{{k_r60}}})")
+        f.flag(f"주가-{name}: {corr_label(r250, n250)} ({{{k_r}}}){recent}")
 
     # 4) 업종별 전달 경로
     guide = TRANSMISSION.get(sector, DEFAULT_TRANSMISSION)

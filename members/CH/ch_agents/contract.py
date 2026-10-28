@@ -35,7 +35,33 @@ DISCLAIMER = "투자 검토 참고치 및 리스크 요약입니다. 매수·매
 COUNTER_GAP = "반대 근거·하방 위험"
 
 
+# ---------------------------------------------------------------- 미확인 항목 중복 판단
+
+_TOKEN = re.compile(r"[가-힣A-Za-z]{2,}")
+_STOP = {"여부", "확인", "미확인", "조건", "실제", "기업의", "기업", "등의", "이나", "및"}
+
+
+def _tokens(text: str) -> set[str]:
+    out = set()
+    for w in _TOKEN.findall(str(text)):
+        w = re.sub(r"(의|별|과|와|이나|에|을|를)$", "", w) if len(w) > 2 else w
+        if w not in _STOP:
+            out.add(w)
+    return out
+
+
+def same_item(a: str, b: str, ratio: float = 0.5) -> bool:
+    """미확인 항목 두 개가 같은 내용을 가리키는지 (짧은 쪽 단어의 절반 이상이 겹치면 같다고 봄).
+
+    10/28 실행: '환헤지 여부·비율'(미확인 전제)과 '환헤지 비율·만기'(판단 보류)처럼 같은 항목이 5쌍 겹쳐 나왔습니다."""
+    ta, tb = _tokens(a), _tokens(b)
+    if not ta or not tb:
+        return False
+    return len(ta & tb) / min(len(ta), len(tb)) >= ratio
+
+
 # ---------------------------------------------------------------- 근거 ID
+
 
 def evidence_map(data) -> dict[str, str]:
     """장부 키(M7, S3, D2) → 근거 ID(E01…)."""
@@ -161,8 +187,13 @@ def build(run: dict, data, mode: str = "expert") -> dict:
             unverified.append({"item": p["item"], "reason": p["detail"], "category": "미확인 전제",
                                "status": p["status"], "evidenceIds": evidence_ids(p["keys"], emap)})
     for t in res.get("미확인") or []:
-        unverified.append({"item": plain(t, data), "reason": "에이전트가 판단에 필요하다고 본 미확인 항목",
-                           "category": "판단 보류", "status": "미확인", "evidenceIds": evidence_ids(_keys_in(t), emap)})
+        item, ev = plain(t, data), evidence_ids(_keys_in(t), emap)
+        dup = next((u for u in unverified if same_item(item, u["item"])), None)
+        if dup is not None:  # 미확인 전제·무자료와 같은 항목을 LLM 이 다시 쓴 것: 새 줄을 만들지 않고 근거만 합침
+            dup["evidenceIds"] = list(dict.fromkeys(dup["evidenceIds"] + ev))
+            continue
+        unverified.append({"item": item, "reason": "에이전트가 판단에 필요하다고 본 미확인 항목",
+                           "category": "판단 보류", "status": "미확인", "evidenceIds": ev})
     if not any(c["role"] == "counter" for c in claims) and not risks:
         # 규칙 5: 반대 근거·하방 위험이 검증을 통과하지 못해 비었으면, 없다는 사실을 미확인으로 드러냅니다.
         unverified.append({"item": COUNTER_GAP, "reason": "검증을 통과한 반대 근거와 하방 위험이 없음",

@@ -26,7 +26,9 @@ except ImportError:  # members/CH 에서 실행하면 저장소 최상위가 경
     from agent.verifier.fact_source_verifier import verify as _verify
 
 KEY = re.compile(r"\{([A-Z]\d+)\}")
-DATE = re.compile(r"\d{4}-\d{2}-\d{2}|\d{4}\.\d{1,2}(?:\.\d{1,2})?|FY\d{4}")
+DATE = re.compile(r"\d{4}-\d{2}(?:-\d{2})?|\d{4}\.\d{1,2}(?:\.\d{1,2})?|FY\d{4}")
+# 값이 아니라 식별자인 숫자: 0으로 시작하는 번호(마이그레이션 021, 종목코드 005930), 스키마·테이블 이름 속 숫자
+IDENT = re.compile(r"(?<![\d.,])0\d+(?![\d.,%])|\b[a-z_]+\.[a-z_]*\d+[a-z_\d]*\b|\bsql/\d+\b")
 LABEL_NUM = re.compile(r"\d+(?:\.\d+)?")
 TOOL = "ch_agents"
 CLAIM_FIELDS = ("주장", "반대근거")
@@ -65,7 +67,8 @@ def check_text(text: str, keys: list[str], data, terms: dict | None = None) -> d
     shown = plain(text, data)
     rows = [{"value": items[k]["value"]} for k in keys if k in items and items[k]["value"] is not None]
     rows.append(terms if terms is not None else _term_values(data))
-    res = _verify(DATE.sub(lambda m: " " * len(m.group(0)), shown),
+    masked = IDENT.sub(lambda m: " " * len(m.group(0)), DATE.sub(lambda m: " " * len(m.group(0)), shown))
+    res = _verify(masked,
                   [ToolResult(tool=TOOL, source="ledger", sql="", params={}, rows=rows)])
     sources = []
     for k in keys:

@@ -48,6 +48,7 @@ r1["contract"]                                         # 데이터 계약 JSON
 | `result` | 핵심진단, 주장·반대근거(claimId·문장·구분·근거 키·출처), 긍정요인, 리스크요인, 미확인, 다음점검, 자체점수 |
 | `facts`, `gaps`, `flags` | 숫자 장부, 무자료 목록, 코드 판정 |
 | `checks`, `removed`, `attempts` | 코드 검사 결과, 최종 출력에서 뺀 문장, LLM 시도 기록 |
+| `claim_stats` | 품질 지표: 남은 주장·반대근거 수, claimId 가 있는 Verifier 통과 수, 전체 대조 수, 뺀 문장 수, 개수 상한(주장 7·반대근거 3)으로 자른 수 |
 | `analysis`, `source` | 사람이 읽는 마크다운(키를 값으로 바꾼 것), 출처 |
 | `docs` | RAG로 고른 참고 문서 목록 (`D1`부터 순서대로). 공시는 `kind="공시"` |
 | `verification` | Verifier 대조 기록: claimId, 문장, ok, unmatched, sources(출처 태그), evidenceIds |

@@ -230,6 +230,8 @@ def compute(b: dict, co: dict, as_of: str, period: int | None = None, **_) -> di
     # 2) 가격·시장
     g = "가격·시장"
     px = series_points(b.get("price"))
+    flow_last = rows[0]["d"] if rows else None
+    lag = flow_lag(f, flow_last, px[-1][0] if px else None)
     ks = series_points(b.get("kospi"))
     ret = {}
     for n in sorted({20, 60, P}):
@@ -367,7 +369,21 @@ def compute(b: dict, co: dict, as_of: str, period: int | None = None, **_) -> di
     if P not in (5, 20, 60):
         f.note(f"사용자 관찰 기간: {P}거래일")
     return {"facts": f, "docs": [], "period": period, "anomalies": anomalies, "summary": summary_rows(f, P),
-            "obs_period": P, "baseline": baseline, "dup_clusters": clusters, "sentiment_model": SENT_MODEL}
+            "obs_period": P, "baseline": baseline, "dup_clusters": clusters, "sentiment_model": SENT_MODEL,
+            "freshness": {"수급": flow_last, "가격": px[-1][0] if px else None, "수급 지연": lag}}
+
+
+def flow_lag(f: Facts, flow_last: str | None, price_last: str | None) -> bool:
+    """수급 자료가 가격 자료보다 늦게 끝나면(가격은 있는데 그날 수급이 없으면) 판정과 무자료로 남깁니다.
+
+    10/28 실행: 수급은 10/26, 가격은 10/27 까지라 '외국인 연속 순매도 3일'이 10/27 순매수 전환 기사와 어긋났는데
+    아무 경고가 없었습니다. 절대 지연(check_freshness, 5일)으로는 하루 차이를 잡지 못합니다."""
+    if not flow_last or not price_last or flow_last >= price_last:
+        return False
+    f.flag(f"자료 시차: 투자자별 수급은 {flow_last}까지, 가격은 {price_last}까지 "
+           f"(그 뒤 거래일 수급 미반영. 연속 일수·최근 강도 해석 주의)")
+    f.gap(f"{price_last} 투자자별 수급", f"수급 수집이 가격보다 늦음 (수급 마지막 {flow_last})")
+    return True
 
 
 def market_baseline(f: Facts, rows: list[dict], market: list[dict] | None, P: int, baseline: list[dict]) -> None:
