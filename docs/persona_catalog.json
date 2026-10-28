@@ -1,0 +1,101 @@
+{
+  "definition_version": "1.0",
+  "literacy": [
+    {
+      "code": "L1",
+      "name": "입문",
+      "definition": "금융 용어와 정보의 기본 구조를 배우는 사용자",
+      "instruction": "쉬운 말과 비유로 핵심을 먼저 설명하고, 처음 나오는 용어를 풀이한다."
+    },
+    {
+      "code": "L2",
+      "name": "기초",
+      "definition": "주요 금융 개념과 개별 지표의 의미를 이해하는 사용자",
+      "instruction": "지표의 의미, 해당 기업의 사례, 해석 시 주의점을 차례로 연결한다."
+    },
+    {
+      "code": "L3",
+      "name": "중급",
+      "definition": "여러 자료·지표를 비교하고 관계를 검토하는 사용자",
+      "instruction": "비교표와 지표 간 관계, 반대 해석, 추가 확인 사항을 제시한다."
+    },
+    {
+      "code": "L4",
+      "name": "고급",
+      "definition": "분석의 가정·산식·자료 편향·한계까지 검토하는 사용자",
+      "instruction": "원천 자료, 방법론, 계산 조건, 민감도와 반증 조건을 상세히 제시한다."
+    }
+  ],
+  "investment_style": [
+    {
+      "code": "A",
+      "name": "적극형",
+      "definition": "기회가 성립하는 조건을 우선 검토하는 분석 관점",
+      "instruction": "기회와 성립 조건을 먼저 제시하되 실패 조건·반대 근거·위험을 함께 제시한다."
+    },
+    {
+      "code": "C",
+      "name": "신중형",
+      "definition": "지속 가능성·불확실성·위험을 우선 검토하는 분석 관점",
+      "instruction": "위험과 하방 조건을 먼저 제시하되 기회 요인·위험 완화 근거도 함께 제시한다."
+    }
+  ],
+  "combined": [
+    {
+      "persona_id": "L1-A",
+      "name": "입문·적극형",
+      "literacy_level": "L1",
+      "investment_style": "A",
+      "instruction": "쉬운 말과 비유로 핵심을 먼저 설명하고, 처음 나오는 용어를 풀이한다.기회와 성립 조건을 먼저 제시하되 실패 조건·반대 근거·위험을 함께 제시한다."
+    },
+    {
+      "persona_id": "L1-C",
+      "name": "입문·신중형",
+      "literacy_level": "L1",
+      "investment_style": "C",
+      "instruction": "쉬운 말과 비유로 핵심을 먼저 설명하고, 처음 나오는 용어를 풀이한다.위험과 하방 조건을 먼저 제시하되 기회 요인·위험 완화 근거도 함께 제시한다."
+    },
+    {
+      "persona_id": "L2-A",
+      "name": "기초·적극형",
+      "literacy_level": "L2",
+      "investment_style": "A",
+      "instruction": "지표의 의미, 해당 기업의 사례, 해석 시 주의점을 차례로 연결한다.기회와 성립 조건을 먼저 제시하되 실패 조건·반대 근거·위험을 함께 제시한다."
+    },
+    {
+      "persona_id": "L2-C",
+      "name": "기초·신중형",
+      "literacy_level": "L2",
+      "investment_style": "C",
+      "instruction": "지표의 의미, 해당 기업의 사례, 해석 시 주의점을 차례로 연결한다.위험과 하방 조건을 먼저 제시하되 기회 요인·위험 완화 근거도 함께 제시한다."
+    },
+    {
+      "persona_id": "L3-A",
+      "name": "중급·적극형",
+      "literacy_level": "L3",
+      "investment_style": "A",
+      "instruction": "비교표와 지표 간 관계, 반대 해석, 추가 확인 사항을 제시한다.기회와 성립 조건을 먼저 제시하되 실패 조건·반대 근거·위험을 함께 제시한다."
+    },
+    {
+      "persona_id": "L3-C",
+      "name": "중급·신중형",
+      "literacy_level": "L3",
+      "investment_style": "C",
+      "instruction": "비교표와 지표 간 관계, 반대 해석, 추가 확인 사항을 제시한다.위험과 하방 조건을 먼저 제시하되 기회 요인·위험 완화 근거도 함께 제시한다."
+    },
+    {
+      "persona_id": "L4-A",
+      "name": "고급·적극형",
+      "literacy_level": "L4",
+      "investment_style": "A",
+      "instruction": "원천 자료, 방법론, 계산 조건, 민감도와 반증 조건을 상세히 제시한다.기회와 성립 조건을 먼저 제시하되 실패 조건·반대 근거·위험을 함께 제시한다."
+    },
+    {
+      "persona_id": "L4-C",
+      "name": "고급·신중형",
+      "literacy_level": "L4",
+      "investment_style": "C",
+      "instruction": "원천 자료, 방법론, 계산 조건, 민감도와 반증 조건을 상세히 제시한다.위험과 하방 조건을 먼저 제시하되 기회 요인·위험 완화 근거도 함께 제시한다."
+    }
+  ]
+}

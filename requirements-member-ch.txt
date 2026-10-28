@@ -1,0 +1,3 @@
+# CH 개인 실행 파일의 기존 psycopg2 의존성. 공통 코드는 psycopg3를 사용한다.
+-r requirements.txt
+psycopg2-binary>=2.9

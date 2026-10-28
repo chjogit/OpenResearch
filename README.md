@@ -74,3 +74,24 @@ Git 사용 순서는 [docs/GIT_GUIDE.md](docs/GIT_GUIDE.md)(팀원용 따라하�
 | P1 | 가이드 모드 | 용어 해설, 분석 순서 안내, 되묻기 |
 | P1 | 산업·시장 모니터링 | 신규 공시 감지 시 P0 모듈 자동 실행 |
 | P2 | TTS 음성 브리핑 | 확장 과제 |
+
+## 페르소나: 금융 이해도 4단계 × 분석 성향 2가지
+
+공통 모듈 agent/personas.py와 두 Agent 연결부 agent/persona_agents.py를 추가했습니다.
+L1~L4와 적극형(A)·신중형(C)의 8개 조합, 단일 축 모드, 미정·사용자 확인을 지원합니다.
+기존 expert/guide 호출은 유지합니다.
+
+    python -m agent.persona_cli catalog
+    python -m agent.persona_cli classify --level L2 --style A --confirmed
+    python -m examples.persona_agents
+
+API 키 없이 분류와 입력 메시지를 확인할 수 있습니다.
+정의표·설문 규칙·연결 예시는 [docs/PERSONAS.md](docs/PERSONAS.md)를 참고하세요.
+실제 모델·DB 실행 및 분류의 실증 검증은 별도입니다.
+
+## 제2판 주장·근거·버전 연결
+
+A기업 합성 예시와 두 Agent의 공통 입력 계약을 추가했습니다.
+[구조와 적용 안내](docs/RESEARCH_CONTRACT.md)를 참고하세요.
+예시 생성·검증: python -m examples.research_example
+실제 자료·LLM 분석·공동 검토 권한 검증과는 구분합니다.
