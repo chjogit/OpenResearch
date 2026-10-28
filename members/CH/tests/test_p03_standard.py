@@ -119,3 +119,12 @@ def test_contract_carries_p03_fields():
     assert "INTENT_NOT_INFERABLE" in c["p03"]["statusCodes"]
     ev = next(e for e in c["evidence"] if e["ledgerKey"] == k)
     assert ev["tier"] == "core"
+
+
+def test_intent_negation_far_after_the_word_is_allowed():
+    from ch_agents.llm import sentence_problems
+
+    ok = "외국인의 실제 매수 의도나 정보 보유 여부는 순매수 기록만으로는 알 수 없음"
+    assert not [p for p in sentence_problems(ok, set()) if "의도" in p]
+    bad = "외국인의 매수 의도가 분명해 보인다."
+    assert [p for p in sentence_problems(bad, set()) if "의도" in p]

@@ -87,7 +87,8 @@ COMMON_TERMS = {"52주"}  # 숫자가 들어 있지만 값이 아닌 용어
 VALID_KINDS = {"사실", "해석", "예측"}
 # 수급만으로 의도·정보 보유를 추정하는 표현 (R4 에이전트 3 제약). 바로 뒤에 부정('추정할 수 없다')이 오면 허용
 INTENT_RE = re.compile(r"(매수|매도|매집)\s*의도|세력|작전|내부\s*정보|미리\s*알고|정보를\s*(알고|쥐고|가지고)|매집")
-INTENT_NEG = re.compile(r"^.{0,20}(추정(할|하지|해서는|은)|단정(할|하지)|알\s*수\s*없|확인(할|되지)|아님|아니)")
+INTENT_NEG = re.compile(r"^[^.]{0,45}(추정(할|하지|해서는|은)|단정(할|하지)|알\s*수\s*없|확인(할|되지)|아님|아니|"
+                        r"판단(은|을)?[^.]{0,15}(내리지|하지)\s*않)")
 # 중복 신호를 독립 근거처럼 세는 표현 (R4 에이전트 3 제약)
 INDEP_RE = re.compile(r"(두|세|2|3|여러|복수)\s*(가지|개)?\s*(의\s*)?(신호|근거|지표)[^.]{0,15}(뒷받침|확인|입증|강화)"
                       r"|독립(된|적인)?\s*(근거|신호)|이중으로\s*확인|동시에\s*(확인|뒷받침)|함께\s*(확인|뒷받침)"
@@ -299,6 +300,11 @@ def label_terms(data: AgentData | None) -> set[str]:
     if data is not None:
         for v in data.facts.items.values():
             terms.update(LOOSE_NUMBER.findall(v["label"]))
+        # 사용자가 입력한 가정·질문 속 숫자(예: '환율 5% 상승, 금리 0.5%p 하락')는 값이 아니라 조건
+        opts = (data.extra or {}).get("opts") or {}
+        for k in ("scenario", "question"):
+            terms.update(LOOSE_NUMBER.findall(str(opts.get(k) or "")))
+    terms.update({t.lstrip("+-") for t in terms})   # '+5%' 라벨과 '5%' 문장을 같은 용어로
     return terms
 
 
@@ -313,7 +319,7 @@ def sentence_problems(text: str, valid: set[str], allowed: set[str] | None = Non
     banned = [w for w in BANNED if w in text] + [m.group(0) for m in BANNED_RE.finditer(text)]
     if banned:
         probs.append(f"금지 표현 {banned}")
-    intent = [m.group(0) for m in INTENT_RE.finditer(text) if not INTENT_NEG.search(text[m.end():m.end() + 30])]
+    intent = [m.group(0) for m in INTENT_RE.finditer(text) if not INTENT_NEG.search(text[m.end():m.end() + 60])]
     if intent:
         probs.append(f"수급만으로 의도·정보 보유 추정 {intent}")
     return probs

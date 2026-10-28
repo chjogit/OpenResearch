@@ -153,3 +153,13 @@ def test_prompt_carries_question_and_task_contract():
     _, user = build_messages(d)
     assert "질문: 다음 분기 매출은?" in user and "시나리오: 환율 5% 상승" in user
     assert "[과업 계약]" in user and "장부 그룹 [실적 예측(기준선)]" in user and "MODEL_NOT_APPROVED" in user
+
+
+def test_user_scenario_numbers_are_terms_not_values():
+    from ch_agents.llm import label_terms, sentence_problems
+
+    d = build_agent_data(1, CO, _bundle(), AS_OF, {"scenario": "환율 5% 상승, 금리 0.5%p 하락"})
+    k = next(k for k, it in d.facts.items.items() if it["group"] == "시나리오(공시 정적 환산)")
+    text = f"환율 5% 상승·금리 0.5%p 하락 시나리오는 공시 민감도 기준 {{{k}}}로 환산됩니다."
+    assert not [p for p in sentence_problems(text, set(d.facts.items), label_terms(d)) if "키 밖 숫자" in p]
+    assert [p for p in sentence_problems("환율 7% 상승이면 …", set(d.facts.items), label_terms(d)) if "키 밖" in p]
