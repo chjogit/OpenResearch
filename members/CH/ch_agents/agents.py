@@ -6,7 +6,7 @@ from datetime import datetime, timedelta, timezone
 from types import ModuleType
 from typing import Any
 
-from . import agent1_macro, agent3_sentiment_flow, db, etf, exposure, financial, forecast, quality, rag
+from . import agent1_macro, agent3_sentiment_flow, db, etf, exposure, financial, forecast, p03, quality, rag
 from .facts import Facts
 
 KST = timezone(timedelta(hours=9))
@@ -139,6 +139,11 @@ def fetch_bundle(agent_id: int, co: dict, as_of: str, use_rag: bool = True) -> d
             out["etf"] = (db.q(etf.SQL, {"etf": etf.REP_TICKERS, "as_of": as_of})[0] or {}).get("etf")
         except Exception:  # noqa: BLE001
             out["etf"] = None
+    if agent_id == 3:  # P03-F07 KOSPI 200 합산 사건 연구 (결과가 기준일까지 확정된 사건만)
+        try:
+            out["panel_events"] = db.bundle(p03.PANEL_EVENT_SQL, {"as_of": as_of, "z": p03.Z_EVENT}) or None
+        except Exception:  # noqa: BLE001
+            out["panel_events"] = None
     if agent_id in quality.SOURCES:
         try:
             out["quality"] = db.q(quality.SQL)

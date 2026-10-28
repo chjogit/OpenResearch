@@ -266,6 +266,16 @@ def build(run: dict, data, mode: str = "expert") -> dict:
                                     "rule": "같은 사건을 반영할 수 있어 독립 근거로 중복 계산하지 않음"}
                                    for c in data.extra.get("dup_clusters") or []]
         out["sentimentModel"] = data.extra.get("sentiment_model")
+        px = data.extra.get("p03")
+        if px:  # 제작 기준(P03) 과업 계약·사건 연구
+            plan = px["plan"]
+            out["p03"] = {"standard": plan["standard"], "policy": plan["policy"], "origin": plan["origin"],
+                          "question": plan.get("question"), "tasks": plan["tasks"],
+                          "statusCodes": plan["status_codes"], "heldReasons": plan["held_reasons"],
+                          "availability": {k: v for k, v in px["availability"].items()},
+                          "eventStudy": [{k: v for k, v in r.items() if k != "key"} for r in px.get("events") or []],
+                          "summary": {k: plain(v, data) for k, v in (px.get("summary") or {}).items()},
+                          "tiers": px.get("tiers")}
     out["evidence"] = _evidence(data, emap, cited)
     body = json.dumps({k: out[k] for k in ("agent", "target", "asOf", "mode", "claims")}, ensure_ascii=False,
                       sort_keys=True)

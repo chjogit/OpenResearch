@@ -22,6 +22,7 @@ from .rag import PROMPT_RULE as RAG_RULE
 from .rag import docs_for_prompt, docs_markdown
 from .semantic import baseline_problems, direction_problems, flag_directions
 from . import p01 as p01_mod
+from . import p03 as p03_mod
 
 MODEL = os.getenv("UPSTAGE_MODEL_NAME", "solar-pro4")
 
@@ -531,6 +532,11 @@ def _tables(data: AgentData) -> list[str]:
     if prem:
         out += ["", "**미확인 전제 (노출 등급은 아래 전제가 확인되지 않은 상태의 참고치)**", "",
                 exposure_mod.premises_md(prem, r)]
+    if data.agent_id == 3 and data.extra.get("p03"):
+        p3 = data.extra["p03"]
+        out += ["", "**세 줄 요약 (제작 기준 P03 20장)**", ""]
+        out += [f"- {k}: {r(v)}" for k, v in (p3.get("summary") or {}).items()]
+        out += p03_mod.plan_md(p3["plan"]) + p03_mod.event_md(p3.get("events") or [])
     if data.agent_id == 3:
         an = data.extra.get("anomalies") or []
         out += ["", "**이상 징후**", ""] + ([f"- {r(x)}" for x in an] or ["- 없음 (코드 기준에 걸린 항목 없음)"])

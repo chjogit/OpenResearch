@@ -28,7 +28,7 @@ def show(d, keys=("p01", "p03")):
                           "tiers": x.get("tiers")}, ensure_ascii=False, indent=1, default=str)[:3000])
     for k, it in f.items.items():
         if it.get("group") in ("실적 예측(기준선)", "시나리오(공시 정적 환산)", "거시 이상 점검", "분기 자료 점검",
-                               "시장 자금 흐름(ETF)", "시장 기준선(ETF·참고)", "위험 선호(ETF)"):
+                               "시장 자금 흐름(ETF)", "시장 기준선(ETF·참고)", "과거 관계(사건 연구)"):
             print(f"  {k} [{it.get('tier', '-')}] {it['label']} = {it['text']} ({it['as_of']})")
     for g in f.gaps[:40]:
         print(f"  무자료: {g['label']}: {g['reason']}")
@@ -45,7 +45,7 @@ def main(tickers):
         d1 = agents.fetch_agent_data(1, t, as_of, question="환율 5% 상승, 금리 0.5%p 하락이면 다음 분기 매출은?",
                                      scenario="환율 5% 상승, 금리 0.5%p 하락")
         show(d1)
-        d3 = agents.fetch_agent_data(3, t, as_of, period=20)
+        d3 = agents.fetch_agent_data(3, t, as_of, period=20, question="외국인이 알고 사는 거야? 따라 사도 돼?")
         show(d3)
 
 
