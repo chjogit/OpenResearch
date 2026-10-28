@@ -172,9 +172,7 @@ YOY_LIMIT = 1.0     # 전년 동기 대비 2배 넘게 변하면 검토
 
 def quarter_check(f, rows: list[dict] | None, cid, as_of: str, group: str = "분기 자료 점검") -> dict:
     """기준일에 공시된 이 기업 단독분기 매출의 연속성·급변을 점검합니다. 차단하지 않고 검토 필요만 표시."""
-    def avail(r):
-        pe = date.fromisoformat(str(r["pe"])[:10])
-        return pe + timedelta(days=90 if int(r["fq"]) == 4 else 45)
+    from .forecast import known as avail
 
     cut = date.fromisoformat(as_of)
     mine = sorted([r for r in rows or [] if r.get("c") == cid and avail(r) <= cut], key=lambda r: str(r["pe"]))
@@ -195,7 +193,7 @@ def quarter_check(f, rows: list[dict] | None, cid, as_of: str, group: str = "분
     last = mine[-1]
     f.add("공시된 단독분기 매출 이력", len(mine), "개", str(last["pe"])[:10], "core.financial_quarter (revenue)",
           kind="calc", group=group,
-          note="DART 누적값 차감(Q2=반기−Q1, Q4=연간−3분기) 결과. 분기말 45일·4분기 90일 뒤부터 이용")
+          note="DART 누적값 차감(Q2=반기−Q1, Q4=연간−3분기) 결과. 보고서 접수일(없으면 45·90일) 뒤부터 이용")
     if out["gaps"]:
         f.gap("분기 연속성", f"이력 중 끊긴 분기 {out['gaps']}곳 → 기준선 계산에서 제외될 수 있음")
     if out["review"]:

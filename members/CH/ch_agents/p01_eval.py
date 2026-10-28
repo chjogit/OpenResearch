@@ -5,7 +5,7 @@
 
 설계 (사전 고정)
 - 정답: 단독분기 매출의 전년 동기 대비 로그 성장 y = log(Y_q / Y_{q-4}). 매출 예측 = Y_{q-4} × exp(ŷ).
-- 예측 시점(origin): 직전 분기 q-1 이 공시된 날(분기 45일, 4분기 90일). 그때 공시된 분기·거시만 입력.
+- 예측 시점(origin): 직전 분기 q-1 이 공시된 날(DART 접수일, 없으면 분기 45일·4분기 90일). 그때 공시된 분기·거시만 입력.
 - B0: ŷ=0 (전년 동기 유지). B2: [상수, 직전 분기 전년비 로그 성장]. M1: B2 + [원/달러 전년비 변화(%), 국고채 3년
   전년비 변화(%p), 원/달러 변화 × 수출 비중]. 거시는 origin 까지 공개된 일별 관측의 q-1 분기말 값과 q-5 분기말 값.
 - 학습: origin 마다 그때까지 실제가 공시된 표본만으로 릿지(λ=1, 표준화) 재적합. 학습 표본 100개·3개 분기 미만이면 그 origin 은 평가 제외.
@@ -26,9 +26,15 @@ BOOT = 2000
 
 DATA_SQL = """
 SELECT json_build_object(
-  'panel', (SELECT json_agg(json_build_object('c', company_id, 'pe', period_end, 'fq', fiscal_q, 'v', amount)
-                             ORDER BY company_id, period_end)
-            FROM core.financial_quarter WHERE metric = 'revenue' AND amount > 0 AND period_end <= %(as_of)s::date),
+  'panel', (SELECT json_agg(x) FROM (
+            SELECT q.company_id AS c, q.period_end AS pe, q.fiscal_q AS fq, q.amount AS v, r.k
+            FROM core.financial_quarter q
+            LEFT JOIN (SELECT company_id, fiscal_year, report_code, to_date(max(left(rcept_no, 8)), 'YYYYMMDD') AS k
+                       FROM core.financial_fact WHERE source = 'dart' AND rcept_no ~ '^[0-9]{8}' GROUP BY 1, 2, 3) r
+              ON q.source = 'dart' AND r.company_id = q.company_id AND r.fiscal_year = q.fiscal_year
+             AND r.report_code = CASE q.fiscal_q WHEN 1 THEN '11013' WHEN 2 THEN '11012' WHEN 3 THEN '11014' ELSE '11011' END
+            WHERE q.metric = 'revenue' AND q.amount > 0 AND q.period_end <= %(as_of)s::date
+            ORDER BY q.company_id, q.period_end) x),
   'macro', (SELECT json_object_agg(series_id, obs) FROM (
               SELECT series_id, json_agg(json_build_array(obs_date, value) ORDER BY obs_date) AS obs
               FROM core.macro_obs WHERE series_id IN ('ECOS_USDKRW', 'ECOS_KTB3Y') AND obs_date <= %(as_of)s::date
@@ -44,7 +50,10 @@ def _d(x) -> date:
     return x if isinstance(x, date) else date.fromisoformat(str(x)[:10])
 
 
-def avail(pe, fq) -> date:
+def avail(pe, fq, k=None) -> date:
+    """보고서 접수일 k 가 있으면 그날, 없으면 제출 기한 규칙 (forecast.available 과 같음)."""
+    if k:
+        return _d(k)
     return _d(pe) + timedelta(days=90 if int(fq) == 4 else 45)
 
 
@@ -84,7 +93,7 @@ def samples(panel: list[dict], macro: dict, export: dict) -> list[dict]:
                 continue
             y4, y1, y5, y = (float(hist[i - 4]["v"]), float(hist[i - 1]["v"]), float(hist[i - 5]["v"]),
                              float(hist[i]["v"]))
-            origin = avail(hist[i - 1]["pe"], hist[i - 1]["fq"])
+            origin = avail(hist[i - 1]["pe"], hist[i - 1]["fq"], hist[i - 1].get("k"))
             e1, e5 = _d(hist[i - 1]["pe"]), _d(hist[i - 5]["pe"])
             f1, f5, r1, r5 = _value_at(fx, e1), _value_at(fx, e5), _value_at(rt, e1), _value_at(rt, e5)
             if None in (f1, f5, r1, r5):
@@ -93,7 +102,7 @@ def samples(panel: list[dict], macro: dict, export: dict) -> list[dict]:
             exp_share = float(export.get(str(c), export.get(c, 0)) or 0) / 100
             out.append({"c": c, "target": str(hist[i]["pe"])[:10], "tq": quarter_key(hist[i]["pe"]),
                         "origin": origin.isoformat(),
-                        "known": avail(hist[i]["pe"], hist[i]["fq"]).isoformat(),
+                        "known": avail(hist[i]["pe"], hist[i]["fq"], hist[i].get("k")).isoformat(),
                         "y": math.log(y / y4), "base": y4, "actual": y,
                         "x_b2": [math.log(y1 / y5)], "x_m1": [math.log(y1 / y5), dfx, r1 - r5, dfx * exp_share]})
     return out

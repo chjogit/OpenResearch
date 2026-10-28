@@ -175,3 +175,14 @@ def test_dropped_headline_falls_back_to_rule_summary():
     out = run_agent(1, data=d, llm=FakeLLM(res), max_repair=0)
     head = out["contract"]["summary"]["text"]
     assert head.startswith("(규칙 요약) 확인한 사실:") and "{" not in head
+
+
+def test_receipt_date_overrides_deadline_rule():
+    """정정 보고서로 받은 값은 정정 접수일부터 이용 가능 (나중 수정값이 과거 시점에 새지 않음)."""
+    from ch_agents import forecast
+
+    r = {"pe": "2025-03-31", "fq": 1, "k": "2026-08-01"}
+    assert str(forecast.known(r)) == "2026-08-01"
+    assert str(forecast.known({"pe": "2025-03-31", "fq": 1})) == "2025-05-15"
+    rows = [{"c": 1, "pe": "2025-03-31", "fy": 2025, "fq": 1, "v": 1.0, "k": "2026-08-01"}]
+    assert forecast.company_forecast(rows, 1, "2026-07-01")["status"] == ["QUARTER_MAPPING_CONFLICT"]

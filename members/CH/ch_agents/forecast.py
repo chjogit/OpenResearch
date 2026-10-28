@@ -10,7 +10,7 @@
 - 순차 평가: 각 과거 분기를 예측할 때 그 분기 시작 전에 공시된 오차만으로 구간을 만들고, 포함률·상대 오차를 냅니다.
 
 지키는 것 (문서 9.3·15.2)
-- 공시 시점: 분기는 분기말 45일, 4분기(연간)는 90일 뒤부터 이용 가능 (core.financial_quarter 에 접수일이 없어 제출 기한 사용).
+- 공시 시점: DART 보고서 접수일(rcept_no)부터 이용 가능. 접수일이 없으면 분기말 45일, 4분기(연간) 90일(제출 기한).
 - 기업 간 같은 분기 오차는 독립이 아니므로 표본 수와 함께 '독립 시간축 분기 수'를 따로 보고합니다.
 - 승인된 학습모델(ML)은 없습니다. 이 결과는 기준선이며 상태는 MODEL_NOT_APPROVED 입니다. 거시 변수는 쓰지 않으므로
   '거시 영향 예측' 이 아닙니다.
@@ -29,12 +29,21 @@ MIN_PERIODS = 4             # 구간을 내는 최소 독립 분기 수
 SRC = "core.financial_quarter (revenue)"
 
 # 전 종목 분기 매출 (순차 평가용). 이용 가능일은 파이썬에서 계산합니다.
+# 'k' = 그 분기 값이 실린 DART 보고서의 접수일(rcept_no 앞 8자리). 정정 보고서로 받은 값이면 정정 접수일이라,
+# 나중 수정값이 과거 시점에 새지 않습니다(P01 7.3). 접수일이 없으면(해외 SEC 등) 제출 기한 규칙(45·90일).
 PANEL_SQL = """
-SELECT json_agg(json_build_object('c', company_id, 'pe', period_end, 'fy', fiscal_year, 'fq', fiscal_q, 'v', amount)
-                ORDER BY company_id, period_end) AS rows
-FROM core.financial_quarter
-WHERE metric = 'revenue' AND amount IS NOT NULL AND amount > 0
-  AND period_end <= %(as_of)s::date
+WITH r AS (
+    SELECT company_id, fiscal_year, report_code, to_date(max(left(rcept_no, 8)), 'YYYYMMDD') AS k
+    FROM core.financial_fact WHERE source = 'dart' AND rcept_no ~ '^[0-9]{8}' GROUP BY 1, 2, 3
+)
+SELECT json_agg(json_build_object('c', q.company_id, 'pe', q.period_end, 'fy', q.fiscal_year, 'fq', q.fiscal_q,
+                                  'v', q.amount, 'k', r.k)
+                ORDER BY q.company_id, q.period_end) AS rows
+FROM core.financial_quarter q
+LEFT JOIN r ON q.source = 'dart' AND r.company_id = q.company_id AND r.fiscal_year = q.fiscal_year
+ AND r.report_code = CASE q.fiscal_q WHEN 1 THEN '11013' WHEN 2 THEN '11012' WHEN 3 THEN '11014' ELSE '11011' END
+WHERE q.metric = 'revenue' AND q.amount IS NOT NULL AND q.amount > 0
+  AND q.period_end <= %(as_of)s::date
 """
 
 
@@ -42,8 +51,15 @@ def _d(x) -> date:
     return x if isinstance(x, date) else date.fromisoformat(str(x)[:10])
 
 
-def available(pe, fq) -> date:
+def available(pe, fq, k=None) -> date:
+    """분기 값을 쓸 수 있는 날: 보고서 접수일 k 가 있으면 그날, 없으면 분기말 45일·4분기 90일(제출 기한)."""
+    if k:
+        return _d(k)
     return _d(pe) + timedelta(days=90 if int(fq) == 4 else 45)
+
+
+def known(r: dict) -> date:
+    return available(r["pe"], r["fq"], r.get("k"))
 
 
 def add_quarter(pe: date) -> date:
@@ -104,14 +120,14 @@ def panel_errors(rows: list[dict]) -> list[dict]:
             target = hist[i]
             tpe = _d(target["pe"])
             # 예측 시점 = 직전 분기가 공시된 날 (그때까지 공시된 분기만 입력). 기준일 예측과 같은 평가군입니다.
-            origin = available(hist[i - 1]["pe"], hist[i - 1]["fq"])
-            prior = [h for h in hist[:i] if available(h["pe"], h["fq"]) <= origin]
+            origin = known(hist[i - 1])
+            prior = [h for h in hist[:i] if known(h) <= origin]
             b = baselines(prior, tpe)
             actual = float(target["v"])
             for m in ("B0", "B1"):
                 if b[m] and b[m] > 0 and actual > 0:
                     out.append({"c": cid, "pe": tpe.isoformat(), "method": m, "origin": origin.isoformat(),
-                                "known": available(target["pe"], target["fq"]).isoformat(),
+                                "known": known(target).isoformat(),
                                 "err": math.log(actual / b[m])})
     return out
 
@@ -159,7 +175,7 @@ def sequential_eval(errors: list[dict], as_of: str) -> dict:
 
 def company_forecast(rows: list[dict], cid, as_of: str) -> dict:
     """한 기업의 다음 미공시 분기 매출 기준선 예측. 상태 코드를 함께 돌려줍니다."""
-    mine = sorted([r for r in rows or [] if r["c"] == cid and available(r["pe"], r["fq"]) <= _d(as_of)],
+    mine = sorted([r for r in rows or [] if r["c"] == cid and known(r) <= _d(as_of)],
                   key=lambda x: str(x["pe"]))
     out = {"model": MODEL_VERSION, "status": [], "support_state": "baseline_only", "causal_effect": None,
            "publication_eligible": False, "level": LEVEL}
