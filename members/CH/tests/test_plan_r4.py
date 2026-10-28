@@ -159,6 +159,23 @@ def test_contract_documents_keep_published_time():
     _check_contract(out["contract"])
 
 
+def test_missing_counter_evidence_is_flagged_as_unverified():
+    """규칙 5: 반대 근거·하방 위험이 모두 비면 미확인(판단 보류)으로 드러냅니다. 있으면 넣지 않습니다."""
+    d = build_agent_data(3, CO, _sent_bundle(), AS_OF)
+    k = d.facts.key_of("외국인 20일 순매수 수량")
+    r = d.facts.key_of("20일 주가 수익률")
+    main = [{"문장": f"외국인은 20일간 {{{k}}} 순매도했다.", "구분": "사실", "근거": [k]}]
+    bare = {"핵심진단": "외국인 순매도 우위.", "자체점수": 6, "주장": main, "반대근거": [], "리스크요인": []}
+    c = run_agent(3, data=d, llm=FakeLLM(bare, bare))["contract"]
+    _check_contract(c)
+    gap = [u for u in c["unverified"] if u["item"] == contract.COUNTER_GAP]
+    assert len(gap) == 1 and gap[0]["category"] == "판단 보류"
+    full = {**bare, "반대근거": [{"문장": f"주가는 20일 {{{r}}} 변했다.", "구분": "사실", "근거": [r]}]}
+    c2 = run_agent(3, data=d, llm=FakeLLM(full, full))["contract"]
+    assert any(x["role"] == "counter" for x in c2["claims"])
+    assert all(u["item"] != contract.COUNTER_GAP for u in c2["unverified"])
+
+
 def test_validator_catches_contract_breaks():
     d = build_agent_data(3, CO, _sent_bundle(), AS_OF)
     c = run_agent(3, data=d, llm=FakeLLM(TimeoutError()))["contract"]

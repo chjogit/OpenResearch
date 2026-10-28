@@ -32,6 +32,7 @@ MODULES = {1: "agent1_macro", 3: "agent3_sentiment_flow"}
 TYPE_EN = {"사실": "fact", "해석": "interpretation", "예측": "forecast"}
 KEY = re.compile(r"\{([A-Z]\d+)\}")
 DISCLAIMER = "투자 검토 참고치 및 리스크 요약입니다. 매수·매도 추천이나 목표주가가 아닙니다."
+COUNTER_GAP = "반대 근거·하방 위험"
 
 
 # ---------------------------------------------------------------- 근거 ID
@@ -162,6 +163,10 @@ def build(run: dict, data, mode: str = "expert") -> dict:
     for t in res.get("미확인") or []:
         unverified.append({"item": plain(t, data), "reason": "에이전트가 판단에 필요하다고 본 미확인 항목",
                            "category": "판단 보류", "status": "미확인", "evidenceIds": evidence_ids(_keys_in(t), emap)})
+    if not any(c["role"] == "counter" for c in claims) and not risks:
+        # 규칙 5: 반대 근거·하방 위험이 검증을 통과하지 못해 비었으면, 없다는 사실을 미확인으로 드러냅니다.
+        unverified.append({"item": COUNTER_GAP, "reason": "검증을 통과한 반대 근거와 하방 위험이 없음",
+                           "category": "판단 보류", "status": "미확인", "evidenceIds": []})
 
     out = {
         "schemaVersion": SCHEMA_VERSION,
