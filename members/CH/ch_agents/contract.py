@@ -96,7 +96,7 @@ def _evidence(data, emap: dict[str, str], cited: set[str]) -> list[dict]:
             "unit": it["unit"], "display": it["text"], "valueType": it["kind"], "group": it.get("group") or None,
             "dataDate": it.get("as_of"), "publishedAt": None, "source": it.get("source"),
             "sourceTag": f"[출처: {source_tag(it)}]", "url": None, "note": it.get("note") or None,
-            "cited": k in cited,
+            "cited": k in cited, "tier": it.get("tier"), "resultType": it.get("result_type"),
         })
     for i, d in enumerate(data.docs):
         k = f"D{i + 1}"
@@ -245,6 +245,16 @@ def build(run: dict, data, mode: str = "expert") -> dict:
         out["premises"] = [{"item": p["item"], "status": p["status"], "detail": p["detail"], "why": p["why"],
                             "evidenceIds": evidence_ids(p["keys"], emap)} for p in data.extra.get("premises") or []]
         cited.update(k for r in data.extra.get("exposure") or [] for k in r["keys"])
+        px = data.extra.get("p01")
+        if px:  # 제작 기준(P01) 과업 계약·상태 코드·세 줄 요약
+            plan = px["plan"]
+            out["p01"] = {"standard": plan["standard"], "policy": plan["policy"], "origin": plan["origin"],
+                          "question": plan.get("question"), "tasks": plan["tasks"],
+                          "statusCodes": plan["status_codes"], "heldReasons": plan["held_reasons"],
+                          "recheckConditions": plan["recheck_conditions"],
+                          "summary": {k: plain(v, data) for k, v in (px.get("summary") or {}).items()},
+                          "vintage": {k: v for k, v in (px.get("vintage") or {}).items() if k != "dropped"},
+                          "tiers": px.get("tiers")}
     if data.agent_id == 3:
         out["anomalies"] = [{"text": plain(t, data), "evidenceIds": evidence_ids(_keys_in(t), emap)}
                             for t in data.extra.get("anomalies") or []]

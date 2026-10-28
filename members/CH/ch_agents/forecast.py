@@ -3,7 +3,8 @@
 무엇을 하나
 - B0 전년 동기 유지: 목표 분기의 1년 전 분기 매출을 그대로 예측값으로 씁니다.
 - B1 계절·추세: B0 × (최근 4개 분기 합 ÷ 그 전 4개 분기 합). 8개 분기가 연속으로 공개돼 있을 때만.
-  선택 규칙은 미리 고정: B1 이 가능하면 B1, 아니면 B0 (평가 결과를 보고 바꾸지 않음).
+  선택 규칙은 미리 고정: B1 이 가능하고 그 80% 구간을 낼 과거 오차 표본이 있으면 B1, 아니면 B0
+  (자료 충분성 규칙. 평가 성적을 보고 바꾸지 않음).
 - 80% 예측구간: 같은 기준선을 과거 모든 기업·분기에 순차 적용해 나온 로그 오차(log 실제/예측)의 10%·90% 분위수.
   기준일까지 '실제 매출이 공시된' 오차만 씁니다. 구간은 보정 검증 전이라 '검증된 80% 구간' 이라고 부르지 않습니다.
 - 순차 평가: 각 과거 분기를 예측할 때 그 분기 시작 전에 공시된 오차만으로 구간을 만들고, 포함률·상대 오차를 냅니다.
@@ -181,6 +182,13 @@ def company_forecast(rows: list[dict], cid, as_of: str) -> dict:
     out["status"].append("MODEL_NOT_APPROVED")
     errors = panel_errors(rows)
     iv = interval(errors, b["pick"], as_of)
+    if iv is None and b["pick"] == "B1" and b["B0"] is not None:
+        # 사전 고정 규칙(자료 충분성): B1 은 8개 분기가 필요해 과거 오차 표본이 적음. 구간을 못 내면 구간이 있는 B0 로.
+        iv0 = interval(errors, "B0", as_of)
+        if iv0 is not None:
+            b["pick"], iv = "B0", iv0
+            out["pick_rule"] = "B1 구간 표본 부족 → B0 (사전 고정 규칙)"
+            out["pick"] = "B0"
     point = b[b["pick"]]
     out["median"] = point
     if iv:

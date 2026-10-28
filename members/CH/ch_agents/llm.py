@@ -21,6 +21,7 @@ from .prompts import mode_guide
 from .rag import PROMPT_RULE as RAG_RULE
 from .rag import docs_for_prompt, docs_markdown
 from .semantic import baseline_problems, direction_problems, flag_directions
+from . import p01 as p01_mod
 
 MODEL = os.getenv("UPSTAGE_MODEL_NAME", "solar-pro4")
 
@@ -517,6 +518,11 @@ def _tables(data: AgentData) -> list[str]:
     """코드가 만든 표 (LLM 무관): 에이전트 1 노출 점검표, 에이전트 3 이상 징후·심리·수급 요약표."""
     r = lambda t: render(t, data)
     out: list[str] = []
+    px = data.extra.get("p01")
+    if px:
+        out += ["", "**세 줄 요약 (제작 기준 P01 20.2)**", ""]
+        out += [f"- {k}: {r(v)}" for k, v in (px.get("summary") or {}).items()]
+        out += p01_mod.plan_md(px["plan"])
     rows = data.extra.get("exposure")
     if rows:
         out += ["", "**노출 점검표 (규칙 기반: 업종 기본값 → 통계 근거 → 재무 구조)**", "",

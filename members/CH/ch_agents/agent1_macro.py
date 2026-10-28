@@ -19,7 +19,8 @@
 """
 from __future__ import annotations
 
-from . import anomaly, etf, exposure, forecast, p01, scenario, vintage
+from . import anomaly, etf, exposure, forecast, p01, vintage
+from . import scenario as scen_mod
 from .facts import (
     Facts,
     check_freshness,
@@ -422,9 +423,9 @@ def compute(b: dict, co: dict, as_of: str, focus: list[str] | None = None, scena
         forecast.add_facts(f, fc, as_of)
     scen = []
     if plan["tasks"]["시나리오"]:
-        specs, codes = scenario.parse(" ".join(x for x in (scenario, question) if x), origin=as_of)
-        scen = [scenario.evaluate(sp, b.get("report")) for sp in specs]       # P01-F07 (공시 정적 환산)
-        scenario.add_facts(f, scen, as_of)
+        specs, codes = scen_mod.parse(" ".join(x for x in (scenario, question) if x), origin=as_of)
+        scen = [scen_mod.evaluate(sp, b.get("report")) for sp in specs]       # P01-F07 (공시 정적 환산)
+        scen_mod.add_facts(f, scen, as_of)
         if "CAUSAL_UNIDENTIFIED" in codes:
             plan["tasks"]["인과"] = True
     etf.add_market_facts(f, b.get("etf"))                                    # 참고용 시장 기준선
