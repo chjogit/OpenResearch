@@ -324,3 +324,10 @@ def test_terms_sql_uses_bonds_only_and_drops_spc():
     sql = exposure.TERMS_SQL
     assert "i.kind_nm ~ '회사채'" in sql and "'회사채|사채'" not in sql      # 전자단기사채는 금리에서 제외
     assert "'bond_rate_group'" in sql and "유동화" in sql
+
+
+def test_terms_sql_reads_legal_name_without_requiring_column():
+    """kic-agent-data 020 의 정식 회사명을 비교하되, 열이 아직 없는 DB 에서도 쿼리가 깨지지 않게 jsonb 로 읽습니다."""
+    sql = exposure.TERMS_SQL
+    assert "to_jsonb(c) ->> 'legal_name'" in sql and "c.legal_name" not in sql
+    assert "x.issuer_norm = (SELECT legal FROM me)" in sql

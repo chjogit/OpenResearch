@@ -101,6 +101,8 @@ WHERE company_id = %(cid)s
 # 회사채 발행실적의 발행사 이름은 공시마다 표기가 달라(한글 표기·정식 이름·옛 이름) 회사 마스터 이름과 바로 맞지
 # 않습니다. 이름을 정규화한 뒤 '같은지'로 비교합니다. '포함'으로 비교하면 자회사(한화 → 한화오션, 신세계 →
 # 신세계디에프)가 모회사 금리에 섞입니다. 별칭은 DB에서 확인한 회사 자신의 발행사 표기만 넣고 자회사는 넣지 않습니다.
+# kic-agent-data 가 DART 기업개황 정식 회사명(core.company.legal_name)을 채우면 TERMS_SQL 이 그것도 함께 비교하므로,
+# 정식 회사명으로 맞춰지는 회사는 별칭이 필요 없습니다 (별칭은 옛 이름·공시마다 다른 표기용으로 남김).
 ISSUER_ALIASES: dict[str, tuple[str, ...]] = {
     "000120": ("씨제이대한통운",),
     "001040": ("씨제이",),
@@ -166,15 +168,19 @@ WITH due AS (
     WHERE company_id = %(cid)s
       AND stlm_dt + CASE WHEN reprt_code = '11011' THEN 90 ELSE 45 END <= %(as_of)s::date
     GROUP BY fiscal_year, reprt_code ORDER BY max(stlm_dt) DESC LIMIT 1
+), me AS (  -- DART 기업개황 정식 회사명 (kic-agent-data 020 legal_name). 열이 아직 없으면 NULL
+    SELECT nullif(upper(regexp_replace(coalesce(to_jsonb(c) ->> 'legal_name', ''), '\\(주\\)|㈜|주식회사|\\s', '', 'g')),
+                  '') AS legal
+    FROM core.company c WHERE c.company_id = %(cid)s
 ), bonds AS (  -- 회사채만 (녹색·사회적·지속가능채권 포함). 전자단기사채는 1년 내 만기 비중에서 따로 봄
-    SELECT i.*, (i.issuer ~ '^\\s*당\\s*사\\s*$'  -- 발행사를 '당사'로 적은 경우 (기아)
-                 OR upper(regexp_replace(regexp_replace(i.issuer, '\\(제[^)]*\\)|\\(?주\\d+\\)', '', 'g'),
-                                         '\\(주\\)|㈜|주식회사|\\s', '', 'g')) = ANY(%(issuers)s::text[])) AS own,
-           upper(regexp_replace(regexp_replace(i.issuer, '\\(제[^)]*\\)|\\(?주\\d+\\)', '', 'g'),
-                                         '\\(주\\)|㈜|주식회사|\\s', '', 'g')) AS issuer_norm
-    FROM core.debt_issue i JOIN iss_rep r USING (fiscal_year, reprt_code)
-    WHERE i.company_id = %(cid)s AND i.rate > 0 AND i.face_amount_raw > 0
-      AND i.kind_nm ~ '회사채' AND coalesce(i.repaid, '') !~ '^상환'
+    SELECT x.*, (x.issuer ~ '^\\s*당\\s*사\\s*$'           -- 발행사를 '당사'로 적은 경우 (기아)
+                 OR x.issuer_norm = ANY(%(issuers)s::text[])  -- 마스터 이름 + 별칭
+                 OR x.issuer_norm = (SELECT legal FROM me)) AS own
+    FROM (SELECT i.*, upper(regexp_replace(regexp_replace(i.issuer, '\\(제[^)]*\\)|\\(?주\\d+\\)', '', 'g'),
+                                           '\\(주\\)|㈜|주식회사|\\s', '', 'g')) AS issuer_norm
+          FROM core.debt_issue i JOIN iss_rep r USING (fiscal_year, reprt_code)
+          WHERE i.company_id = %(cid)s AND i.rate > 0 AND i.face_amount_raw > 0
+            AND i.kind_nm ~ '회사채' AND coalesce(i.repaid, '') !~ '^상환') x
 ), iss AS (
     SELECT * FROM bonds WHERE own
 ), grp AS (  -- 자회사 포함(연결 발행실적). 유동화 SPC(제N차·제N호·유동화)는 그룹 조달이 아니라 뺌
