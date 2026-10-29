@@ -220,3 +220,35 @@ def test_p0_9_contract_has_no_duplicate_unverified():
     assert any(p.startswith("환헤지") for p in prem) and any(p.startswith("판가") for p in prem)
     assert not any(u["item"].startswith(("환헤지", "판가")) for u in held)   # 미확인 전제와 겹치는 항목은 합침
     assert any(u["item"] == "다음 분기 가이던스" for u in held)          # 새 항목은 그대로 남음
+
+
+def test_a5_key_in_wrong_slot_is_dropped():
+    """A5: 비율 키를 날짜 자리에 쓴 '기준일 46.15%' 가 미확인 항목에 그대로 남던 문제 (10/29 페르소나 점검)."""
+    from ch_agents.facts import Facts
+    from ch_agents.llm import sanitize
+    from ch_agents.semantic import slot_problems
+
+    f = Facts("M")
+    pct = f.add("외국인 지분율", 46.15, "%", "2026-10-24", "t")
+    krw = f.add("원/달러 환율", 1376.0, "KRW", "2026-10-24", "t")
+    amt = f.add("총차입금", 3.2e12, "KRW", "2026-09-30", "t", kind="report")
+    idx = f.add("코스피 지수", 2600.12, "idx", "2026-10-24", "t")
+    assert slot_problems(f"외국인 지분율 확인 필요(기준일 {{{pct}}})", f)
+    assert slot_problems(f"공시일: {{{pct}}} 이후 자료 확인", f)
+    assert slot_problems(f"외국인 지분율은 {{{pct}}}%이다.", f)          # 단위 중복
+    assert slot_problems(f"차입금 비중 {{{amt}}}은 공시로 확인한다.", f)   # 비율 자리에 금액
+    for ok in (f"외국인 지분율은 {{{pct}}}이다.", f"원/달러 환율 {{{krw}}} 기준으로 본다.", f"환율: {{{krw}}}",
+               f"외국인 지분율 {{{pct}}}일 때 기준일은 2026-10-24이다.", f"코스피는 {{{idx}}}포인트다.",
+               f"총차입금 {{{amt}}}의 변동금리 비중은 미확인이다."):
+        assert not slot_problems(ok, f), ok
+
+    import random
+
+    from test_compute import _macro_bundle
+
+    d = build_agent_data(1, CO, _macro_bundle(random.Random(7)), AS_OF)
+    k = next(k for k, v in d.facts.items.items() if v["unit"] == "%")
+    res = {"핵심진단": "거시 국면 점검.", "자체점수": 5, "주장": [],
+           "미확인": [f"환헤지 비율(기준일 {{{k}}})", "환헤지 비율·만기"]}
+    out, removed = sanitize(res, d)
+    assert out["미확인"] == ["환헤지 비율·만기"] and any("기준일" in r for r in removed)

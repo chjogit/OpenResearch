@@ -14,6 +14,7 @@ from .agents import AGENTS, MY_AGENTS, AgentData, fetch_agent_data
 from .facts import fmt
 from .rag import PROMPT_RULE as RAG_RULE
 from .rag import docs_for_prompt, docs_markdown
+from .semantic import slot_problems
 from .llm import (
     BANNED,
     PLACEHOLDER,
@@ -201,24 +202,28 @@ def _review_messages(data: AgentData, report: str, rows: list[dict], mode: str) 
 def _sanitize_review(res: dict, data: AgentData) -> tuple[dict, list[str]]:
     valid, allowed = set(data.facts.items) | {f"D{i + 1}" for i in range(len(data.docs))}, label_terms(data)
     removed: list[str] = []
+
+    def bad(t: str) -> bool:
+        return bool(sentence_problems(t, valid, allowed) or slot_problems(t, data.facts))
+
     out = {"빠진논점": [], "수정제안": [], "잘한점": [], "완성도점수": None, "점수이유": str(res.get("점수이유", ""))}
     for it in res.get("빠진논점") or []:
         if not isinstance(it, dict):
             continue
         txt = str(it.get("내용", ""))
         refs = [str(k) for k in it.get("근거") or [] if str(k) in valid]
-        (removed.append(txt) if sentence_problems(txt, valid, allowed) else out["빠진논점"].append({"내용": txt, "근거": refs}))
+        (removed.append(txt) if bad(txt) else out["빠진논점"].append({"내용": txt, "근거": refs}))
     for it in res.get("수정제안") or []:
         if not isinstance(it, dict):
             continue
         new = str(it.get("수정안", ""))
         refs = [str(k) for k in it.get("근거") or [] if str(k) in valid]
-        if sentence_problems(new, valid, allowed):
+        if bad(new):
             removed.append(new)
         else:
             out["수정제안"].append({"원문": str(it.get("원문", "")), "수정안": new, "근거": refs})
     for x in res.get("잘한점") or []:
-        (removed if sentence_problems(str(x), valid, allowed) else out["잘한점"]).append(str(x))
+        (removed if bad(str(x)) else out["잘한점"]).append(str(x))
     s = res.get("완성도점수")
     out["완성도점수"] = s if isinstance(s, int) and 1 <= s <= 10 else None
     if any(w in out["점수이유"] for w in BANNED):
