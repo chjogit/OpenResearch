@@ -20,7 +20,7 @@ from .glossary import terms_for
 from .prompts import mode_guide
 from .rag import PROMPT_RULE as RAG_RULE
 from .rag import docs_for_prompt, docs_markdown
-from .semantic import baseline_problems, direction_problems, flag_directions
+from .semantic import baseline_problems, direction_problems, flag_directions, slot_problems
 from . import p01 as p01_mod
 from . import p03 as p03_mod
 
@@ -376,7 +376,7 @@ def check_output(result: dict, data: AgentData) -> dict[str, list[str]]:
     if not (isinstance(score, int) and 1 <= score <= 10):
         checks["형식"].append(f"'자체점수'가 1~10 정수가 아님 ({score!r})")
     for text in _texts(result):
-        for p in sentence_problems(text, valid, allowed):
+        for p in sentence_problems(text, valid, allowed) + slot_problems(text, data.facts):
             checks["문장"].append(f"{p}: {text[:60]}")
     dirs = flag_directions(data.facts)
     checks["방향"] = []
@@ -473,7 +473,8 @@ def sanitize(result: dict, data: AgentData) -> tuple[dict, list[str]]:
     dirs = flag_directions(data.facts)
 
     def bad(t: str, refs=None) -> bool:
-        return bool(sentence_problems(t, valid, allowed) or direction_problems(t, data.facts, refs, dirs)
+        return bool(sentence_problems(t, valid, allowed) or slot_problems(t, data.facts)
+                    or direction_problems(t, data.facts, refs, dirs)
                     or baseline_problems(t, refs, data.extra.get("baseline")) or duplicate_problems(t, refs, data))
 
     removed: list[str] = []

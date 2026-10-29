@@ -9,6 +9,8 @@
    (값이 +인데 '감소·하락·순매도', 값이 -인데 '증가·상승·순매수')가 오면 불일치로 봅니다.
 
 두 점검 모두 맞는 방향어가 함께 있으면 문제 삼지 않습니다(오탐을 줄이기 위해 보수적으로 판단).
+3. 자리 정합(slot_problems): 키가 놓인 자리와 키의 단위가 맞는지. 날짜 자리에 놓인 키('기준일 {M3}'),
+   키 뒤에 덧붙인 단위('{M3}%'), 비율 자리에 놓인 금액·수량 키('비중 {F2}')를 잡습니다.
 """
 from __future__ import annotations
 
@@ -201,4 +203,34 @@ def baseline_problems(text: str, refs: list[str] | None, baseline: list[dict] | 
         used = [w for w in OUTSIDE_WORDS if w in seg]
         if used:
             probs.append(f"기준선 판정 불일치: {name}({k})는 '평소 범위'인데 '{used[0]}' 서술")
+    return probs
+
+
+# ------------------------------------------------------------ 키가 놓인 자리와 단위 정합 (A5)
+# 10/29 페르소나 점검: LLM 이 비율 키를 날짜 자리에 써 '기준일 46.15%' 같은 문장이 미확인 항목에 남았습니다.
+# 값은 장부 그대로라 Verifier 대조는 통과하므로, 키 앞뒤 글자만 보고 자리와 단위가 어긋난 경우를 따로 잡습니다.
+DATE_SLOT = re.compile(r"(기준일|기준 ?시점|일자|날짜|공시일|접수일|발표일|결정일)\s*(?:은|는|이|가|:|=)?\s*$")
+RATIO_SLOT = re.compile(r"(비율|비중|배율|배수|(?<![환법자규])[률율])\s*(?:은|는|이|가|:|=)?\s*$")
+GLUED_UNIT = re.compile(r"^\s?(%p|%|원(?![인화래])|배(?![경당분치])|달러|bp|억|조(?![건정사기])|포인트|백분위)")
+AMOUNT_UNITS = {"KRW", "KRW±", "USD", "주", "주수"}
+PLAIN_UNITS = {"idx", "coef", "score"}  # 표시 값에 단위 글자가 없는 항목 ('포인트'는 지수에 붙여도 됨)
+SLOT_BEFORE = 10  # 키 앞 몇 글자까지 자리어로 볼지
+
+
+def slot_problems(text: str, f: Facts) -> list[str]:
+    """키가 놓인 자리와 키의 단위가 어긋난 경우. 장부에 없는 키는 형식 검사(없는 키)가 따로 잡습니다."""
+    probs: list[str] = []
+    for m in KEY_RE.finditer(str(text)):
+        k = m.group(1)
+        it = f.items.get(k)
+        if not it or it["unit"] == "doc":
+            continue
+        before = str(text)[max(0, m.start() - SLOT_BEFORE):m.start()]
+        if DATE_SLOT.search(before):
+            probs.append(f"자리 불일치: 날짜 자리에 {k}={it['text']}")
+        elif RATIO_SLOT.search(before) and it["unit"] in AMOUNT_UNITS:
+            probs.append(f"자리 불일치: 비율 자리에 금액·수량 {k}={it['text']}")
+        g = GLUED_UNIT.match(str(text)[m.end():])
+        if g and not (it["unit"] in PLAIN_UNITS and g.group(1) == "포인트"):
+            probs.append(f"단위 중복: {k}={it['text']} 뒤에 '{g.group(1)}'")
     return probs
