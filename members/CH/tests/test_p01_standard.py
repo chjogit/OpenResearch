@@ -210,3 +210,29 @@ def test_v2_hedge_and_floating_debt_are_evidence_only():
     debt = next(p for i, p in prem.items() if i.startswith("차입"))
     assert k in debt["keys"] and "민감도 역산" in debt["detail"]
     assert not any(k in r["keys"] for r in v2["exposure"])        # 등급 근거 키에는 들어가지 않음
+
+
+BORROW = {"borrow": {"fiscal_year": 2026, "report_code": "11012", "fs_div": "CFS", "period_end": "2026-06-30",
+                     "total": 20_000e9, "n": 3, "accounts": "장기차입금·단기차입금·사채"}}
+
+
+def test_total_borrowings_is_evidence_and_floating_share_denominator():
+    """10-29: 총차입금(재무상태표 차입 계정 합)은 근거·차입 전제에만, 변동금리 추정 비중의 분모로 씀. 등급 불변."""
+    base = macro.compute(_bundle(report=REPORT + V2), CO, AS_OF)
+    out = macro.compute(_bundle(report=REPORT + V2, terms=BORROW), CO, AS_OF)
+    assert [(r["var"], r["level"]) for r in base["exposure"]] == [(r["var"], r["level"]) for r in out["exposure"]]
+    f = out["facts"]
+    kb = next(k for k, it in f.items.items() if it["label"].startswith("총차입금(2026-06"))
+    ks = next(k for k, it in f.items.items() if it["label"] == "변동금리부 부채 추정 ÷ 총차입금")
+    assert f.items[kb]["value"] == 20_000e9 and abs(f.items[ks]["value"] - 46.407) < 0.01 and f.items[ks]["kind"] == "대용치"
+    debt = next(p for p in out["premises"] if p["item"].startswith("차입"))
+    assert kb in debt["keys"] and ks in debt["keys"] and "총차입금" in debt["detail"]
+    assert not any(k in r["keys"] for r in out["exposure"] for k in (kb, ks))
+
+
+def test_floating_estimate_larger_than_borrowings_is_not_turned_into_share():
+    small = {"borrow": {**BORROW["borrow"], "total": 5_000e9}}
+    out = macro.compute(_bundle(report=REPORT + V2, terms=small), CO, AS_OF)
+    f = out["facts"]
+    assert not any(it["label"] == "변동금리부 부채 추정 ÷ 총차입금" for it in f.items.values())
+    assert any("범위 주의" in x for x in f.flags)
