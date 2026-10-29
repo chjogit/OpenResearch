@@ -186,3 +186,27 @@ def test_receipt_date_overrides_deadline_rule():
     assert str(forecast.known({"pe": "2025-03-31", "fq": 1})) == "2025-05-15"
     rows = [{"c": 1, "pe": "2025-03-31", "fy": 2025, "fq": 1, "v": 1.0, "k": "2026-08-01"}]
     assert forecast.company_forecast(rows, 1, "2026-07-01")["status"] == ["QUARTER_MAPPING_CONFLICT"]
+
+
+V2 = [{"metric": "ir_sens_liab", "currency": "ALL", "value": -92_814e6, "change_pct": 1, "basis": "세전이익",
+       "fiscal_year": 2025, "evidence": ""},
+      {"metric": "fx_derivative", "currency": "ALL", "value": 1, "change_pct": None, "basis": None, "fiscal_year": 2025,
+       "evidence": ""},
+      {"metric": "fx_hedge_acct", "currency": "ALL", "value": 1, "change_pct": None, "basis": None, "fiscal_year": 2025,
+       "evidence": ""}]
+
+
+def test_v2_hedge_and_floating_debt_are_evidence_only():
+    """관점 B (10-29): 헤지·변동금리 차입은 미확인 전제 상태와 근거에만 반영하고 노출 등급은 바꾸지 않음."""
+    base = macro.compute(_bundle(report=REPORT), CO, AS_OF)
+    v2 = macro.compute(_bundle(report=REPORT + V2), CO, AS_OF)
+    assert [(r["var"], r["level"]) for r in base["exposure"]] == [(r["var"], r["level"]) for r in v2["exposure"]]
+    f = v2["facts"]
+    k = next(k for k, it in f.items.items() if it["label"].startswith("변동금리부 부채 추정(이자율 민감도 역산"))
+    assert abs(f.items[k]["value"] - 9_281.4e9) < 1 and f.items[k]["kind"] == "대용치"
+    prem = {p["item"]: p for p in v2["premises"]}
+    hedge = next(p for i, p in prem.items() if i.startswith("환헤지"))
+    assert hedge["status"] == "일부 확인" and "위험회피회계" in hedge["detail"]
+    debt = next(p for i, p in prem.items() if i.startswith("차입"))
+    assert k in debt["keys"] and "민감도 역산" in debt["detail"]
+    assert not any(k in r["keys"] for r in v2["exposure"])        # 등급 근거 키에는 들어가지 않음

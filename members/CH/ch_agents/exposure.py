@@ -283,6 +283,21 @@ def _report_facts(f: Facts, report: list[dict] | None, fundamentals: dict | None
                              note="+면 환율 상승 시 환산 이익 방향, -면 손실 방향")
     if by.get(("fx_derivative", "ALL")):
         got["hedge"] = True
+    if by.get(("fx_hedge_acct", "ALL")):   # kic-agent-data 파서 v2 (10-29)
+        got["hedge_acct"] = True
+    liab = by.get(("ir_sens_liab", "ALL"))   # v2: 이자율 민감도 표의 부채 쪽 행만의 영향 → 변동금리부 부채 역산 (근거로만)
+    if liab and liab.get("value") is not None and liab.get("change_pct"):
+        chg = float(liab["change_pct"])
+        est = abs(float(liab["value"])) / (chg / 100)
+        got["k_float"] = f.add(f"변동금리부 부채 추정(이자율 민감도 역산, {when})", est, "KRW", when, SRC_REPORT,
+                               kind="proxy", group="노출 근거",
+                               note=(f"이자율 민감도 표의 부채 쪽 행({chg:g}%p 상승 시 영향)을 {chg:g}%p 로 나눈 값. "
+                                     "공시 정형값이 아니고 금융부채·차입금 범위는 회사마다 다름. 노출 등급에는 쓰지 않음"))
+        tot = (fundamentals or {}).get("liabilities")
+        if tot and float(tot) > 0:
+            got["k_float_ratio"] = f.add(f"변동금리부 부채 추정 ÷ 부채총계({when})", est / float(tot) * 100, "%", when,
+                                         SRC_REPORT + " × core.v_fundamentals_annual", kind="calc", group="노출 근거",
+                                         note="대용치 비율. 부채총계에는 무이자 부채도 들어 있어 '차입금 중 변동금리 비중'보다 작게 나옴")
     ir = by.get(("ir_sens", "ALL"))
     if ir and ir.get("value") is not None:
         pct = float(ir["change_pct"]) if ir.get("change_pct") else None
@@ -456,7 +471,7 @@ def assess(f: Facts, sector: str, fundamentals: dict | None, as_of: str, focus: 
         f.flag(text)
         rows.append({"var": var, "level": LEVELS[level], "reasons": reasons, "keys": keys, "path": PATH[var],
                      "focus": bool(focus and any(x in var for x in focus)), "company": company,
-                     "basis": {k: v for k, v in rep.items() if k.startswith("k_") or k == "price_excerpts"}})
+                     "basis": {k: v for k, v in rep.items() if k.startswith("k_") or k in ("price_excerpts", "hedge_acct")}})
     if not any(k in rep for k in ("k_sens", "ratio", "export", "k_net", "hedge", "k_ir")):
         f.gap("기업 고유 노출", UNKNOWN_NOW)
     else:
@@ -498,11 +513,16 @@ def premises(f: Facts, rows: list[dict], sector: str) -> list[dict]:
     k_ir, k_mat, k_rate, k_dso = (basis.get(k) for k in ("k_ir", "k_mat", "k_rate", "k_dso"))
     k_grp = basis.get("k_rate_grp")
     k_sens = basis.get("k_sens")
+    k_float, k_float_ratio = basis.get("k_float"), basis.get("k_float_ratio")
+    hedge_acct = bool(basis.get("hedge_acct"))
     out = []
     for item, why in PREMISES:
         status, detail, keys = "미확인", "DB에 자료 없음", []
         if item.startswith("환헤지"):
-            if hedge:
+            if hedge and hedge_acct:
+                status, detail = "일부 확인", ("사업보고서에 외환 파생상품 사용과 위험회피회계 적용 공시. 계약 규모는 회사마다 "
+                                              "표기·단위가 달라 숫자로 쓰지 않음(환헤지 계약 원문 발췌는 참고 문서). 헤지 비율은 미확인")
+            elif hedge:
                 status, detail = "일부 확인", "사업보고서에 외환 파생상품 사용 공시. 헤지 비율·만기는 미확인"
             else:
                 detail = "사업보고서 원문에서 외환 파생상품 표를 찾지 못했거나 미수집"
@@ -525,14 +545,17 @@ def premises(f: Facts, rows: list[dict], sector: str) -> list[dict]:
         elif item.startswith("수출 매출"):
             detail = "사업보고서 원문에서 회사 전체 내수·수출 표를 찾지 못했거나 미수집 (업종 기본값 사용)"
         elif item.startswith("차입"):
-            keys = [k for k in (k_mat, k_rate, k_grp, k_ir) if k]
+            keys = [k for k in (k_mat, k_rate, k_grp, k_ir, k_float, k_float_ratio) if k]
             if sector in FINANCIAL and not keys:
                 detail = "금융업: 예대 금리 구조·자산 부채 만기 차이 자료 없음"
             elif keys:
                 status = "일부 확인"
                 got = [x for x, k in (("사채·CP 만기 구조", k_mat), ("회사채 발행금리", k_rate),
-                                      ("자회사 포함 회사채 발행금리", k_grp), ("이자율 민감도", k_ir)) if k]
-                detail = f"{'·'.join(got)} 확인. 변동·고정금리 비중과 은행 차입 조건은 공시 정형 자료가 없어 미확인"
+                                      ("자회사 포함 회사채 발행금리", k_grp), ("이자율 민감도", k_ir),
+                                      ("변동금리부 부채 추정(민감도 역산)", k_float)) if k]
+                rest = ("변동금리 비중은 민감도 역산 추정치뿐이고 은행 차입 조건은 미확인" if k_float else
+                        "변동·고정금리 비중과 은행 차입 조건은 공시 정형 자료가 없어 미확인")
+                detail = f"{'·'.join(got)} 확인. {rest}"
                 keys += [k_debt] if k_debt else []
             elif k_debt:
                 status, detail, keys = "일부 확인", "부채비율만 확인. 변동금리 비중·만기 구조는 미확인", [k_debt]
