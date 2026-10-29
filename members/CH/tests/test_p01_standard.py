@@ -236,3 +236,16 @@ def test_floating_estimate_larger_than_borrowings_is_not_turned_into_share():
     f = out["facts"]
     assert not any(it["label"] == "변동금리부 부채 추정 ÷ 총차입금" for it in f.items.values())
     assert any("범위 주의" in x for x in f.flags)
+
+
+def test_fsc_bond_floating_share_is_evidence_only():
+    terms = {**BORROW, "fsc_bonds": {"n": 3, "amount": 600e9, "floating": 150e9, "known": 600e9, "wavg": 3.1,
+                                     "next_maturity": "2027-02-01"}}
+    base = macro.compute(_bundle(report=REPORT), CO, AS_OF)
+    out = macro.compute(_bundle(report=REPORT, terms=terms), CO, AS_OF)
+    assert [(r["var"], r["level"]) for r in base["exposure"]] == [(r["var"], r["level"]) for r in out["exposure"]]
+    f = out["facts"]
+    k = next(k for k, it in f.items.items() if it["label"].startswith("본인 발행 회사채 중 변동금리 비중"))
+    assert f.items[k]["value"] == 25.0
+    debt = next(p for p in out["premises"] if p["item"].startswith("차입"))
+    assert k in debt["keys"] and "고정·변동 구분은 확인" in debt["detail"]

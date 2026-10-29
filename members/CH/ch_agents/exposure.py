@@ -209,6 +209,10 @@ WITH due AS (
       AND period_end + CASE WHEN report_code = '11011' THEN 90 ELSE 45 END <= %(as_of)s::date
     GROUP BY fiscal_year, report_code, fs_div
     ORDER BY max(period_end) DESC, (fs_div = 'CFS') DESC LIMIT 1
+), fscb AS (  -- 회사채 발행 종목(금융위원회_채권발행정보, kic-agent-data 025). 기준일에 발행돼 있고 만기 전인 본인 발행 종목
+    SELECT * FROM core.bond_issue_fsc
+    WHERE company_id = %(cid)s AND issue_amount > 0 AND issue_date <= %(as_of)s::date
+      AND (maturity_date IS NULL OR maturity_date > %(as_of)s::date)
 )
 SELECT json_build_object(
     'maturity', (SELECT json_agg(row_to_json(mat)) FROM mat),
@@ -222,12 +226,20 @@ SELECT json_build_object(
                     'min', min(rate), 'max', max(rate)) FROM grp),
     'dso', (SELECT row_to_json(dso) FROM dso),
     'borrow', (SELECT row_to_json(bor) FROM bor),
+    'fsc_bonds', (SELECT json_build_object(
+                    'n', count(*), 'amount', sum(issue_amount),
+                    'floating', sum(issue_amount) FILTER (WHERE rate_kind = 'floating'),
+                    'known', sum(issue_amount) FILTER (WHERE rate_kind IS NOT NULL),
+                    'wavg', sum(issue_amount * coupon_rate) FILTER (WHERE coupon_rate IS NOT NULL)
+                            / NULLIF(sum(issue_amount) FILTER (WHERE coupon_rate IS NOT NULL), 0),
+                    'next_maturity', min(maturity_date)) FROM fscb),
     'price_excerpts', (SELECT count(*) FROM rag.document d
                        WHERE d.company_id = %(cid)s AND d.source = 'dart_report' AND d.title ~ '가격변동'
                          AND d.published_at::date <= %(as_of)s::date)
 ) AS bundle
 """
 SRC_TERMS = "core.debt_balance·core.debt_issue (DART 정기보고서 주요정보)"
+SRC_FSC_BOND = "core.bond_issue_fsc (금융위원회_채권발행정보, 출처: 금융위원회·한국예탁결제원)"
 SRC_BORROW = "core.financial_fact dart_borrow (DART 전체 재무제표 재무상태표 차입 계정)"
 SRC_DSO = "core.v_dso (DART 전체 재무제표 매출채권 ÷ 4개 분기 매출)"
 SRC_REPORT = "core.report_exposure (DART 사업보고서 원문 표)"
@@ -413,6 +425,16 @@ def _terms_facts(f: Facts, terms: dict | None, fundamentals: dict | None = None,
                                           float(bor["total"]) / float(liab) * 100, "%", bor.get("period_end"),
                                           SRC_BORROW + " × core.v_fundamentals_annual", kind="calc", group="노출 근거",
                                           note="부채 중 이자가 붙는 차입의 비중(시점이 다를 수 있음). 등급에는 쓰지 않음")
+    fb = {} if financial else (terms.get("fsc_bonds") or {})
+    if fb.get("n") and fb.get("known"):
+        got["k_bond_float"] = f.add(f"본인 발행 회사채 중 변동금리 비중(발행금액 기준, {fb['n']}종목)",
+                                    float(fb.get("floating") or 0) / float(fb["known"]) * 100, "%", None, SRC_FSC_BOND,
+                                    kind="calc", group="노출 근거",
+                                    note="기준일에 발행돼 있고 만기 전인 종목(조기상환 미반영). 자회사 발행분·은행 차입 제외")
+        if fb.get("wavg") is not None:
+            got["k_bond_coupon"] = f.add(f"본인 발행 회사채 가중평균 표면이율({fb['n']}종목)", float(fb["wavg"]), "%", None,
+                                         SRC_FSC_BOND, kind="calc", group="노출 근거",
+                                         note=f"발행금액 가중. 가장 가까운 만기 {fb.get('next_maturity') or '-'}")
     got["price_excerpts"] = int(terms.get("price_excerpts") or 0)
     return got
 
@@ -559,6 +581,7 @@ def premises(f: Facts, rows: list[dict], sector: str) -> list[dict]:
     k_sens = basis.get("k_sens")
     k_float, k_float_ratio = basis.get("k_float"), basis.get("k_float_ratio")
     k_borrow, k_float_borrow = basis.get("k_borrow"), basis.get("k_float_borrow")
+    k_bond_float, k_bond_coupon = basis.get("k_bond_float"), basis.get("k_bond_coupon")
     hedge_acct = bool(basis.get("hedge_acct"))
     out = []
     for item, why in PREMISES:
@@ -590,15 +613,18 @@ def premises(f: Facts, rows: list[dict], sector: str) -> list[dict]:
         elif item.startswith("수출 매출"):
             detail = "사업보고서 원문에서 회사 전체 내수·수출 표를 찾지 못했거나 미수집 (업종 기본값 사용)"
         elif item.startswith("차입"):
-            keys = [k for k in (k_borrow, k_mat, k_rate, k_grp, k_ir, k_float, k_float_borrow or k_float_ratio) if k]
+            keys = [k for k in (k_borrow, k_bond_float, k_bond_coupon, k_mat, k_rate, k_grp, k_ir, k_float,
+                                k_float_borrow or k_float_ratio) if k]
             if sector in FINANCIAL and not keys:
                 detail = "금융업: 예대 금리 구조·자산 부채 만기 차이 자료 없음"
             elif keys:
                 status = "일부 확인"
-                got = [x for x, k in (("총차입금", k_borrow), ("사채·CP 만기 구조", k_mat), ("회사채 발행금리", k_rate),
+                got = [x for x, k in (("총차입금", k_borrow), ("본인 발행 회사채 고정·변동 구분", k_bond_float),
+                                      ("사채·CP 만기 구조", k_mat), ("회사채 발행금리", k_rate),
                                       ("자회사 포함 회사채 발행금리", k_grp), ("이자율 민감도", k_ir),
                                       ("변동금리부 부채 추정(민감도 역산)", k_float)) if k]
-                rest = ("변동금리 비중은 민감도 역산 추정치(총차입금 대비)뿐이고 은행 차입 조건은 미확인" if k_float_borrow else
+                rest = ("회사채의 고정·변동 구분은 확인, 은행 차입의 금리 조건은 미확인" if k_bond_float else
+                        "변동금리 비중은 민감도 역산 추정치(총차입금 대비)뿐이고 은행 차입 조건은 미확인" if k_float_borrow else
                         "변동금리 비중은 민감도 역산 추정치뿐이고 은행 차입 조건은 미확인" if k_float else
                         "변동·고정금리 비중과 은행 차입 조건은 공시 정형 자료가 없어 미확인")
                 detail = f"{'·'.join(got)} 확인. {rest}"
