@@ -345,5 +345,8 @@ def docs_markdown(docs: list[dict]) -> list[str]:
         title = f"[{d['title']}]({d['url']})" if d.get("url") else d["title"]
         tag = f"공시·{d['event']}" if d.get("kind") == "공시" else d.get("kind", "뉴스")
         more = f" (외 {d['count'] - 1}건)" if d.get("count", 1) > 1 else ""
+        if d.get("chunk_id") is not None:  # R6: [D1] chunk #<chunk_id> · <source> · <날짜> · <URL 또는 제목>
+            out.append(f"- [D{i + 1}] chunk #{d['chunk_id']} · {d.get('source')} · {d['published']} · {d.get('url') or d['title']}")
+            continue
         out.append(f"- D{i + 1} · {d['published']} · {tag} · {title}{more}")
     return out

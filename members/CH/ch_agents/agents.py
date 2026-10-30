@@ -6,7 +6,7 @@ from datetime import datetime, timedelta, timezone
 from types import ModuleType
 from typing import Any
 
-from . import agent1_macro, agent3_sentiment_flow, db, etf, exposure, financial, forecast, p03, quality, rag
+from . import agent1_macro, agent3_sentiment_flow, db, etf, exposure, financial, forecast, p03, quality, rag, rag_hybrid
 from .facts import Facts
 
 KST = timezone(timedelta(hours=9))
@@ -142,6 +142,8 @@ def fetch_bundle(agent_id: int, co: dict, as_of: str, use_rag: bool = True) -> d
     if use_rag and agent_id in rag.PRESETS:
         try:
             out["rag"] = rag.fetch(agent_id, co, as_of)
+            if rag_hybrid.enabled():
+                out["rag"]["hybrid"] = rag_hybrid.fetch_hybrid(agent_id, co, as_of, out["rag"])
         except Exception as e:  # noqa: BLE001  문서 검색이 실패해도 숫자 분석은 진행
             out["rag"] = {"error": f"{type(e).__name__}: {e}"}
     if agent_id == 1:  # 사업보고서 원문 노출 (kic-agent-data 018). 표가 아직 없으면 업종 기본값만 씀
@@ -199,7 +201,10 @@ def build_agent_data(agent_id: int, co: dict, bundle: dict, as_of: str, opts: di
         if raw.get("error"):
             extra["rag_error"] = raw["error"]
         else:
-            docs = rag.select(agent_id, raw, co, as_of)  # 관점 프리셋으로 고른 문서가 모듈 기본 문서를 대신함
+            if "hybrid" in raw:
+                docs, extra["rag_hybrid"] = rag_hybrid.select_hybrid(agent_id, raw, co, as_of)
+            else:
+                docs = rag.select(agent_id, raw, co, as_of)  # 관점 프리셋으로 고른 문서가 모듈 기본 문서를 대신함
     newer_docs_flag(out["facts"], docs, (extra.get("freshness") or {}).get("수급"))
     return AgentData(agent_id, spec.name, co, as_of, out["facts"], docs, out["period"], extra)
 

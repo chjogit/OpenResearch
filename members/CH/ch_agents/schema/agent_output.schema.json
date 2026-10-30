@@ -91,6 +91,7 @@
           "sourceTag": {"type": "string"},
           "url": {"type": ["string", "null"]},
           "cited": {"type": "boolean"},
+          "chunkId": {"type": ["integer", "null"], "description": "선택: 근거 문서의 rag.chunk.chunk_id (하이브리드 검색 문서)"},
           "tier": {"type": ["string", "null"], "enum": ["core", "reference", null],
                    "description": "r4-1.2: 제작 기준(P01·P03) 부합 core / 참고용 reference"},
           "resultType": {"type": ["string", "null"], "description": "r4-1.2: 관측·공시 민감도·과거 관계·실적 예측·시나리오·대용치 등"}
