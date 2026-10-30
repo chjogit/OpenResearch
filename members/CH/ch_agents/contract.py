@@ -107,6 +107,7 @@ def _evidence(data, emap: dict[str, str], cited: set[str]) -> list[dict]:
             "publishedAt": str(d.get("published_at") or d.get("published") or "") or None,
             "source": d.get("source"), "sourceTag": f"[출처: {doc_tag(d)}]", "url": d.get("url"), "note": None,
             "cited": k in cited,
+            **({"chunkId": d["chunk_id"]} if d.get("chunk_id") is not None else {}),  # 선택 필드 (하이브리드 검색 문서만)
         })
     return out
 
