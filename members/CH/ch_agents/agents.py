@@ -146,6 +146,11 @@ def fetch_bundle(agent_id: int, co: dict, as_of: str, use_rag: bool = True) -> d
                 out["rag"]["hybrid"] = rag_hybrid.fetch_hybrid(agent_id, co, as_of, out["rag"])
         except Exception as e:  # noqa: BLE001  문서 검색이 실패해도 숫자 분석은 진행
             out["rag"] = {"error": f"{type(e).__name__}: {e}"}
+    if agent_id == 3:  # 보관 기한으로 지운 블로그·카페 문서의 일별 집계 (kic-agent-data 028). 표가 없으면 살아 있는 문서만 씀
+        try:
+            out["docs_agg"] = db.q(mod.DOC_AGG_SQL, mod.params(co, as_of))
+        except Exception:  # noqa: BLE001
+            out["docs_agg"] = None
     if agent_id == 1:  # 사업보고서 원문 노출 (kic-agent-data 018). 표가 아직 없으면 업종 기본값만 씀
         try:
             out["report"] = db.q(exposure.REPORT_SQL, {"cid": co["company_id"], "as_of": as_of})
