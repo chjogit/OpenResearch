@@ -55,6 +55,7 @@ SELECT json_build_object(
         FROM rag.document d JOIN core.doc_sentiment s USING (doc_id)
         WHERE d.company_id = %(cid)s AND d.published_at::date <= %(as_of)s::date
           AND d.published_at::date > %(as_of)s::date - 30
+          AND d.source <> ALL(%(skip_src)s::text[])
         GROUP BY 1, 2) x),
     'search', (SELECT json_agg(json_build_object('d', trade_date, 'v', ratio) ORDER BY trade_date)
                FROM core.search_trend WHERE subject = 'KR:' || %(ticker)s AND trade_date <= %(as_of)s::date
@@ -75,6 +76,15 @@ SELECT json_build_object(
                       WHERE company_id = %(cid)s AND trade_date <= %(as_of)s::date
                       ORDER BY trade_date DESC LIMIT 60) l)
 ) AS bundle
+"""
+
+# 블로그·카페만 따로 읽는 질의 (kic-opinion). 메인 SQL 의 'docs' 와 같은 열·같은 조건입니다.
+DOCS_OPINION_SQL = """
+SELECT d.published_at::date AS d, d.source, count(s.score) AS n, avg(s.score) AS score
+FROM rag.document d JOIN core.doc_sentiment s USING (doc_id)
+WHERE d.company_id = %(cid)s AND d.published_at::date <= %(as_of)s::date
+  AND d.published_at::date > %(as_of)s::date - 30
+GROUP BY 1, 2
 """
 
 # 보관 기한(kic-agent-data 028)으로 지운 블로그·카페 문서의 일별 집계. 표가 없으면 호출 쪽(agents.fetch_bundle)이 None 으로 둠.
@@ -129,8 +139,9 @@ SENT_MODEL = "키워드 감성 사전 기준선 (학습 모델 아님, 성능 �
 EVENT_SIGNALS = ("뉴스 논조", "블로그 논조", "카페 논조", "검색 관심", "거래대금", "외국인 집중 매매", "기관 집중 매매")
 
 
-def params(co: dict, as_of: str) -> dict:
-    return {"cid": co["company_id"], "ticker": co["ticker"], "as_of": as_of}
+def params(co: dict, as_of: str, skip_src: tuple | list = ()) -> dict:
+    """skip_src: 메인 DB 에서 빼고 kic-opinion 에서 따로 읽는 출처 (분리 안 됐으면 비어 있어 기존과 같음)."""
+    return {"cid": co["company_id"], "ticker": co["ticker"], "as_of": as_of, "skip_src": list(skip_src)}
 
 
 def _days_back(day: str, n: int) -> str:

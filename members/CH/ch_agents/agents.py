@@ -138,7 +138,8 @@ def shared(name: str, as_of: str, fn):
 def fetch_bundle(agent_id: int, co: dict, as_of: str, use_rag: bool = True) -> dict:
     """관점 SQL 묶음 + (기본) RAG 후보 문서·공시. 'rag' 키는 스냅샷에도 그대로 저장됩니다."""
     mod = AGENTS[agent_id].module
-    out = db.bundle(mod.SQL, mod.params(co, as_of))
+    split = db.opinion_enabled()   # 블로그·카페는 kic-opinion 에서 따로 읽어 합침 (없으면 메인 하나)
+    out = db.bundle(mod.SQL, mod.params(co, as_of, db.OPINION_SOURCES) if (split and agent_id == 3) else mod.params(co, as_of))
     if use_rag and agent_id in rag.PRESETS:
         try:
             out["rag"] = rag.fetch(agent_id, co, as_of)
@@ -147,10 +148,13 @@ def fetch_bundle(agent_id: int, co: dict, as_of: str, use_rag: bool = True) -> d
         except Exception as e:  # noqa: BLE001  문서 검색이 실패해도 숫자 분석은 진행
             out["rag"] = {"error": f"{type(e).__name__}: {e}"}
     if agent_id == 3:  # 보관 기한으로 지운 블로그·카페 문서의 일별 집계 (kic-agent-data 028). 표가 없으면 살아 있는 문서만 씀
+        agg_q = db.q_opinion if split else db.q
         try:
-            out["docs_agg"] = db.q(mod.DOC_AGG_SQL, mod.params(co, as_of))
+            out["docs_agg"] = agg_q(mod.DOC_AGG_SQL, mod.params(co, as_of))
         except Exception:  # noqa: BLE001
             out["docs_agg"] = None
+        if split:   # 분리 후엔 블로그·카페 감성 집계를 kic-opinion 에서 읽어 메인의 뉴스 등과 합침 (실패하면 오류로 알림)
+            out["docs"] = (out.get("docs") or []) + db.q_opinion(mod.DOCS_OPINION_SQL, mod.params(co, as_of))
     if agent_id == 1:  # 사업보고서 원문 노출 (kic-agent-data 018). 표가 아직 없으면 업종 기본값만 씀
         try:
             out["report"] = db.q(exposure.REPORT_SQL, {"cid": co["company_id"], "as_of": as_of})
