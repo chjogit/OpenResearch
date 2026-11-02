@@ -101,7 +101,23 @@ prompt_block = docs_for_prompt(docs)                # 프롬프트에 붙일 D1,
 - 검색: SQL로 종목·기간·출처를 좁혀 용어 일치 후보를 뽑고, 파이썬이 점수(용어 가중치 × 제목/요약 × 출처 × 최신성)를 매깁니다.
 - 거르기: 종목명이 없는 문서, 사진 기사, 비슷한 제목, 출처별 개수 초과.
 - 규칙: 문서 속 숫자는 쓰지 않습니다(코드 검사가 지움). 개인 의견 문서만으로는 '사실' 주장을 못 합니다.
-- 한계: 공시는 제목만 있습니다(본문 없음). 벡터 검색은 `rag.chunk`가 비어 있어 아직 쓰지 않습니다.
+- 한계: 공시는 제목만 있습니다(본문 없음). 블로그·카페(kic-opinion)에는 청크가 없습니다.
+
+### 하이브리드 검색·청크 근거·리랭킹 (`rag_hybrid.py`, `rerank.py`)
+
+| 환경변수 | 기본 | 켜면 |
+| --- | --- | --- |
+| `CH_RAG_HYBRID` | `off` | 키워드 점수 + 벡터 유사도(문서 단위) |
+| `CH_RAG_RERANK` | `off` | 청크 근거·리랭킹(R4-2, 11/2 결정. 10-30 '리랭킹 쓰지 않음'을 대체) |
+| `CH_RERANK_MODEL` | `rerank-v5.0-pro` | Cohere 모델 (docs.cohere.com/docs/rerank) |
+| `CH_RERANK_PROVIDER` | `cohere` | `solar` 는 인터페이스만 (호출하면 합산 순위로 대체) |
+
+- `CH_RAG_RERANK=on`: 후보를 청크 단위(문서당 최대 2개, 키워드 점수 상속, 관점 출처 가중치)로 모아 합산 상위 20개를
+  Cohere Rerank 로 다시 매기고, 청크 발췌(최대 400자)+chunk_id 를 `[근거 청크]`로 프롬프트에 붙입니다.
+  런타임 지시문은 `prompts.CHUNK_RUNTIME_RULE`. 목록 밖 chunk_id·청크 속 숫자를 쓴 문장은 지워지고, 주장별 `chunkId`(계약 `claims[].chunkIds`)가 채워집니다.
+- 키(`COHERE_API_KEY`)가 없거나 실패·한도 초과(HTTP 429)면 합산 순위를 쓰고 `rag_chunks.rerank_fallback` 에 이유를 남깁니다.
+  리랭킹 점수·호출 수는 `bundle['rag']['rerank']` 에 저장되어 같은 스냅샷이면 같은 순위입니다. 트라이얼 키는 월 1,000회.
+- 끄면(기본) 청크 검색·리랭킹을 하지 않아 지금과 같은 결과입니다. 비교: `python members/CH/scripts/rerank_compare.py 2026-10-30`
 
 ## 기초기획서 R4 대응 (에이전트 1·3)
 
