@@ -129,6 +129,14 @@ prompt_block = docs_for_prompt(docs)                # 프롬프트에 붙일 D1,
 - E5 재시도 상한 `MAX_REPAIR_ATTEMPTS`(기본 1, `CH_MAX_REPAIR_ATTEMPTS`, 최대 2): 노드 틀과 `run_agent`(기존 '수정 1회')가 같은 값을 씀. 초과하면 `unresolved`.
 - 계약 `r4-1.3`(선택 필드만 추가): `agent.agentNos`, `claims[].tag`, `nodes[]`, `nodeSummary`, `conflicts`, `predictionSkippedReason`. 옛 출력은 변환표(`p01`→3, `p03`→4·6)로 `contract.upgrade_legacy` 가 채우며 분석 값은 그대로.
 
+## 에이전트 4 수급 (#22, `ch_agents/flow_nodes.py`)
+
+- `run_flow_agent(ticker, as_of_date, extension=False)` — N07 유동성·거래대금(기본), N08 수급 전환·가격 불일치(확장). 숫자는 DB 값을 코드가 계산한 장부 키이고 각 진술의 `evidence_links` 가 그 키입니다(LLM 서술 단계는 아직 붙이지 않음).
+- N07: 거래대금 5·20·60일 평균, 회전율(거래량 ÷ 상장주식수), Amihud 비유동성(%/거래대금 조원), 급증/급감·유동성 충격, 최근 60일 10~90 백분위 거래대금 범위(경험적, 예측 모형 아님). **호가 잔량은 수집하지 않아 '미확보'.**
+- N08: 외국인·기관·개인 5·20·60일 누적 순매수·연속 일수(에이전트 3 와 같은 라벨·같은 값, 테스트로 대조), 손바꿈·가격-수급 불일치(정의는 `artifacts.definitions`), 불일치는 '관점별 충돌'에 나란히 둠. **세부 주체(금융투자·투신·연기금)는 미확보 — 기관 합계로 대체하지 않음.**
+- 투자자별 자료가 없으면 N08 은 스킵(거래량으로 대신 해석하지 않음), 수급이 시세보다 늦으면 `flow_lag` 로 시차를 표시하고 그 뒤 거래일은 채우지 않습니다. 수급만으로 의도·정보 보유를 추정하지 않으며 가격 차트·순수 거래량 분석(N09·N10)은 하지 않습니다.
+- 전환 확률: 연속 3일 이상 같은 방향 뒤 5거래일 합의 방향이 반대인 경험적 빈도. 표본 30회 이상 + 걷기 검증(Brier)이 무조건 빈도보다 나을 때만 내고, 아니면 `prediction_skipped_reason`(SWITCH_PROB_UNVALIDATED)에 이유를 남기고 나머지 표는 그대로 냅니다.
+
 ## 기초기획서 R4 대응 (에이전트 1·3)
 
 | 기획서 요구 | 구현 |
