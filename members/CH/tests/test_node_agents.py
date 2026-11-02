@@ -137,3 +137,45 @@ def test_no_investment_advice_in_node_agent_outputs():
         out = run_node_agent(no, "005930", llm=NoLLM(), data=make())
         blob = " ".join(c["text"] for c in out["contract"]["claims"]) + out["analysis"]
         assert not re.search(r"매수\s*(추천|의견)|매도\s*(추천|의견)|목표\s*주가\s*[:는]|사세요|파세요", blob), no
+
+
+def test_node_scorecard_never_overwrites_the_before_split_record(tmp_path, monkeypatch):
+    from ch_agents import evaluate
+
+    monkeypatch.chdir(tmp_path)
+    with pytest.raises(ValueError):
+        evaluate.node_scorecard(["005930"], save_to="eval_results.json", as_of=AS_OF)
+
+
+def test_summarize_runs_counts_like_llm_scorecard():
+    from ch_agents import evaluate
+
+    out = run_node_agent(6, "005930", llm=FakeLLM(good_json(data6())), data=data6())
+    s = evaluate.summarize_runs([out, run_node_agent(4, "005930", llm=NoLLM(), data=data4())])
+    assert s["runs"] == 2 and s["status"] and s["avg_claims"] > 0 and "check_violations_last_attempt" in s
+
+
+def test_run_legacy_via_nodes_maps_old_numbers(monkeypatch):
+    from ch_agents import llm
+
+    seen = []
+    monkeypatch.setattr(llm, "run_node_agent", lambda no, *a, **k: seen.append((no, k.get("scenario"))) or {"agent": no})
+    assert llm.run_legacy_via_nodes(3, "005930", scenario="x") == [{"agent": 4}, {"agent": 6}]
+    assert llm.run_legacy_via_nodes(1, "005930", scenario="환율 5% 상승") == [{"agent": 3}]
+    assert seen == [(4, None), (6, None), (3, "환율 5% 상승")]
+    with pytest.raises(KeyError):
+        llm.run_legacy_via_nodes(7, "005930")
+
+
+def test_numbers_outside_ledger_are_masked_in_flags_and_notes():
+    assert node_agents._mask_loose_numbers("Brier 0.265 가 0.262 보다 {S3} 5일 N07 12,345주 3.5%") == \
+        "Brier (수치는 노드 산출물 참조) 가 (수치는 노드 산출물 참조) 보다 {S3} 5일 N07 (수치는 노드 산출물 참조)주 (수치는 노드 산출물 참조)"
+    for no, make in ALL:
+        d = make()
+        for t in [*d.facts.flags, *d.facts.notes]:
+            rest = node_agents.PLACEHOLDER.sub("", t)
+            assert not node_agents.LOOSE_NUMBER.search(rest.replace(node_agents.DIRECTION_RULE, "")), (no, t)
+
+
+def test_direction_rule_is_in_prompt_notes():
+    assert node_agents.DIRECTION_RULE in data4().facts.notes

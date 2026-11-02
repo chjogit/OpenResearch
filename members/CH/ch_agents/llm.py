@@ -894,6 +894,19 @@ def run_node_agent(agent_no: int, ticker: str, mode: str = "expert", llm=None, a
     return run_agent(agent_no, mode=mode, llm=llm, data=data, max_repair=max_repair)
 
 
+def run_legacy_via_nodes(old_agent_id: int, ticker: str, mode: str = "expert", llm=None, as_of: str | None = None,
+                         extension: bool = False, scenario: str | None = None) -> list[dict]:
+    """옛 에이전트 번호(1 거시, 3 투자심리·수급)로 부르던 호출을 변환표(nodes.LEGACY_AGENT: 1→3, 3→4·6)로 새 에이전트에 넘깁니다 (#25).
+    옛 `run_agent(1|3)` 는 분리 전 출력(p01·p03)을 그대로 내므로 기존 화면·스크립트가 깨지지 않고, 새 구조가 필요하면 이쪽을 씁니다."""
+    from .nodes import legacy_agent_nos
+
+    nos = legacy_agent_nos(old_agent_id)
+    if not nos:
+        raise KeyError(f"변환표에 없는 옛 에이전트 번호: {old_agent_id}")
+    return [run_node_agent(no, ticker, mode=mode, llm=llm, as_of=as_of, extension=extension,
+                           scenario=scenario if no == 3 else None) for no in nos]
+
+
 def run_my_agents(ticker: str, mode: str = "expert", agent_ids=MY_AGENTS, as_of: str | None = None,
                   llm=None, focus: list[str] | None = None, period: int | None = None) -> list[dict]:
     """CH 담당 관점을 한 번에 실행해 오케스트레이터에 넘길 리스트를 돌려줍니다.

@@ -15,6 +15,9 @@ from .agents import AgentData, AgentSpec
 from .facts import Facts
 
 PLACEHOLDER = re.compile(r"\{([A-Z]\d+)\}")
+LOOSE_NUMBER = re.compile(r"[+-]?\d+\.\d+%?|[+-]?\d{1,3}(?:,\d{3})+|[+-]?\d+%")   # 소수·천 단위·퍼센트 (일수·노드 번호 같은 정수는 제외)
+DIRECTION_RULE = ("방향어 규칙: 장부 키 바로 뒤에 그 값의 방향어(순매수/순매도·증가/감소)를 쓰고, 한 문장에 부호가 다른 키를 나열하지 말 것. "
+                  "음수인 '순매수 수량'은 '순매도'로 쓰고, 키 뒤 12자 안에 반대 방향어가 오지 않게 문장을 나눌 것")
 GROUP = {"N05": "거시 노출", "N06": "시나리오", "N07": "유동성", "N08": "수급 전환", "N11": "사건 감성", "N12": "후속 반응"}
 KIND_TEXT = {"base": "기본", "ext": "확장"}
 
@@ -105,6 +108,12 @@ def _to_placeholders(text: str, links: list[str], items: dict[str, dict]) -> str
     return out
 
 
+def _mask_loose_numbers(text: str) -> str:
+    """진술 속 장부 키 밖 숫자(예: Brier 0.265)를 가림. 남겨 두면 LLM 이 그대로 옮겨 써서 '키 밖 숫자' 로 문장이 지워짐."""
+    parts = re.split(r"(\{[A-Z]\d+(?:,\s*[A-Z]\d+)*\})", text)
+    return "".join(p if p.startswith("{") else LOOSE_NUMBER.sub("(수치는 노드 산출물 참조)", p) for p in parts)
+
+
 def merge_facts(report: dict) -> tuple[Facts, list[str]]:
     """노드 결과들을 하나의 Facts 로 합침. 반환: (장부, 충돌 구역 문장 목록)."""
     f = Facts("N")
@@ -118,20 +127,21 @@ def merge_facts(report: dict) -> tuple[Facts, list[str]]:
         f.gaps += [g for g in (res.artifacts or {}).get("gaps") or [] if g not in f.gaps]
     for nid, res in report["results"].items():
         for fd in res.findings:
-            text = _to_placeholders(fd.text, fd.evidence_links, f.items)
+            text = _mask_loose_numbers(_to_placeholders(fd.text, fd.evidence_links, f.items))
             if fd.kind == "note" or not fd.evidence_links:
                 f.notes.append(text)
             else:
                 f.flags.append(text)
         for c in res.conflicts:
-            views = " ↔ ".join(f"({v.tag}) " + _to_placeholders(v.text, v.evidence_links, f.items) for v in c.views)
+            views = " ↔ ".join(f"({v.tag}) " + _mask_loose_numbers(_to_placeholders(v.text, v.evidence_links, f.items)) for v in c.views)
             conflicts.append(f"관점별 충돌 [{nid}] {c.topic}: {views} — 평균 내거나 하나로 합치지 말고 둘 다 전달")
         for lim in (res.artifacts or {}).get("limits") or []:
             if lim not in f.notes:
-                f.notes.append(f"한계({nid}): {lim}")
+                f.notes.append(f"한계({nid}): {_mask_loose_numbers(lim)}")
         for m in res.missing_items:
             f.gaps.append({"label": m, "reason": f"{nid} 미충족 항목"}) if not any(g["label"] == m for g in f.gaps) else None
     f.flags += conflicts
+    f.notes.append(DIRECTION_RULE)
     return f, conflicts
 
 
