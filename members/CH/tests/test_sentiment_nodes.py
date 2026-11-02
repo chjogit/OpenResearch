@@ -254,3 +254,20 @@ def test_all_findings_pass_validation_and_tags():
     for nid, res in run(ext=True, validated=True, effect=2.0)["results"].items():
         assert nodes.result_problems(res) == [], nid
         assert all(f.tag in nodes.TAGS for f in res.findings)
+
+
+# ---- PM 결정(11/2): 사건일 문서 3건 조건, 부수 언급 한계
+
+def test_event_day_needs_three_documents_and_twenty_prior_observations():
+    days = [(f"2026-01-{i + 1:02d}", 0.0 + (i % 2) * 0.01, 5) for i in range(25)]
+    days[22] = ("2026-01-23", 0.9, 2)                                # 크게 벗어났지만 문서 2건
+    assert sn.event_days(days) == [] or all(d != "2026-01-23" for d, _ in sn.event_days(days))
+    days[22] = ("2026-01-23", 0.9, 3)
+    assert "2026-01-23" in [d for d, _ in sn.event_days(days)]
+    assert sn.event_days(days[:20]) == []                           # 직전 관측일 20개 미만이면 사건일 없음
+
+
+def test_mention_limit_is_shown_in_n11_and_n12():
+    res = run(ext=True)["results"]
+    for nid in ("N11", "N12"):
+        assert any("부수적으로 언급" in x and "종목 태그 매핑 미적용" in x for x in res[nid].artifacts["limits"])

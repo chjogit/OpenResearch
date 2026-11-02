@@ -129,6 +129,7 @@ def test_n06_never_claims_macro_improves_earnings_forecasts():
     res = run(ext=True, scenario="환율 5% 상승")["results"]["N06"]
     blob = " ".join([f.text for f in res.findings] + [str(v) for v in res.artifacts["limits"]])
     blob += " ".join(v["note"] or "" for v in res.artifacts["ledger"].values())
+    blob = blob.replace("추정 모델 미사용(실험상 예측 개선 없음)", "")                    # 개선이 없다는 PM 지정 한계 문구는 허용
     assert not re.search(r"예측(을|이)?\s*(개선|향상)|(개선|향상)(한다|시킨다|된다|시켜)", blob)
     assert "실적 예측·인과효과·확률이 아님" in blob                                 # 환산값은 예측이 아니라는 문구
 
@@ -184,3 +185,9 @@ def test_no_future_data_in_tool_layer_requires_as_of():
         macro_nodes.run_macro_agent("005930", "", inputs=bundle(), co=CO)
     with pytest.raises(ValueError):
         macro_nodes.clean_inputs(bundle(), None)
+
+
+def test_n06_states_estimation_model_is_not_used():
+    res = run(ext=True, scenario="환율 5% 상승")["results"]["N06"]
+    assert any("추정 모델 미사용(실험상" in x for x in res.artifacts["limits"])
+    assert any("추정 모델 미사용(실험상" in f.text for f in res.findings)
