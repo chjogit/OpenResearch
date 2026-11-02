@@ -145,11 +145,15 @@ def fetch_bundle(agent_id: int, co: dict, as_of: str, use_rag: bool = True) -> d
             out["rag"] = rag.fetch(agent_id, co, as_of)
             if rag_hybrid.enabled():
                 out["rag"]["hybrid"] = rag_hybrid.fetch_hybrid(agent_id, co, as_of, out["rag"])
-            if rerank.enabled():  # R4-2 청크 근거·리랭킹 (기본 꺼짐: 꺼져 있으면 아래를 건너뛰어 지금과 같음)
+            if rerank.chunks_enabled():  # R4-2 청크 근거·리랭킹 (기본 꺼짐: 꺼져 있으면 아래를 건너뛰어 지금과 같음)
                 out["rag"]["chunks"] = rag_hybrid.fetch_chunks(agent_id, co, as_of, out["rag"])
                 hits = out["rag"]["chunks"].get("hits")
-                out["rag"]["rerank"] = (rag_hybrid.fetch_rerank(agent_id, co, as_of, out["rag"], hits) if hits
-                                        else {"error": "청크 없음", "calls": 0})
+                if not hits:
+                    out["rag"]["rerank"] = {"error": "청크 없음", "calls": 0}
+                elif rerank.enabled():
+                    out["rag"]["rerank"] = rag_hybrid.fetch_rerank(agent_id, co, as_of, out["rag"], hits)
+                else:   # CH_RAG_RERANK=chunk: 청크 근거만, 합산 순위 (리랭커 호출 없음)
+                    out["rag"]["rerank"] = {"error": "리랭킹 끔 (CH_RAG_RERANK=chunk)", "calls": 0}
         except Exception as e:  # noqa: BLE001  문서 검색이 실패해도 숫자 분석은 진행
             out["rag"] = {"error": f"{type(e).__name__}: {e}"}
     if agent_id == 3:  # 보관 기한으로 지운 문서의 일별 집계 (kic-agent-data 028·#15). 표가 없으면 살아 있는 문서만 씀

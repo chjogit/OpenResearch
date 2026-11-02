@@ -17,7 +17,8 @@ from . import contract as contract_mod
 from . import exposure as exposure_mod
 from . import verify as verifier
 from .glossary import terms_for
-from .prompts import CHUNK_OUTPUT_RULE, CHUNK_RUNTIME_RULE, mode_guide
+from .prompts import (CHUNK_BOOST_EXAMPLE, CHUNK_BOOST_MISSING, CHUNK_BOOST_RULE, CHUNK_OUTPUT_RULE,
+                      CHUNK_RUNTIME_RULE, chunk_boost_enabled, mode_guide)
 from .rag import PROMPT_RULE as RAG_RULE
 from .rag import docs_for_prompt, docs_markdown
 from .semantic import baseline_problems, direction_problems, flag_directions, slot_problems
@@ -147,7 +148,10 @@ def build_messages(data: AgentData, mode: str = "expert") -> tuple[str, str]:
     chunk_mode = _chunk_mode(data)
     if chunk_mode:  # R4-2: 청크 근거가 붙을 때만 (CH_RAG_RERANK=on). 꺼져 있으면 프롬프트가 지금과 같음
         system += f"\n\n[근거 청크 지시]\n{CHUNK_RUNTIME_RULE}\n{CHUNK_OUTPUT_RULE}"
-    docs = docs_for_prompt(data.docs)
+    boost = _boost_mode(data)
+    if boost:  # #18 청크 인용 보강 (CH_CHUNK_CITE=boost). 꺼져 있으면 #12 와 같음
+        system += f"\n\n{CHUNK_BOOST_RULE}\n{CHUNK_BOOST_EXAMPLE}"
+    docs = docs_for_prompt(data.docs, cite_boost=boost)
     flags = "\n".join(f"- {x}" for x in f.flags) or "- (없음)"
     notes = "\n".join(f"- {x}" for x in f.notes) or "- (없음)"
     opts = data.extra.get("opts") or {}
@@ -181,6 +185,9 @@ def build_messages(data: AgentData, mode: str = "expert") -> tuple[str, str]:
                                 "[근거 청크] (공시 제목 + 검색한 청크 본문 발췌. 근거 키로 D번호, 청크는 chunk_id 도 함께)")
         else:
             user = user.replace("[참고 문서] (DB에서", "[근거 청크]\n- (근거 청크 없음)\n\n[참고 문서] (DB에서")
+    if boost and _chunk_ids(data):   # 인용 단위 목록을 마지막에 한 번 더 (D번호 → chunk_id)
+        pairs = ", ".join(f"{k}=chunk {c}" for c, k in _chunk_ids(data).items())
+        user += f"\n\n[청크 인용 목록] (청크를 쓴 주장: 근거에 D번호, chunkId 에 chunk_id) {pairs}"
     return system, user
 
 
@@ -380,6 +387,16 @@ def _chunk_mode(data: AgentData) -> bool:
     return (data.extra or {}).get("rag_chunks") is not None
 
 
+def _boost_mode(data: AgentData) -> bool:
+    """#18 청크 인용 보강: 청크 근거 모드이고 CH_CHUNK_CITE=boost 일 때만."""
+    return _chunk_mode(data) and chunk_boost_enabled()
+
+
+def _cites_chunk(c: dict, cids: dict[int, str]) -> bool:
+    keys = set(cids.values())
+    return any(str(k) in keys for k in c.get("근거") or []) or any(x in cids for x in _as_ids(c.get("chunkId")))
+
+
 def _chunk_ids(data: AgentData) -> dict[int, str]:
     """프롬프트에 준 청크의 chunk_id → D키."""
     return {int(d["chunk_id"]): f"D{i + 1}" for i, d in enumerate(data.docs) if d.get("excerpt") is not None}
@@ -504,6 +521,10 @@ def check_output(result: dict, data: AgentData) -> dict[str, list[str]]:
                                                        for x in result.get(k) or []]:
             for p in chunk_problems(t, None, data, nums):
                 checks["문장"].append(f"{p}: {t[:60]}")
+        cids = _chunk_ids(data)
+        if _boost_mode(data) and cids and not any(isinstance(c, dict) and _cites_chunk(c, cids)
+                                                  for c in claims + counter):
+            checks["근거"].append(CHUNK_BOOST_MISSING)
     return {k: v for k, v in checks.items() if v}
 
 

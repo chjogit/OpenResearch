@@ -362,11 +362,30 @@ PROMPT_RULE = ("[참고 문서]는 사건·맥락의 정성 근거입니다. 근
                "공시는 '제출됨' 사실만 말하고, 내용(지분율·금액)은 본문이 없으므로 미확인에 적으십시오.")
 
 
-def doc_line(i: int, d: dict, with_summary: bool = True) -> str:
+CHUNK_NUM = re.compile(r"\d[\d,]*(?:\.\d+)?")
+
+
+def mask_numbers(text: str) -> str:
+    """두 자리 이상이거나 소수인 숫자를 [수치] 로 가림 (#18 청크 인용 보강 표시용. 검사는 원문 발췌로 함)."""
+    def sub(m: re.Match) -> str:
+        t = m.group(0).replace(",", "")
+        return "[수치]" if len(t.replace(".", "")) >= 2 or "." in t else m.group(0)
+    return CHUNK_NUM.sub(sub, str(text))
+
+
+def chunk_line(i: int, d: dict) -> str:
+    """#18 보강 형식: 인용 단위(D번호 · chunk_id)를 줄 앞에, 발췌 속 숫자는 가림."""
+    return (f"- D{i} · chunk_id={d['chunk_id']} · {d['published']} [{d.get('kind', '뉴스')}] {d['title']}\n"
+            f"    발췌: {mask_numbers(d['excerpt'])}")
+
+
+def doc_line(i: int, d: dict, with_summary: bool = True, cite_boost: bool = False) -> str:
     if d.get("kind") == "공시":
         extra = f" 외 동일 공시 {d['count'] - 1}건" if d.get("count", 1) > 1 else ""
         sub = " · 자회사 관련" if d.get("subsidiary") else ""
         return f"- D{i}: {d['published']} [공시·{d['event']}] {d['title']}{extra}{sub}"
+    if cite_boost and d.get("excerpt") is not None:
+        return chunk_line(i, d)
     line = f"- D{i}: {d['published']} [{d.get('kind', '뉴스')}] {d['title']}"
     if d.get("excerpt") is not None:  # R4-2 청크 근거: chunk_id 와 본문 발췌(최대 400자)
         return line + f" · chunk_id={d['chunk_id']}\n    발췌: {d['excerpt']}"
@@ -375,8 +394,8 @@ def doc_line(i: int, d: dict, with_summary: bool = True) -> str:
     return line
 
 
-def docs_for_prompt(docs: list[dict]) -> str:
-    return "\n".join(doc_line(i + 1, d) for i, d in enumerate(docs)) or "- (없음)"
+def docs_for_prompt(docs: list[dict], cite_boost: bool = False) -> str:
+    return "\n".join(doc_line(i + 1, d, cite_boost=cite_boost) for i, d in enumerate(docs)) or "- (없음)"
 
 
 def docs_markdown(docs: list[dict]) -> list[str]:
