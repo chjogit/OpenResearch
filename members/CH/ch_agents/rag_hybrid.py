@@ -124,6 +124,9 @@ def merge_candidates(agent_id: int, raw: dict, co: dict, as_of: str, hits: list[
 
 def fetch_hybrid(agent_id: int, co: dict, as_of: str, raw: dict, embed=None, run_sql=None) -> dict:
     """질의 임베딩 → 벡터 검색. 결과는 bundle['rag']['hybrid'] 에 저장할 dict. 실패는 error 로 기록."""
+    from .asof import cut_future, require_as_of
+
+    as_of = require_as_of(as_of)
     out: dict = {}
     try:
         qv = (embed or embed_query)(query_text(agent_id, co))
@@ -131,7 +134,8 @@ def fetch_hybrid(agent_id: int, co: dict, as_of: str, raw: dict, embed=None, run
             from . import db
             run_sql = db.q
         vec = "[" + ",".join(f"{x:.6f}" for x in qv) + "]"
-        out["hits"] = run_sql(VECTOR_SQL, {**rag.params(agent_id, co, as_of), "qv": vec, "n": N_CANDIDATES * 2})
+        out["hits"], _ = cut_future(run_sql(VECTOR_SQL, {**rag.params(agent_id, co, as_of), "qv": vec,
+                                                         "n": N_CANDIDATES * 2}), as_of)   # E3
     except Exception as e:  # noqa: BLE001
         return {"error": f"{type(e).__name__}: {e}"}
     if not out["hits"]:
@@ -208,6 +212,9 @@ def chunk_candidates(agent_id: int, raw: dict, co: dict, as_of: str, hits: list[
 
 def fetch_chunks(agent_id: int, co: dict, as_of: str, raw: dict, embed=None, run_sql=None) -> dict:
     """질의 임베딩 → 청크 벡터 검색 + 키워드 문서의 청크. 결과는 bundle['rag']['chunks']. 실패는 error 로 기록."""
+    from .asof import cut_future, require_as_of
+
+    as_of = require_as_of(as_of)
     try:
         qv = (embed or embed_query)(query_text(agent_id, co))
         if run_sql is None:
@@ -221,6 +228,7 @@ def fetch_chunks(agent_id: int, co: dict, as_of: str, raw: dict, embed=None, run
             hits += run_sql(DOC_CHUNK_SQL, {**prm, "ids": ids}) or []
     except Exception as e:  # noqa: BLE001
         return {"error": f"{type(e).__name__}: {e}"}
+    hits, _ = cut_future(hits, as_of)   # E3: 기준일 다음 날 이후 청크 제거
     if not hits:
         return {"error": "청크 없음"}
     uniq = {h["chunk_id"]: h for h in hits}

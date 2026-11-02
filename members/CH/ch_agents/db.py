@@ -53,6 +53,10 @@ def q(sql: str, params: dict | None = None, url: str | None = None) -> list[dict
     """SELECT/WITH 하나를 읽기 전용 세션에서 실행합니다 (url 이 없으면 메인 DB)."""
     if not sql.lstrip().lower().startswith(("select", "with")):
         raise ValueError("SELECT/WITH 질의만 허용합니다.")
+    if "%(as_of)s" in sql:   # E3: 기준일을 쓰는 질의는 as_of 를 반드시 넘겨야 함 (비면 오류, 오늘로 대체하지 않음)
+        from .asof import require_as_of
+
+        require_as_of((params or {}).get("as_of"))
     import psycopg
     from psycopg.rows import dict_row
 

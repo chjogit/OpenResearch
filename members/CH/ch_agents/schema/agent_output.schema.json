@@ -7,14 +7,16 @@
   "required": ["schemaVersion", "reportId", "agent", "target", "mode", "asOf", "generatedAt", "status", "summary",
                "claims", "downsideRisks", "unverified", "evidence", "verification", "disclaimer"],
   "properties": {
-    "schemaVersion": {"type": "string", "enum": ["r4-1.0", "r4-1.1", "r4-1.2"]},
+    "schemaVersion": {"type": "string", "enum": ["r4-1.0", "r4-1.1", "r4-1.2", "r4-1.3"]},
     "reportId": {"type": "string", "pattern": "^RPT-\\d+-[0-9A-Za-z.]+-\\d{8}-[0-9a-f]{8}$"},
     "agent": {
       "type": "object", "required": ["id", "module", "name"],
       "properties": {
         "id": {"type": "integer", "enum": [1, 2, 3, 4, 5, 6, 7]},
         "module": {"type": "string", "pattern": "^agent\\d_"},
-        "name": {"type": "string"}
+        "name": {"type": "string"},
+        "agentNos": {"type": "array", "description": "명세서 번호(3 거시·4 수급·6 투자심리·뉴스). 옛 출력은 변환표로 채움 (r4-1.3, 선택)",
+                     "items": {"type": "integer", "enum": [3, 4, 6]}}
       }
     },
     "target": {
@@ -43,6 +45,7 @@
           "template": {"type": "string", "description": "장부 키가 남아 있는 원문 ({M7})"},
           "type": {"type": "string", "enum": ["fact", "interpretation", "forecast"]},
           "typeLabel": {"type": "string", "enum": ["사실", "해석", "예측"]},
+          "tag": {"type": "string", "enum": ["Fact", "Computation", "Prediction", "Interpretation"], "description": "진술 태그 (r4-1.3, 선택). 사실→Fact(근거가 모두 계산 항목이면 Computation)·해석→Interpretation·예측→Prediction"},
           "evidenceIds": {"type": "array", "items": {"type": "string", "pattern": "^E\\d+$"}},
           "sourceTags": {"type": "array", "items": {"type": "string"}},
           "chunkIds": {"type": "array", "items": {"type": "integer"}, "description": "선택: 주장이 근거로 쓴 rag.chunk.chunk_id (R4-2 청크 근거)"},
@@ -123,7 +126,21 @@
                  "items": {"type": "object", "required": ["signal", "method", "status", "evidenceIds"]}},
     "duplicateSignals": {"type": "array", "description": "에이전트 3 중복 신호(사건 묶음)",
                          "items": {"type": "object", "required": ["clusterId", "signals", "evidenceIds", "rule"]}},
-    "sentimentModel": {"type": ["string", "null"]}
+    "sentimentModel": {"type": ["string", "null"]},
+    "nodes": {"type": "array", "description": "노드 실행 목록 (r4-1.3, 선택): 기본은 항상 실행, 확장은 선택+요건 충족 시 실행, 아니면 스킵과 이유",
+              "items": {"type": "object", "required": ["nodeId", "name", "kind", "state"],
+                        "properties": {"nodeId": {"type": "string", "pattern": "^N\\d{2}$"}, "name": {"type": "string"},
+                                       "kind": {"type": "string", "enum": ["base", "ext"]},
+                                       "state": {"type": "string", "enum": ["executed", "skipped"]},
+                                       "status": {"type": ["string", "null"],
+                                                  "enum": ["SUCCESS", "PARTIAL_SUCCESS", "DATA_INSUFFICIENT", "FAILED", null]},
+                                       "reason": {"type": ["string", "null"]},
+                                       "missingInputs": {"type": "array", "items": {"type": "string"}}}}},
+    "nodeSummary": {"type": "object", "description": "실행 노드 수 = 기본 수 + 선택 확장 중 실행 수",
+                    "required": ["base", "extSelected", "extExecuted", "executed"]},
+    "conflicts": {"type": "array", "description": "관점별 충돌 (상충 신호 대조, 평균 금지) (r4-1.3, 선택)",
+                  "items": {"type": "object", "required": ["topic", "views"]}},
+    "predictionSkippedReason": {"type": ["string", "null"], "description": "확장 노드 검증 미통과로 추론을 건너뛴 이유"}
   },
   "$defs": {
     "linkedText": {
