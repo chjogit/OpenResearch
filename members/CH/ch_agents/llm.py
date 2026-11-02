@@ -755,11 +755,15 @@ def to_markdown(data: AgentData, result: dict, status: str, checks: dict, remove
 # ---------------------------------------------------------------- 실행
 
 def run_agent(agent_id: int, ticker: str | None = None, mode: str = "expert", llm=None,
-              data: AgentData | None = None, as_of: str | None = None, max_repair: int = 1,
+              data: AgentData | None = None, as_of: str | None = None, max_repair: int | None = None,
               focus: list[str] | None = None, period: int | None = None, scenario: str | None = None,
               question: str | None = None) -> dict:
     """에이전트 하나를 실행해 팀 공통 출력 계약 dict 를 돌려줍니다.
     focus: 에이전트 1 관심 거시 변수(예: ["환율", "금리"]), period: 에이전트 3 관찰 기간(거래일). data 를 넘기면 무시됩니다."""
+    if max_repair is None:   # E5: MAX_REPAIR_ATTEMPTS (기본 1, CH_MAX_REPAIR_ATTEMPTS)
+        from .nodes import max_repair_attempts
+
+        max_repair = max_repair_attempts()
     if data is None:
         data = fetch_agent_data(agent_id, ticker, as_of, focus=focus, period=period, scenario=scenario,
                                 question=question)

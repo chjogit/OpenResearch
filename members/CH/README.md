@@ -119,6 +119,16 @@ prompt_block = docs_for_prompt(docs)                # 프롬프트에 붙일 D1,
   리랭킹 점수·호출 수는 `bundle['rag']['rerank']` 에 저장되어 같은 스냅샷이면 같은 순위입니다. 트라이얼 키는 월 1,000회.
 - 끄면(기본) 청크 검색·리랭킹을 하지 않아 지금과 같은 결과입니다. 비교: `python members/CH/scripts/rerank_compare.py 2026-10-30`
 
+## 에이전트 번호·노드 틀 (#21, `ch_agents/nodes.py`·`asof.py`)
+
+- 번호: 3 거시(N05 Macro_Base·N06 Macro_Ext), 4 수급(N07 Flow_Base·N08 Flow_Ext), 6 투자심리·뉴스(N11 Sentiment_Base·N12 Sentiment_Ext). 이번 단계는 틀이며 노드 내용은 #22~#24.
+- 실행: `run_agent_nodes(agent_no, ticker, as_of_date, extension=False, available={...})` — 기본 노드는 항상, 확장 노드는 선택+요건 충족 시. 스킵과 이유가 `nodes[]` 에 남고, 실행 노드 수는 `기본 수 + 실행한 확장 수`.
+- E1 `NodeTask`/`NodeResult`(pydantic): 근거 연결(`evidence_links`) 없는 수치·결론은 검증에서 걸려 `unresolved` 로 넘어감. E2 상태 4종(`SUCCESS`·`PARTIAL_SUCCESS`·`DATA_INSUFFICIENT`·`FAILED`): 기본 노드 자료 결측 → `DATA_INSUFFICIENT`, 확장 검증 미통과 → 기본 결과 + `prediction_skipped_reason`.
+- E3 기준일: 조회 도구(`rag.fetch`·`rag_hybrid.fetch_*`·`db.q`)는 `as_of` 필수. **기준일과 같은 날짜는 포함, 다음 날부터 제거.** 뉴스 게시일이 날짜 단위라 같은 날 장중/장후는 구분 못 함(한계).
+- E4 태그 Fact/Computation/Prediction/Interpretation + 관점별 충돌(`Conflict`, 평균 금지). 옛 '구분' 대응: 사실→Fact(근거가 모두 계산 항목이면 Computation)·해석→Interpretation·예측→Prediction.
+- E5 재시도 상한 `MAX_REPAIR_ATTEMPTS`(기본 1, `CH_MAX_REPAIR_ATTEMPTS`, 최대 2): 노드 틀과 `run_agent`(기존 '수정 1회')가 같은 값을 씀. 초과하면 `unresolved`.
+- 계약 `r4-1.3`(선택 필드만 추가): `agent.agentNos`, `claims[].tag`, `nodes[]`, `nodeSummary`, `conflicts`, `predictionSkippedReason`. 옛 출력은 변환표(`p01`→3, `p03`→4·6)로 `contract.upgrade_legacy` 가 채우며 분석 값은 그대로.
+
 ## 기초기획서 R4 대응 (에이전트 1·3)
 
 | 기획서 요구 | 구현 |

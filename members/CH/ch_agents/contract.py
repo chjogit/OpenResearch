@@ -26,8 +26,9 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from .availability import AVAILABILITY, availability
+from .nodes import legacy_agent_nos, legacy_tag
 
-SCHEMA_VERSION = "r4-1.2"   # r4-1.1: unverified[].availability, r4-1.2: evidence[].tier·resultType, p01·p03 (모두 선택 필드)
+SCHEMA_VERSION = "r4-1.3"   # r4-1.1: unverified[].availability, r4-1.2: evidence[].tier·resultType, p01·p03, r4-1.3: agent.agentNos·claims[].tag·nodes[]·conflicts (모두 선택 필드)
 SCHEMA_PATH = Path(__file__).resolve().parent / "schema" / "agent_output.schema.json"
 KST = timezone(timedelta(hours=9))
 MODULES = {1: "agent1_macro", 3: "agent3_sentiment_flow"}
@@ -149,6 +150,39 @@ def assign_claim_ids(result: dict) -> dict:
 
 # ---------------------------------------------------------------- 계약 객체
 
+def claim_tag(c: dict, data) -> str:
+    """기존 '구분'을 태그로: 사실→Fact(근거가 모두 코드 계산 항목이면 Computation)·해석→Interpretation·예측→Prediction."""
+    items = data.facts.items
+    keys = [k for k in _keys_in(c.get("문장"), c.get("근거")) if k in items]
+    return legacy_tag(c.get("구분"), computed_only=bool(keys) and all(items[k].get("kind") == "계산" for k in keys))
+
+
+def with_nodes(out: dict, report: dict) -> dict:
+    """노드 실행 보고(nodes.run_agent_nodes 결과)를 계약에 붙입니다 (선택 필드). 원본은 바꾸지 않습니다."""
+    out = dict(out)
+    out["nodes"] = [dict(n) for n in report["nodes"]]
+    out["nodeSummary"] = dict(report["counts"], status=report["status"])
+    out["predictionSkippedReason"] = report.get("prediction_skipped_reason")
+    out["conflicts"] = [{"nodeId": nid, "topic": c.topic,
+                         "views": [{"text": v.text, "tag": v.tag, "evidenceLinks": list(v.evidence_links)}
+                                   for v in c.views]}
+                        for nid, r in (report.get("results") or {}).items() for c in r.conflicts]
+    return out
+
+
+def upgrade_legacy(out: dict) -> dict:
+    """옛 출력(r4-1.0~1.2, 에이전트 1·3)을 새 번호 체계로: 변환표(nodes.LEGACY_AGENT)로 agent.agentNos, claims[].tag 를 채웁니다.
+    분석 값(주장 문장·근거·수치)은 바꾸지 않고 선택 필드만 더합니다. 이미 있으면 그대로."""
+    out = json.loads(json.dumps(out, ensure_ascii=False))
+    agent = out.get("agent") or {}
+    if "agentNos" not in agent and agent.get("id") in (1, 3):
+        agent["agentNos"] = legacy_agent_nos(agent["id"])
+    label_tag = {"사실": "Fact", "해석": "Interpretation", "예측": "Prediction"}
+    for c in out.get("claims") or []:
+        c.setdefault("tag", label_tag.get(c.get("typeLabel"), "Interpretation"))
+    return out
+
+
 def build(run: dict, data, mode: str = "expert") -> dict:
     """run_agent 결과(dict)와 AgentData 로 계약 JSON 을 만듭니다."""
     res = run["result"]
@@ -168,6 +202,7 @@ def build(run: dict, data, mode: str = "expert") -> dict:
                 "verification": {"status": "passed" if v.get("ok", True) else "failed",
                                  "checkedBy": "fact_source_verifier", "unmatched": v.get("unmatched") or []},
                 **({"chunkIds": list(c["chunkId"])} if c.get("chunkId") else {}),  # 선택 (R4-2 청크 근거)
+                "tag": claim_tag(c, data),                                          # 선택 (r4-1.3, E4)
             })
 
     def items(field, prefix):
@@ -210,7 +245,7 @@ def build(run: dict, data, mode: str = "expert") -> dict:
         "schemaVersion": SCHEMA_VERSION,
         "reportId": None,
         "agent": {"id": data.agent_id, "module": MODULES.get(data.agent_id, f"agent{data.agent_id}"),
-                  "name": data.name},
+                  "name": data.name, **({"agentNos": legacy_agent_nos(data.agent_id)} if legacy_agent_nos(data.agent_id) else {})},
         "target": {"ticker": data.company.get("ticker"), "name": data.company.get("name"),
                    "market": data.company.get("market")},
         "mode": mode,
@@ -279,8 +314,11 @@ def build(run: dict, data, mode: str = "expert") -> dict:
                           "summary": {k: plain(v, data) for k, v in (px.get("summary") or {}).items()},
                           "tiers": px.get("tiers")}
     out["evidence"] = _evidence(data, emap, cited)
-    body = json.dumps({k: out[k] for k in ("agent", "target", "asOf", "mode", "claims")}, ensure_ascii=False,
-                      sort_keys=True)
+    # reportId 는 분석 내용의 해시: r4-1.3 에서 더한 선택 필드(agentNos·tag)는 넣지 않아 같은 입력이면 예전과 같은 ID 가 나옴
+    ident = {"agent": {k: v for k, v in out["agent"].items() if k != "agentNos"}, "target": out["target"],
+             "asOf": out["asOf"], "mode": out["mode"],
+             "claims": [{k: v for k, v in c.items() if k != "tag"} for c in out["claims"]]}
+    body = json.dumps(ident, ensure_ascii=False, sort_keys=True)
     out["reportId"] = (f"RPT-{data.agent_id}-{data.company.get('ticker')}-{data.as_of.replace('-', '')}-"
                        f"{hashlib.sha1(body.encode()).hexdigest()[:8]}")
     return out

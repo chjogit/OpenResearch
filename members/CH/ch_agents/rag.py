@@ -196,17 +196,19 @@ def params(agent_id: int, co: dict, as_of: str) -> dict:
 def fetch(agent_id: int, co: dict, as_of: str) -> dict:
     """DB에서 후보를 읽습니다. 결과는 스냅샷에 그대로 저장할 수 있는 dict 입니다."""
     from . import db
+    from .asof import guard_bundle, require_as_of
 
+    as_of = require_as_of(as_of)   # E3: 기준일 필수, 기준일 다음 날 이후 자료는 도구 계층에서 제거
     p = params(agent_id, co, as_of)
     if not db.opinion_enabled():
-        return db.bundle(SQL, p)
+        return guard_bundle(db.bundle(SQL, p), as_of)
     main_src = [x for x in p["sources"] if x not in db.OPINION_SOURCES]
     op_src = [x for x in p["sources"] if x in db.OPINION_SOURCES]
     out = db.bundle(SQL, {**p, "sources": main_src})
     if op_src:   # 블로그·카페 후보는 kic-opinion 에서 읽어 같은 기준으로 합침
         extra = (db.q_opinion(SQL_OPINION, {**p, "sources": op_src}) or [{}])[0].get("bundle") or {}
         out["news"] = merge_news(out.get("news"), extra.get("news"))
-    return out
+    return guard_bundle(out, as_of)
 
 
 def merge_news(a: list[dict] | None, b: list[dict] | None, limit: int = 300) -> list[dict] | None:
