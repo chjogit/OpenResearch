@@ -55,6 +55,7 @@ SELECT json_build_object(
         FROM rag.document d JOIN core.doc_sentiment s USING (doc_id)
         WHERE d.company_id = %(cid)s AND d.published_at::date <= %(as_of)s::date
           AND d.published_at::date > %(as_of)s::date - 30
+          AND d.source <> ALL(%(skip_src)s::text[])
         GROUP BY 1, 2) x),
     'search', (SELECT json_agg(json_build_object('d', trade_date, 'v', ratio) ORDER BY trade_date)
                FROM core.search_trend WHERE subject = 'KR:' || %(ticker)s AND trade_date <= %(as_of)s::date
@@ -77,6 +78,46 @@ SELECT json_build_object(
 ) AS bundle
 """
 
+# 블로그·카페만 따로 읽는 질의 (kic-opinion). 메인 SQL 의 'docs' 와 같은 열·같은 조건입니다.
+DOCS_OPINION_SQL = """
+SELECT d.published_at::date AS d, d.source, count(s.score) AS n, avg(s.score) AS score
+FROM rag.document d JOIN core.doc_sentiment s USING (doc_id)
+WHERE d.company_id = %(cid)s AND d.published_at::date <= %(as_of)s::date
+  AND d.published_at::date > %(as_of)s::date - 30
+GROUP BY 1, 2
+"""
+
+# 보관 기한(kic-agent-data 028)으로 지운 블로그·카페 문서의 일별 집계. 표가 없으면 호출 쪽(agents.fetch_bundle)이 None 으로 둠.
+DOC_AGG_SQL = """
+SELECT d, source, n_scored AS n, CASE WHEN n_scored > 0 THEN score_sum / n_scored END AS score
+FROM core.doc_daily_agg
+WHERE company_id = %(cid)s AND d <= %(as_of)s::date AND d > %(as_of)s::date - 30
+"""
+
+
+def merge_docs(docs: list[dict] | None, agg: list[dict] | None) -> list[dict] | None:
+    """살아 있는 문서 집계(docs)에 지운 문서의 일별 집계(agg)를 같은 (일자, 소스)끼리 건수 가중 평균으로 합칩니다.
+    agg 가 없으면 docs 를 그대로 돌려줘 기존 결과가 바뀌지 않습니다."""
+    agg = [r for r in agg or [] if r.get("n") and r.get("score") is not None]
+    if not agg:
+        return docs
+    merged: dict[tuple[str, str], dict] = {}
+    for r in list(docs or []) + agg:
+        n = int(r.get("n") or 0)
+        if not n or r.get("score") is None:
+            if (str(r["d"])[:10], r["source"]) not in merged:
+                merged[(str(r["d"])[:10], r["source"])] = dict(r)
+            continue
+        key = (str(r["d"])[:10], r["source"])
+        cur = merged.get(key)
+        if cur is None or not cur.get("n") or cur.get("score") is None:
+            merged[key] = dict(r)
+        else:
+            total = int(cur["n"]) + n
+            merged[key] = {**cur, "n": total, "score": (int(cur["n"]) * float(cur["score"]) + n * float(r["score"])) / total}
+    return list(merged.values())
+
+
 SRC_FLOW = "core.investor_flow_daily (네이버 투자자별 매매)"
 SRC_DOC = "rag.document × core.doc_sentiment (키워드 사전)"
 SRC_MKT = "core.investor_flow_daily × core.price_daily (KOSPI 200 합산, 이 종목 제외)"
@@ -98,8 +139,9 @@ SENT_MODEL = "키워드 감성 사전 기준선 (학습 모델 아님, 성능 �
 EVENT_SIGNALS = ("뉴스 논조", "블로그 논조", "카페 논조", "검색 관심", "거래대금", "외국인 집중 매매", "기관 집중 매매")
 
 
-def params(co: dict, as_of: str) -> dict:
-    return {"cid": co["company_id"], "ticker": co["ticker"], "as_of": as_of}
+def params(co: dict, as_of: str, skip_src: tuple | list = ()) -> dict:
+    """skip_src: 메인 DB 에서 빼고 kic-opinion 에서 따로 읽는 출처 (분리 안 됐으면 비어 있어 기존과 같음)."""
+    return {"cid": co["company_id"], "ticker": co["ticker"], "as_of": as_of, "skip_src": list(skip_src)}
 
 
 def _days_back(day: str, n: int) -> str:
@@ -130,6 +172,7 @@ def compute(b: dict, co: dict, as_of: str, period: int | None = None, question: 
     P = max(5, min(int(period or DEFAULT_PERIOD), MAX_PERIOD))
     plan = p03.plan(question, P, as_of)
     b = dict(b)
+    b["docs"] = merge_docs(b.get("docs"), b.get("docs_agg"))
     avail = p03.availability(b, as_of)  # P03-F02: 대차 t·검색 t 는 기준일에 공개 전
     windows = sorted({5, 20, 60, P})
     anomalies: list[str] = []

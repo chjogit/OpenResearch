@@ -25,6 +25,18 @@ def database_url() -> str:
     return url
 
 
+OPINION_SOURCES = ("naver_blog", "naver_cafe")   # kic-opinion 프로젝트에 두는 출처 (kic-agent-data 10번)
+
+
+def opinion_url() -> str:
+    return os.getenv("OPINION_DATABASE_URL", "")
+
+
+def opinion_enabled() -> bool:
+    """블로그·카페를 별도 프로젝트(kic-opinion)에서 읽는지. 접속 정보가 없으면 메인 DB 하나로 동작합니다."""
+    return bool(opinion_url())
+
+
 def _plain(v: Any) -> Any:
     if isinstance(v, Decimal):
         return float(v)
@@ -37,18 +49,25 @@ def _plain(v: Any) -> Any:
     return v
 
 
-def q(sql: str, params: dict | None = None) -> list[dict]:
-    """SELECT/WITH 하나를 읽기 전용 세션에서 실행합니다."""
+def q(sql: str, params: dict | None = None, url: str | None = None) -> list[dict]:
+    """SELECT/WITH 하나를 읽기 전용 세션에서 실행합니다 (url 이 없으면 메인 DB)."""
     if not sql.lstrip().lower().startswith(("select", "with")):
         raise ValueError("SELECT/WITH 질의만 허용합니다.")
     import psycopg
     from psycopg.rows import dict_row
 
-    with psycopg.connect(database_url(), row_factory=dict_row, autocommit=True) as conn:
+    with psycopg.connect(url or database_url(), row_factory=dict_row, autocommit=True) as conn:
         conn.execute("SET default_transaction_read_only = on")
         conn.execute("SET statement_timeout = '20s'")
         rows = conn.execute(sql, params or {}).fetchall()
     return [_plain(dict(r)) for r in rows]
+
+
+def q_opinion(sql: str, params: dict | None = None) -> list[dict]:
+    """블로그·카페 질의. kic-opinion 이 설정돼 있어야 합니다 (opinion_enabled() 로 먼저 확인)."""
+    if not opinion_enabled():
+        raise RuntimeError("OPINION_DATABASE_URL 이 비어 있습니다.")
+    return q(sql, params, opinion_url())
 
 
 def bundle(sql: str, params: dict) -> dict:

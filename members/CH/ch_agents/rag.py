@@ -132,7 +132,7 @@ HALF_LIFE_DAYS = 14
 
 # ---------------------------------------------------------------- SQL (후보 추출, 읽기 전용)
 
-SQL = """
+_CANDIDATE_CTE = """
 WITH t AS (SELECT unnest(%(terms)s::text[]) AS term),
 c AS (
     SELECT doc_id, source, title, coalesce(summary, '') AS summary, published_at, url
@@ -149,12 +149,15 @@ m AS (
     FROM c JOIN t ON strpos(lower(c.title), t.term) > 0 OR strpos(lower(c.summary), t.term) > 0
     GROUP BY c.doc_id
 )
+"""
+
+SQL = _CANDIDATE_CTE + """
 SELECT json_build_object(
     'news', (SELECT json_agg(x) FROM (
         SELECT c.doc_id, c.source, c.title, left(c.summary, 240) AS summary, c.published_at::date AS published, c.published_at AS published_at,
                c.url, coalesce(m.tt, '{}') AS tt, coalesce(m.st, '{}') AS st
         FROM m JOIN c USING (doc_id)
-        ORDER BY coalesce(cardinality(m.tt), 0) * 2 + coalesce(cardinality(m.st), 0) DESC, c.published_at DESC
+        ORDER BY coalesce(cardinality(m.tt), 0) * 2 + coalesce(cardinality(m.st), 0) DESC, c.published_at DESC, c.doc_id DESC
         LIMIT 300) x),
     'disclosures', (SELECT json_agg(x) FROM (
         SELECT rcept_no, rcept_dt, report_nm, event_type, source, url
@@ -164,6 +167,20 @@ SELECT json_build_object(
           AND (event_type = ANY(%(events)s::text[]) OR (%(report_re)s <> '' AND report_nm ~ %(report_re)s))
         ORDER BY rcept_dt DESC, rcept_no DESC
         LIMIT 40) x)
+) AS bundle
+"""
+
+
+
+# 블로그·카페 후보만 (kic-opinion). 'news' 열·정렬 기준이 메인 SQL 과 같아 두 결과를 합쳐도 같은 순서가 됩니다.
+SQL_OPINION = _CANDIDATE_CTE + """
+SELECT json_build_object(
+    'news', (SELECT json_agg(x) FROM (
+        SELECT c.doc_id, c.source, c.title, left(c.summary, 240) AS summary, c.published_at::date AS published, c.published_at AS published_at,
+               c.url, coalesce(m.tt, '{}') AS tt, coalesce(m.st, '{}') AS st
+        FROM m JOIN c USING (doc_id)
+        ORDER BY coalesce(cardinality(m.tt), 0) * 2 + coalesce(cardinality(m.st), 0) DESC, c.published_at DESC, c.doc_id DESC
+        LIMIT 300) x)
 ) AS bundle
 """
 
@@ -180,7 +197,28 @@ def fetch(agent_id: int, co: dict, as_of: str) -> dict:
     """DB에서 후보를 읽습니다. 결과는 스냅샷에 그대로 저장할 수 있는 dict 입니다."""
     from . import db
 
-    return db.bundle(SQL, params(agent_id, co, as_of))
+    p = params(agent_id, co, as_of)
+    if not db.opinion_enabled():
+        return db.bundle(SQL, p)
+    main_src = [x for x in p["sources"] if x not in db.OPINION_SOURCES]
+    op_src = [x for x in p["sources"] if x in db.OPINION_SOURCES]
+    out = db.bundle(SQL, {**p, "sources": main_src})
+    if op_src:   # 블로그·카페 후보는 kic-opinion 에서 읽어 같은 기준으로 합침
+        extra = (db.q_opinion(SQL_OPINION, {**p, "sources": op_src}) or [{}])[0].get("bundle") or {}
+        out["news"] = merge_news(out.get("news"), extra.get("news"))
+    return out
+
+
+def merge_news(a: list[dict] | None, b: list[dict] | None, limit: int = 300) -> list[dict] | None:
+    """두 후보 목록을 SQL 과 같은 기준(용어 일치 수, 발행 시각, doc_id 내림차순)으로 합쳐 상위 limit 개."""
+    rows = (a or []) + (b or [])
+    if not rows:
+        return a
+    # SQL 과 같은 기준: 일치 수 ↓, 발행 시각 ↓, doc_id ↓ (안정 정렬을 거꾸로 세 번)
+    rows.sort(key=lambda r: r.get("doc_id") or 0, reverse=True)
+    rows.sort(key=lambda r: str(r.get("published_at") or ""), reverse=True)
+    rows.sort(key=lambda r: -(len(r.get("tt") or []) * 2 + len(r.get("st") or [])))
+    return rows[:limit]
 
 
 # ---------------------------------------------------------------- 점수·선별 (순수 함수)
