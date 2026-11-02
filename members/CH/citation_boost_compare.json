@@ -1,0 +1,3339 @@
+{
+ "as_of": "2026-10-30",
+ "reps": 3,
+ "tickers": [
+  "005930",
+  "000660",
+  "005380"
+ ],
+ "model": "rerank-v5.0-pro",
+ "calls": {
+  "cohere": 6,
+  "cohere_cap": 36,
+  "fetches": 12,
+  "embedding": 12,
+  "llm": 140
+ },
+ "summary": [
+  {
+   "agent": 1,
+   "rerank": "off",
+   "boost": "boost",
+   "n": 9,
+   "chunk_ratio": {
+    "mean": 0.147,
+    "min": 0.0,
+    "max": 0.444
+   },
+   "claims_with_chunk": {
+    "mean": 1.333,
+    "min": 0.0,
+    "max": 4.0
+   },
+   "claims_total": {
+    "mean": 9.333,
+    "min": 8.0,
+    "max": 10.0
+   },
+   "removed": {
+    "mean": 1.111,
+    "min": 0.0,
+    "max": 3.0
+   },
+   "completed": {
+    "mean": 1.0,
+    "min": 1.0,
+    "max": 1.0
+   },
+   "seconds_llm": {
+    "mean": 34.356,
+    "min": 21.3,
+    "max": 48.5
+   }
+  },
+  {
+   "agent": 1,
+   "rerank": "off",
+   "boost": "off",
+   "n": 9,
+   "chunk_ratio": {
+    "mean": 0.012,
+    "min": 0.0,
+    "max": 0.111
+   },
+   "claims_with_chunk": {
+    "mean": 0.111,
+    "min": 0.0,
+    "max": 1.0
+   },
+   "claims_total": {
+    "mean": 9.222,
+    "min": 9.0,
+    "max": 10.0
+   },
+   "removed": {
+    "mean": 1.0,
+    "min": 0.0,
+    "max": 2.0
+   },
+   "completed": {
+    "mean": 1.0,
+    "min": 1.0,
+    "max": 1.0
+   },
+   "seconds_llm": {
+    "mean": 36.167,
+    "min": 27.8,
+    "max": 45.8
+   }
+  },
+  {
+   "agent": 1,
+   "rerank": "on",
+   "boost": "boost",
+   "n": 9,
+   "chunk_ratio": {
+    "mean": 0.047,
+    "min": 0.0,
+    "max": 0.222
+   },
+   "claims_with_chunk": {
+    "mean": 0.444,
+    "min": 0.0,
+    "max": 2.0
+   },
+   "claims_total": {
+    "mean": 9.333,
+    "min": 8.0,
+    "max": 10.0
+   },
+   "removed": {
+    "mean": 0.778,
+    "min": 0.0,
+    "max": 3.0
+   },
+   "completed": {
+    "mean": 1.0,
+    "min": 1.0,
+    "max": 1.0
+   },
+   "seconds_llm": {
+    "mean": 32.633,
+    "min": 19.7,
+    "max": 40.1
+   }
+  },
+  {
+   "agent": 1,
+   "rerank": "on",
+   "boost": "off",
+   "n": 9,
+   "chunk_ratio": {
+    "mean": 0.062,
+    "min": 0.0,
+    "max": 0.333
+   },
+   "claims_with_chunk": {
+    "mean": 0.556,
+    "min": 0.0,
+    "max": 3.0
+   },
+   "claims_total": {
+    "mean": 9.0,
+    "min": 8.0,
+    "max": 10.0
+   },
+   "removed": {
+    "mean": 1.0,
+    "min": 0.0,
+    "max": 2.0
+   },
+   "completed": {
+    "mean": 1.0,
+    "min": 1.0,
+    "max": 1.0
+   },
+   "seconds_llm": {
+    "mean": 34.156,
+    "min": 26.2,
+    "max": 45.1
+   }
+  },
+  {
+   "agent": 3,
+   "rerank": "off",
+   "boost": "boost",
+   "n": 9,
+   "chunk_ratio": {
+    "mean": 0.023,
+    "min": 0.0,
+    "max": 0.111
+   },
+   "claims_with_chunk": {
+    "mean": 0.222,
+    "min": 0.0,
+    "max": 1.0
+   },
+   "claims_total": {
+    "mean": 9.111,
+    "min": 8.0,
+    "max": 10.0
+   },
+   "removed": {
+    "mean": 2.889,
+    "min": 0.0,
+    "max": 8.0
+   },
+   "completed": {
+    "mean": 1.0,
+    "min": 1.0,
+    "max": 1.0
+   },
+   "seconds_llm": {
+    "mean": 37.689,
+    "min": 15.3,
+    "max": 61.0
+   }
+  },
+  {
+   "agent": 3,
+   "rerank": "off",
+   "boost": "off",
+   "n": 9,
+   "chunk_ratio": {
+    "mean": 0.0,
+    "min": 0.0,
+    "max": 0.0
+   },
+   "claims_with_chunk": {
+    "mean": 0.0,
+    "min": 0.0,
+    "max": 0.0
+   },
+   "claims_total": {
+    "mean": 9.333,
+    "min": 9.0,
+    "max": 10.0
+   },
+   "removed": {
+    "mean": 0.667,
+    "min": 0.0,
+    "max": 1.0
+   },
+   "completed": {
+    "mean": 1.0,
+    "min": 1.0,
+    "max": 1.0
+   },
+   "seconds_llm": {
+    "mean": 30.267,
+    "min": 13.3,
+    "max": 42.5
+   }
+  },
+  {
+   "agent": 3,
+   "rerank": "on",
+   "boost": "boost",
+   "n": 9,
+   "chunk_ratio": {
+    "mean": 0.022,
+    "min": 0.0,
+    "max": 0.1
+   },
+   "claims_with_chunk": {
+    "mean": 0.222,
+    "min": 0.0,
+    "max": 1.0
+   },
+   "claims_total": {
+    "mean": 9.667,
+    "min": 8.0,
+    "max": 10.0
+   },
+   "removed": {
+    "mean": 1.444,
+    "min": 0.0,
+    "max": 4.0
+   },
+   "completed": {
+    "mean": 1.0,
+    "min": 1.0,
+    "max": 1.0
+   },
+   "seconds_llm": {
+    "mean": 35.356,
+    "min": 24.8,
+    "max": 54.6
+   }
+  },
+  {
+   "agent": 3,
+   "rerank": "on",
+   "boost": "off",
+   "n": 9,
+   "chunk_ratio": {
+    "mean": 0.0,
+    "min": 0.0,
+    "max": 0.0
+   },
+   "claims_with_chunk": {
+    "mean": 0.0,
+    "min": 0.0,
+    "max": 0.0
+   },
+   "claims_total": {
+    "mean": 9.667,
+    "min": 9.0,
+    "max": 10.0
+   },
+   "removed": {
+    "mean": 1.222,
+    "min": 0.0,
+    "max": 3.0
+   },
+   "completed": {
+    "mean": 1.0,
+    "min": 1.0,
+    "max": 1.0
+   },
+   "seconds_llm": {
+    "mean": 27.933,
+    "min": 10.6,
+    "max": 37.6
+   }
+  }
+ ],
+ "runs": [
+  {
+   "ticker": "005930",
+   "agent": 1,
+   "rerank": "off",
+   "boost": "off",
+   "rep": 1,
+   "status": "완료 (수정 1회) (일부 문장 제외)",
+   "completed": 1,
+   "seconds_fetch": 9.1,
+   "seconds_llm": 45.2,
+   "llm_calls": 2,
+   "claims": 6,
+   "counters": 3,
+   "claims_total": 9,
+   "claims_with_chunk": 0,
+   "chunk_ratio": 0.0,
+   "removed": 2,
+   "trimmed": 0,
+   "missing_check_first": false,
+   "removed_texts": [
+    "한국 기준금리는 {M1}로 12개월 {M3}의 인상 국면이고, 국고채 3년 {M4}·10년 {M7}도 12개월 각각 {M6}·{M9}로 인상 국면입니다.",
+    "환율·금리·물가·수출 지표의 실측값과 회사 공시 민감도, 주가 동조성 판정이 있어 거시 노출 참고치는 정리되나, 헤지 비율·달러 비용 비중·판가 전가력 등 기업 노출의 핵심 전제가 미확인이라 점수 7로 둡니다."
+   ],
+   "checks_first": {
+    "근거": [
+     "참고용 항목만 근거인 주장(제작 기준 밖, 기준 항목 근거를 추가하거나 빼기): 주가는 코스피와 250일 상관 {M60}·베타 {M61}로 강함·유의함,"
+    ]
+   },
+   "chunk_ids_in_prompt": [
+    27912,
+    36555,
+    36568,
+    27913,
+    51096,
+    2151
+   ],
+   "rag_mode": "chunk",
+   "rerank_fallback": "리랭킹 끔 (CH_RAG_RERANK=chunk)",
+   "rag_error": null
+  },
+  {
+   "ticker": "005930",
+   "agent": 1,
+   "rerank": "off",
+   "boost": "off",
+   "rep": 2,
+   "status": "완료 (수정 1회) (일부 문장 제외)",
+   "completed": 1,
+   "seconds_fetch": 9.1,
+   "seconds_llm": 32.2,
+   "llm_calls": 2,
+   "claims": 6,
+   "counters": 3,
+   "claims_total": 9,
+   "claims_with_chunk": 0,
+   "chunk_ratio": 0.0,
+   "removed": 1,
+   "trimmed": 0,
+   "missing_check_first": false,
+   "removed_texts": [
+    "한국 기준금리는 {M1}로 12개월 {M3} 인상 국면이고, 국고채 3년 {M4}·10년 {M7} 금리도 12개월 각각 {M6}·{M9} 상승했습니다."
+   ],
+   "checks_first": {
+    "근거": [
+     "참고용 항목만 근거인 주장(제작 기준 밖, 기준 항목 근거를 추가하거나 빼기): 주가는 코스피와 250일 상관 {M60}·베타 {M61}로 강한 동조성을",
+     "참고용 항목만 근거인 주장(제작 기준 밖, 기준 항목 근거를 추가하거나 빼기): 주가와 원/달러는 250일 상관 {M57}·베타 {M58}로 약하고 유의"
+    ],
+    "방향": [
+     "판정 방향 불일치: M15 는 '인상' 판정인데 반대 표현 사용: 미국 기준금리는 {M10}로 12개월 {M12} 인하 국면이나 미국 10년 국채금리는 {M13}로 12개월 "
+    ]
+   },
+   "chunk_ids_in_prompt": [
+    27912,
+    36555,
+    36568,
+    27913,
+    51096,
+    2151
+   ],
+   "rag_mode": "chunk",
+   "rerank_fallback": "리랭킹 끔 (CH_RAG_RERANK=chunk)",
+   "rag_error": null
+  },
+  {
+   "ticker": "005930",
+   "agent": 1,
+   "rerank": "off",
+   "boost": "off",
+   "rep": 3,
+   "status": "완료 (수정 1회) (일부 문장 제외)",
+   "completed": 1,
+   "seconds_fetch": 9.1,
+   "seconds_llm": 45.8,
+   "llm_calls": 2,
+   "claims": 6,
+   "counters": 3,
+   "claims_total": 9,
+   "claims_with_chunk": 0,
+   "chunk_ratio": 0.0,
+   "removed": 2,
+   "trimmed": 3,
+   "missing_check_first": false,
+   "removed_texts": [
+    "원/달러는 {M16}로 3개월 {M17}·12개월 {M18} 하락한 원화 강세 국면이며, 주가는 코스피와 상관 강함·유의함({M60})으로 움직이지만 원/달러 동조성은 약함·유의하지 않음({M57})입니다. 환율 노출 등급은 낮음({M76}·{M77}·외환 파생상품 사용 공시)이고, 수출·경기 노출 등급이 높음({M78}·{M66})입니다.",
+    "한국 기준금리는 {M1}로 12개월 {M3}·3개월 {M2} 상승했고, 국고채 3년({M4})·10년({M7}) 금리도 12개월 각각 {M6}·{M9} 상승해 금리 인상 국면입니다."
+   ],
+   "checks_first": {
+    "근거": [
+     "참고용 항목만 근거인 주장(제작 기준 밖, 기준 항목 근거를 추가하거나 빼기): 주가는 코스피와 250일 상관 {M60}·베타 {M61}로 강함·유의함,",
+     "참고용 항목만 근거인 주장(제작 기준 밖, 기준 항목 근거를 추가하거나 빼기): 주가-원/달러 동조성(250일)은 {M57}로 약함·유의하지 않음, 최근"
+    ],
+    "방향": [
+     "판정 방향 불일치: M15 는 '인상' 판정인데 반대 표현 사용: 미국 기준금리는 {M10}로 12개월 {M12} 하락(인하 국면)했으나 미국 10년 국채금리는 {M13}로 ",
+     "판정 방향 불일치: M66 는 '보통' 판정인데 반대 표현 사용: 원/달러는 {M16}로 3개월 {M17}·12개월 {M18} 하락한 원화 강세 국면이며, 주가는 코스피와 상"
+    ]
+   },
+   "chunk_ids_in_prompt": [
+    27912,
+    36555,
+    36568,
+    27913,
+    51096,
+    2151
+   ],
+   "rag_mode": "chunk",
+   "rerank_fallback": "리랭킹 끔 (CH_RAG_RERANK=chunk)",
+   "rag_error": null
+  },
+  {
+   "ticker": "005930",
+   "agent": 1,
+   "rerank": "off",
+   "boost": "boost",
+   "rep": 1,
+   "status": "완료 (수정 1회) (일부 문장 제외)",
+   "completed": 1,
+   "seconds_fetch": 9.1,
+   "seconds_llm": 48.5,
+   "llm_calls": 2,
+   "claims": 7,
+   "counters": 3,
+   "claims_total": 10,
+   "claims_with_chunk": 2,
+   "chunk_ratio": 0.2,
+   "removed": 1,
+   "trimmed": 3,
+   "missing_check_first": false,
+   "removed_texts": [
+    "2026Q3 실적 발표 시 기준선 B1 {M95}과 예측구간 {M96}·{M97} 대비 실제치, 단독분기 매출 급변 {M93} 원문 대조 결과"
+   ],
+   "checks_first": {
+    "문장": [
+     "단위 중복: M93=+130.00% 뒤에 '원': 2026Q3 실적 발표 시 기준선 B1 {M95}과 예측구간 {M96}·{M97} 대비 실제치, 단독분기 매"
+    ],
+    "근거": [
+     "참고용 항목만 근거인 주장(제작 기준 밖, 기준 항목 근거를 추가하거나 빼기): 주가-원/달러 동조성은 250일 상관 {M57}로 약함·유의하지 않음, ",
+     "참고용 항목만 근거인 주장(제작 기준 밖, 기준 항목 근거를 추가하거나 빼기): 주가-코스피 동조성은 250일 상관 {M60}·베타 {M61}로 강함·유",
+     "참고용 항목만 근거인 주장(제작 기준 밖, 기준 항목 근거를 추가하거나 빼기): 주가-미국 10년 국채금리 동조성은 250일 상관 {M63}·베타 {M6",
+     "참고용 항목만 근거인 주장(제작 기준 밖, 기준 항목 근거를 추가하거나 빼기): 주가-필라델피아 반도체지수 동조성은 250일 상관 {M66}·베타 {M6"
+    ]
+   },
+   "chunk_ids_in_prompt": [
+    27912,
+    36555,
+    36568,
+    27913,
+    51096,
+    2151
+   ],
+   "rag_mode": "chunk",
+   "rerank_fallback": "리랭킹 끔 (CH_RAG_RERANK=chunk)",
+   "rag_error": null
+  },
+  {
+   "ticker": "005930",
+   "agent": 1,
+   "rerank": "off",
+   "boost": "boost",
+   "rep": 2,
+   "status": "완료 (수정 1회)",
+   "completed": 1,
+   "seconds_fetch": 9.1,
+   "seconds_llm": 35.5,
+   "llm_calls": 2,
+   "claims": 7,
+   "counters": 3,
+   "claims_total": 10,
+   "claims_with_chunk": 1,
+   "chunk_ratio": 0.1,
+   "removed": 0,
+   "trimmed": 0,
+   "missing_check_first": false,
+   "removed_texts": [],
+   "checks_first": {
+    "근거": [
+     "참고용 항목만 근거인 주장(제작 기준 밖, 기준 항목 근거를 추가하거나 빼기): 주가는 코스피와 250일 상관 {M60}·베타 {M61}로 강한 동조성을",
+     "참고용 항목만 근거인 주장(제작 기준 밖, 기준 항목 근거를 추가하거나 빼기): 주가-원/달러 상관은 250일 {M57}·60일 {M59} 모두 약하고 "
+    ]
+   },
+   "chunk_ids_in_prompt": [
+    27912,
+    36555,
+    36568,
+    27913,
+    51096,
+    2151
+   ],
+   "rag_mode": "chunk",
+   "rerank_fallback": "리랭킹 끔 (CH_RAG_RERANK=chunk)",
+   "rag_error": null
+  },
+  {
+   "ticker": "005930",
+   "agent": 1,
+   "rerank": "off",
+   "boost": "boost",
+   "rep": 3,
+   "status": "완료 (수정 1회) (일부 문장 제외)",
+   "completed": 1,
+   "seconds_fetch": 9.1,
+   "seconds_llm": 37.2,
+   "llm_calls": 2,
+   "claims": 6,
+   "counters": 3,
+   "claims_total": 9,
+   "claims_with_chunk": 2,
+   "chunk_ratio": 0.222,
+   "removed": 3,
+   "trimmed": 0,
+   "missing_check_first": false,
+   "removed_texts": [
+    "주가-원/달러 상관은 250일 {M57}·60일 {M59}로 약하고 유의하지 않으며, 주가-코스피 상관은 250일 {M60}·60일 {M62}로 강하고 유의합니다.",
+    "2026Q3 매출 기준선 B1 {M95}과 80% 예측구간 {M96}·{M97}은 승인 모델 없는 참고 범위이며, 단독분기 매출 급변 {M93} 원문 대조 후 해석",
+    "한국 기준금리는 {M1}로 12개월 {M3}·3개월 {M2} 인상 국면이고, 국고채 3년 {M4}·10년 {M7}도 12개월 각각 {M6}·{M9} 인상 국면입니다."
+   ],
+   "checks_first": {
+    "문장": [
+     "단위 중복: M93=+130.00% 뒤에 '원': 2026Q3 매출 기준선 B1 {M95}과 80% 예측구간 {M96}·{M97}은 승인 모델 없는 참고 범위"
+    ],
+    "근거": [
+     "참고용 항목만 근거인 주장(제작 기준 밖, 기준 항목 근거를 추가하거나 빼기): 주가-원/달러 상관은 250일 {M57}·60일 {M59}로 약하고 유의"
+    ],
+    "방향": [
+     "판정 방향 불일치: M60 는 '유의' 판정인데 반대 표현 사용: 주가-원/달러 상관은 250일 {M57}·60일 {M59}로 약하고 유의하지 않으며, 주가-코스피 상관은 2",
+     "판정 방향 불일치: M62 는 '유의' 판정인데 반대 표현 사용: 주가-원/달러 상관은 250일 {M57}·60일 {M59}로 약하고 유의하지 않으며, 주가-코스피 상관은 2"
+    ]
+   },
+   "chunk_ids_in_prompt": [
+    27912,
+    36555,
+    36568,
+    27913,
+    51096,
+    2151
+   ],
+   "rag_mode": "chunk",
+   "rerank_fallback": "리랭킹 끔 (CH_RAG_RERANK=chunk)",
+   "rag_error": null
+  },
+  {
+   "ticker": "005930",
+   "agent": 1,
+   "rerank": "on",
+   "boost": "off",
+   "rep": 1,
+   "status": "완료 (수정 1회) (일부 문장 제외)",
+   "completed": 1,
+   "seconds_fetch": 5.9,
+   "seconds_llm": 44.3,
+   "llm_calls": 2,
+   "claims": 6,
+   "counters": 3,
+   "claims_total": 9,
+   "claims_with_chunk": 0,
+   "chunk_ratio": 0.0,
+   "removed": 1,
+   "trimmed": 7,
+   "missing_check_first": false,
+   "removed_texts": [
+    "한국 기준금리는 {M1}로 12개월 변화 {M3}인 인상 국면이고, 국고채 3년 {M4}·10년 {M7}도 12개월 변화 {M6}·{M9}로 인상 국면이다."
+   ],
+   "checks_first": {
+    "근거": [
+     "참고용 항목만 근거인 주장(제작 기준 밖, 기준 항목 근거를 추가하거나 빼기): 주가는 코스피와 250일 상관 {M60}·베타 {M61}로 강함·유의함,",
+     "참고용 항목만 근거인 주장(제작 기준 밖, 기준 항목 근거를 추가하거나 빼기): 반도체 메모리 수출은 {M49}로 전년 대비 {M50}, 프로세서·컨트롤"
+    ]
+   },
+   "chunk_ids_in_prompt": [
+    38593,
+    36555,
+    36573,
+    36568,
+    191,
+    20282
+   ],
+   "rag_mode": "chunk",
+   "rerank_fallback": null,
+   "rag_error": null
+  },
+  {
+   "ticker": "005930",
+   "agent": 1,
+   "rerank": "on",
+   "boost": "off",
+   "rep": 2,
+   "status": "완료 (수정 1회) (일부 문장 제외)",
+   "completed": 1,
+   "seconds_fetch": 5.9,
+   "seconds_llm": 36.1,
+   "llm_calls": 2,
+   "claims": 6,
+   "counters": 3,
+   "claims_total": 9,
+   "claims_with_chunk": 0,
+   "chunk_ratio": 0.0,
+   "removed": 1,
+   "trimmed": 0,
+   "missing_check_first": false,
+   "removed_texts": [
+    "한국 기준금리는 {M1}로 12개월 {M3} 인상 국면, 국고채 3년 {M4}·10년 {M7}도 12개월 각각 {M6}·{M9} 인상 국면이다."
+   ],
+   "checks_first": {
+    "근거": [
+     "참고용 항목만 근거인 주장(제작 기준 밖, 기준 항목 근거를 추가하거나 빼기): 주가는 코스피와 250일 상관 {M60}·베타 {M61}로 강함·유의함,"
+    ]
+   },
+   "chunk_ids_in_prompt": [
+    38593,
+    36555,
+    36573,
+    36568,
+    191,
+    20282
+   ],
+   "rag_mode": "chunk",
+   "rerank_fallback": null,
+   "rag_error": null
+  },
+  {
+   "ticker": "005930",
+   "agent": 1,
+   "rerank": "on",
+   "boost": "off",
+   "rep": 3,
+   "status": "완료 (수정 1회) (일부 문장 제외)",
+   "completed": 1,
+   "seconds_fetch": 5.9,
+   "seconds_llm": 36.4,
+   "llm_calls": 2,
+   "claims": 6,
+   "counters": 3,
+   "claims_total": 9,
+   "claims_with_chunk": 0,
+   "chunk_ratio": 0.0,
+   "removed": 2,
+   "trimmed": 0,
+   "missing_check_first": false,
+   "removed_texts": [
+    "2026Q3 매출 기준선 B1 {M95}과 80% 예측구간 {M96}~{M97}은 승인 모델 없이 거시 변수를 쓰지 않은 참고 범위이며, 단독분기 매출 급변 {M93} 원문 대조 후 해석",
+    "한국 기준금리는 {M1}로 12개월 {M3} 인상 국면이며, 국고채 3년·10년 금리도 각각 {M4}, {M7}로 12개월 {M6}, {M9} 인상 국면입니다."
+   ],
+   "checks_first": {
+    "문장": [
+     "단위 중복: M93=+130.00% 뒤에 '원': 2026Q3 매출 기준선 B1 {M95}과 80% 예측구간 {M96}~{M97}은 승인 모델 없이 거시 변수"
+    ],
+    "근거": [
+     "참고용 항목만 근거인 주장(제작 기준 밖, 기준 항목 근거를 추가하거나 빼기): 주가는 코스피와 {M60} 강한 상관·{M61} 베타로 동조하고, 필라델",
+     "참고용 항목만 근거인 주장(제작 기준 밖, 기준 항목 근거를 추가하거나 빼기): 반도체 메모리 수출은 {M49}로 전년 대비 {M50}, 프로세서·컨트롤"
+    ]
+   },
+   "chunk_ids_in_prompt": [
+    38593,
+    36555,
+    36573,
+    36568,
+    191,
+    20282
+   ],
+   "rag_mode": "chunk",
+   "rerank_fallback": null,
+   "rag_error": null
+  },
+  {
+   "ticker": "005930",
+   "agent": 1,
+   "rerank": "on",
+   "boost": "boost",
+   "rep": 1,
+   "status": "완료 (수정 1회)",
+   "completed": 1,
+   "seconds_fetch": 5.9,
+   "seconds_llm": 40.1,
+   "llm_calls": 2,
+   "claims": 7,
+   "counters": 3,
+   "claims_total": 10,
+   "claims_with_chunk": 1,
+   "chunk_ratio": 0.1,
+   "removed": 0,
+   "trimmed": 1,
+   "missing_check_first": true,
+   "removed_texts": [],
+   "checks_first": {
+    "근거": [
+     "참고용 항목만 근거인 주장(제작 기준 밖, 기준 항목 근거를 추가하거나 빼기): 주가는 코스피와 250일 상관 {M60}·베타 {M61}로 강한 동조성을",
+     "청크 근거 주장 없음 (관련 청크가 있으면 해석 주장 2개 이상에 D번호와 chunkId 를 붙이기, 없으면 미확인에 '근거 청크 없음')"
+    ],
+    "방향": [
+     "판정 방향 불일치: M63 는 '유의' 판정인데 반대 표현 사용: 미국 10년 국채금리 상승은 성장주 할인율 상승 요인이나, 주가와의 250일 상관은 {M63}으로 약하고 최"
+    ]
+   },
+   "chunk_ids_in_prompt": [
+    38593,
+    36555,
+    36573,
+    36568,
+    191,
+    20282
+   ],
+   "rag_mode": "chunk",
+   "rerank_fallback": null,
+   "rag_error": null
+  },
+  {
+   "ticker": "005930",
+   "agent": 1,
+   "rerank": "on",
+   "boost": "boost",
+   "rep": 2,
+   "status": "완료 (수정 1회)",
+   "completed": 1,
+   "seconds_fetch": 5.9,
+   "seconds_llm": 28.7,
+   "llm_calls": 2,
+   "claims": 7,
+   "counters": 3,
+   "claims_total": 10,
+   "claims_with_chunk": 1,
+   "chunk_ratio": 0.1,
+   "removed": 0,
+   "trimmed": 0,
+   "missing_check_first": false,
+   "removed_texts": [],
+   "checks_first": {
+    "근거": [
+     "참고용 항목만 근거인 주장(제작 기준 밖, 기준 항목 근거를 추가하거나 빼기): 주가-원/달러 상관은 250일 {M57}로 약하고 유의하지 않으며 최근 ",
+     "참고용 항목만 근거인 주장(제작 기준 밖, 기준 항목 근거를 추가하거나 빼기): 주가-코스피 상관은 250일 {M60}·60일 {M62}로 강하고 유의하"
+    ]
+   },
+   "chunk_ids_in_prompt": [
+    38593,
+    36555,
+    36573,
+    36568,
+    191,
+    20282
+   ],
+   "rag_mode": "chunk",
+   "rerank_fallback": null,
+   "rag_error": null
+  },
+  {
+   "ticker": "005930",
+   "agent": 1,
+   "rerank": "on",
+   "boost": "boost",
+   "rep": 3,
+   "status": "완료 (수정 1회) (일부 문장 제외)",
+   "completed": 1,
+   "seconds_fetch": 5.9,
+   "seconds_llm": 36.1,
+   "llm_calls": 2,
+   "claims": 6,
+   "counters": 3,
+   "claims_total": 9,
+   "claims_with_chunk": 2,
+   "chunk_ratio": 0.222,
+   "removed": 1,
+   "trimmed": 2,
+   "missing_check_first": false,
+   "removed_texts": [
+    "한국 기준금리는 {M1}로 12개월 {M3} 인상 국면이며, 국고채 3년 {M4}·10년 {M7}도 12개월 각각 {M6}·{M9} 인상 국면이다."
+   ],
+   "checks_first": {
+    "근거": [
+     "참고용 항목만 근거인 주장(제작 기준 밖, 기준 항목 근거를 추가하거나 빼기): 주가는 코스피와 250일 상관 {M60}·베타 {M61}로 강함·유의함,"
+    ]
+   },
+   "chunk_ids_in_prompt": [
+    38593,
+    36555,
+    36573,
+    36568,
+    191,
+    20282
+   ],
+   "rag_mode": "chunk",
+   "rerank_fallback": null,
+   "rag_error": null
+  },
+  {
+   "ticker": "005930",
+   "agent": 3,
+   "rerank": "off",
+   "boost": "off",
+   "rep": 1,
+   "status": "완료 (수정 1회) (일부 문장 제외)",
+   "completed": 1,
+   "seconds_fetch": 13.3,
+   "seconds_llm": 35.0,
+   "llm_calls": 2,
+   "claims": 7,
+   "counters": 2,
+   "claims_total": 9,
+   "claims_with_chunk": 0,
+   "chunk_ratio": 0.0,
+   "removed": 1,
+   "trimmed": 0,
+   "missing_check_first": false,
+   "removed_texts": [
+    "대차잔고는 {S56}로 20일 {S57} 변화했고, 이는 공매도 선행 대용치이며 실제 공매도 의도나 정보 보유를 뜻하지 않습니다."
+   ],
+   "checks_first": {
+    "문장": [
+     "수급만으로 의도·정보 보유 추정 ['매도 의도']: 대차잔고는 {S56}로 20일 {S57} 변화했고, 이는 공매도 선행 대용치이며 실제 공매도 의도나 정보 보"
+    ]
+   },
+   "chunk_ids_in_prompt": [
+    22409,
+    8029,
+    35048,
+    50258,
+    2928,
+    50257,
+    163
+   ],
+   "rag_mode": "chunk",
+   "rerank_fallback": "리랭킹 끔 (CH_RAG_RERANK=chunk)",
+   "rag_error": null
+  },
+  {
+   "ticker": "005930",
+   "agent": 3,
+   "rerank": "off",
+   "boost": "off",
+   "rep": 2,
+   "status": "완료 (수정 1회)",
+   "completed": 1,
+   "seconds_fetch": 13.3,
+   "seconds_llm": 33.6,
+   "llm_calls": 2,
+   "claims": 7,
+   "counters": 3,
+   "claims_total": 10,
+   "claims_with_chunk": 0,
+   "chunk_ratio": 0.0,
+   "removed": 0,
+   "trimmed": 3,
+   "missing_check_first": false,
+   "removed_texts": [],
+   "checks_first": {
+    "방향": [
+     "개념 오용: S25(외국인 순매수일 평균 가격(60일, 근사))를 '매수 단가'로 표현: 현재가가 외국인 순매수일 평균 가격(근사)보다 {S26} 낮아 참고용 가격 맥락상 매수 단가 대비 낮은 상태",
+     "개념 오용: S26(현재가의 외국인 순매수 평균 가격 대비)를 '매수 단가'로 표현: 현재가가 외국인 순매수일 평균 가격(근사)보다 {S26} 낮아 참고용 가격 맥락상 매수 단가 대비 낮은 상태"
+    ]
+   },
+   "chunk_ids_in_prompt": [
+    22409,
+    8029,
+    35048,
+    50258,
+    2928,
+    50257,
+    163
+   ],
+   "rag_mode": "chunk",
+   "rerank_fallback": "리랭킹 끔 (CH_RAG_RERANK=chunk)",
+   "rag_error": null
+  },
+  {
+   "ticker": "005930",
+   "agent": 3,
+   "rerank": "off",
+   "boost": "off",
+   "rep": 3,
+   "status": "완료 (수정 1회)",
+   "completed": 1,
+   "seconds_fetch": 13.3,
+   "seconds_llm": 28.8,
+   "llm_calls": 2,
+   "claims": 6,
+   "counters": 3,
+   "claims_total": 9,
+   "claims_with_chunk": 0,
+   "chunk_ratio": 0.0,
+   "removed": 0,
+   "trimmed": 0,
+   "missing_check_first": false,
+   "removed_texts": [],
+   "checks_first": {
+    "근거": [
+     "참고용 항목만 근거인 주장(제작 기준 밖, 기준 항목 근거를 추가하거나 빼기): 20일 주가 수익률은 음수이고 20일 코스피 대비 초과 수익률도 음수여서"
+    ]
+   },
+   "chunk_ids_in_prompt": [
+    22409,
+    8029,
+    35048,
+    50258,
+    2928,
+    50257,
+    163
+   ],
+   "rag_mode": "chunk",
+   "rerank_fallback": "리랭킹 끔 (CH_RAG_RERANK=chunk)",
+   "rag_error": null
+  },
+  {
+   "ticker": "005930",
+   "agent": 3,
+   "rerank": "off",
+   "boost": "boost",
+   "rep": 1,
+   "status": "완료 (수정 1회) (일부 문장 제외)",
+   "completed": 1,
+   "seconds_fetch": 13.3,
+   "seconds_llm": 53.0,
+   "llm_calls": 2,
+   "claims": 6,
+   "counters": 3,
+   "claims_total": 9,
+   "claims_with_chunk": 0,
+   "chunk_ratio": 0.0,
+   "removed": 2,
+   "trimmed": 8,
+   "missing_check_first": false,
+   "removed_texts": [
+    "개인 20일 순매수 {S20}·{S21}는 20일 주가 하락 {S42} 국면에서 나타난 반대 방향 흐름이다.",
+    "뉴스 감성 최근 7일 {S48}은 직전 8~30일 기준선 {S49} 대비 {S50}만큼 올라 기준선 대비 이례적이며, 블로그·카페 감성 {S51}·{S52}은 긍정, 유튜브 댓글 감성 {S53}은 부정이다."
+   ],
+   "checks_first": {
+    "근거": [
+     "참고용 항목만 근거인 주장(제작 기준 밖, 기준 항목 근거를 추가하거나 빼기): 현재가가 외국인 순매수일 평균 가격(근사)보다 {S26} 낮고, 20일·"
+    ],
+    "방향": [
+     "판정 방향 불일치: S50 는 '개선' 판정인데 반대 표현 사용: 외국인·기관 매도와 삼성전자 수급 관련 보도가 있어({D2}, {D3}, {D5}, {D7}) 최근 수급 악",
+     "부호 불일치: S21=+3.75조원 인데 '는 가격 하락 국면에서': 개인 20일 순매수 {S20}·{S21}는 가격 하락 국면에서 나타난 반대 방향 흐름이다."
+    ]
+   },
+   "chunk_ids_in_prompt": [
+    22409,
+    8029,
+    35048,
+    50258,
+    2928,
+    50257,
+    163
+   ],
+   "rag_mode": "chunk",
+   "rerank_fallback": "리랭킹 끔 (CH_RAG_RERANK=chunk)",
+   "rag_error": null
+  },
+  {
+   "ticker": "005930",
+   "agent": 3,
+   "rerank": "off",
+   "boost": "boost",
+   "rep": 2,
+   "status": "완료 (수정 1회) (일부 문장 제외)",
+   "completed": 1,
+   "seconds_fetch": 13.3,
+   "seconds_llm": 61.0,
+   "llm_calls": 2,
+   "claims": 7,
+   "counters": 2,
+   "claims_total": 9,
+   "claims_with_chunk": 0,
+   "chunk_ratio": 0.0,
+   "removed": 2,
+   "trimmed": 18,
+   "missing_check_first": false,
+   "removed_texts": [
+    "외국인 1조원 이상 매수 여부가 반등 열쇠라는 보도가 있어 수급 개선 기대가 논조에 반영됐을 수 있다.",
+    "외국인 20일 순매도가 이어지고 있어 최근 {S18} 강도 개선이 연속성으로 이어지는지는 10-29 이후 수급으로 확인해야 한다."
+   ],
+   "checks_first": {
+    "문장": [
+     "키 밖 숫자 ['1조']: 외국인 1조원 이상 매수 여부가 반등 열쇠라는 보도가 있어 수급 개선 기대가 논조에 반영됐을 수 있다."
+    ],
+    "근거": [
+     "참고용 항목만 근거인 주장(제작 기준 밖, 기준 항목 근거를 추가하거나 빼기): 20일 주가 수익률은 {S42}, 코스피 대비 초과 수익률은 {S43}이",
+     "참고용 항목만 근거인 주장(제작 기준 밖, 기준 항목 근거를 추가하거나 빼기): 외국인 순매수일 평균 가격(근사)은 {S25}, 현재가의 대비는 {S26"
+    ],
+    "방향": [
+     "판정 방향 불일치: S43 는 '하회' 판정인데 반대 표현 사용: 20일 주가 수익률은 {S42}, 코스피 대비 초과 수익률은 {S43}이고 60일 수익률은 {S44}, 초과",
+     "판정 방향 불일치: S45 는 '하회' 판정인데 반대 표현 사용: 20일 주가 수익률은 {S42}, 코스피 대비 초과 수익률은 {S43}이고 60일 수익률은 {S44}, 초과"
+    ]
+   },
+   "chunk_ids_in_prompt": [
+    22409,
+    8029,
+    35048,
+    50258,
+    2928,
+    50257,
+    163
+   ],
+   "rag_mode": "chunk",
+   "rerank_fallback": "리랭킹 끔 (CH_RAG_RERANK=chunk)",
+   "rag_error": null
+  },
+  {
+   "ticker": "005930",
+   "agent": 3,
+   "rerank": "off",
+   "boost": "boost",
+   "rep": 3,
+   "status": "완료 (수정 1회) (일부 문장 제외)",
+   "completed": 1,
+   "seconds_fetch": 13.3,
+   "seconds_llm": 34.3,
+   "llm_calls": 2,
+   "claims": 6,
+   "counters": 2,
+   "claims_total": 8,
+   "claims_with_chunk": 0,
+   "chunk_ratio": 0.0,
+   "removed": 6,
+   "trimmed": 0,
+   "missing_check_first": true,
+   "removed_texts": [
+    "현재가가 외국인 순매수일 평균 가격(근사)보다 {S26} 낮으나 이는 실제 매입 단가가 아니므로 평균 단가 대비 위치를 매수 의도나 손실 판단으로 쓸 수 없습니다.",
+    "외국인·기관의 실제 매수·매도 의도나 정보 보유 여부(순매수 기록만으로는 추정 불가)",
+    "뉴스 감성 최근 7일 {S48}은 직전 8~30일 기준선 {S49} 대비 {S50}만큼 바뀌어 기준선 대비 이례적이며, 검색 관심도 배율 {S54}는 평소 범위입니다.",
+    "외국인·기관 20일 순매도가 이어지고 지분율도 20일·60일 감소{S2}·{S3}·{S4}·{S11}·{S12}·{S13}·{S28}·{S29}",
+    "20일·60일 코스피 대비 수익률이 하회{S43}·{S45}",
+    "외국인 지분율 20일 변화{S28}와 연속 순매도 일수{S9} 추이"
+   ],
+   "checks_first": {
+    "문장": [
+     "수급만으로 의도·정보 보유 추정 ['매수 의도']: 현재가가 외국인 순매수일 평균 가격(근사)보다 {S26} 낮으나 이는 실제 매입 단가가 아니므로 평균 단가 ",
+     "수급만으로 의도·정보 보유 추정 ['매도 의도']: 외국인·기관의 실제 매수·매도 의도나 정보 보유 여부(순매수 기록만으로는 추정 불가)"
+    ],
+    "근거": [
+     "청크 근거 주장 없음 (관련 청크가 있으면 해석 주장 2개 이상에 D번호와 chunkId 를 붙이기, 없으면 미확인에 '근거 청크 없음')"
+    ],
+    "방향": [
+     "개념 오용: S25(외국인 순매수일 평균 가격(60일, 근사))를 '평균 단가'로 표현: 현재가가 외국인 순매수일 평균 가격(근사)보다 {S26} 낮으나 이는 실제 매입 단가가 아니므로 평균 단가 ",
+     "개념 오용: S26(현재가의 외국인 순매수 평균 가격 대비)를 '평균 단가'로 표현: 현재가가 외국인 순매수일 평균 가격(근사)보다 {S26} 낮으나 이는 실제 매입 단가가 아니므로 평균 단가 "
+    ]
+   },
+   "chunk_ids_in_prompt": [
+    22409,
+    8029,
+    35048,
+    50258,
+    2928,
+    50257,
+    163
+   ],
+   "rag_mode": "chunk",
+   "rerank_fallback": "리랭킹 끔 (CH_RAG_RERANK=chunk)",
+   "rag_error": null
+  },
+  {
+   "ticker": "005930",
+   "agent": 3,
+   "rerank": "on",
+   "boost": "off",
+   "rep": 1,
+   "status": "완료 (일부 문장 제외)",
+   "completed": 1,
+   "seconds_fetch": 15.1,
+   "seconds_llm": 10.6,
+   "llm_calls": 1,
+   "claims": 7,
+   "counters": 3,
+   "claims_total": 10,
+   "claims_with_chunk": 0,
+   "chunk_ratio": 0.0,
+   "removed": 1,
+   "trimmed": 0,
+   "missing_check_first": false,
+   "removed_texts": [
+    "외국인 지분율 20일 변화({S28})와 60일 변화({S29})의 추가 확대 여부"
+   ],
+   "checks_first": {},
+   "chunk_ids_in_prompt": [
+    237,
+    35052,
+    27039,
+    50258,
+    50257,
+    22410,
+    27982
+   ],
+   "rag_mode": "chunk",
+   "rerank_fallback": null,
+   "rag_error": null
+  },
+  {
+   "ticker": "005930",
+   "agent": 3,
+   "rerank": "on",
+   "boost": "off",
+   "rep": 2,
+   "status": "완료 (수정 1회) (일부 문장 제외)",
+   "completed": 1,
+   "seconds_fetch": 15.1,
+   "seconds_llm": 25.9,
+   "llm_calls": 2,
+   "claims": 6,
+   "counters": 3,
+   "claims_total": 9,
+   "claims_with_chunk": 0,
+   "chunk_ratio": 0.0,
+   "removed": 1,
+   "trimmed": 2,
+   "missing_check_first": false,
+   "removed_texts": [
+    "뉴스 감성은 최근 7일 {S48}로 직전 8~30일 기준선 {S49} 대비 {S50}만큼 개선되었고, 검색 관심도는 {S54}, 1년 내 위치는 {S55}이다."
+   ],
+   "checks_first": {
+    "문장": [
+     "단위 중복: S54=1.64배 뒤에 '배': 뉴스 감성은 최근 7일 {S48}로 직전 8~30일 기준선 {S49} 대비 {S50}만큼 개선되었고, 검색 ",
+     "단위 중복: S55=77백분위 뒤에 '백분위': 뉴스 감성은 최근 7일 {S48}로 직전 8~30일 기준선 {S49} 대비 {S50}만큼 개선되었고, 검색 ",
+     "단위 중복: S47=78백분위 뒤에 '백분위': 대차잔고 20일 변화율은 {S57}로 평소 범위이고, VIX는 {S46}으로 1년 내 {S47}백분위여서 시"
+    ],
+    "근거": [
+     "참고용 항목만 근거인 주장(제작 기준 밖, 기준 항목 근거를 추가하거나 빼기): 20일 주가 수익률은 {S42}, 코스피 대비 초과 수익률은 {S43}이"
+    ]
+   },
+   "chunk_ids_in_prompt": [
+    237,
+    35052,
+    27039,
+    50258,
+    50257,
+    22410,
+    27982
+   ],
+   "rag_mode": "chunk",
+   "rerank_fallback": null,
+   "rag_error": null
+  },
+  {
+   "ticker": "005930",
+   "agent": 3,
+   "rerank": "on",
+   "boost": "off",
+   "rep": 3,
+   "status": "완료",
+   "completed": 1,
+   "seconds_fetch": 15.1,
+   "seconds_llm": 13.7,
+   "llm_calls": 1,
+   "claims": 7,
+   "counters": 3,
+   "claims_total": 10,
+   "claims_with_chunk": 0,
+   "chunk_ratio": 0.0,
+   "removed": 0,
+   "trimmed": 1,
+   "missing_check_first": false,
+   "removed_texts": [],
+   "checks_first": {},
+   "chunk_ids_in_prompt": [
+    237,
+    35052,
+    27039,
+    50258,
+    50257,
+    22410,
+    27982
+   ],
+   "rag_mode": "chunk",
+   "rerank_fallback": null,
+   "rag_error": null
+  },
+  {
+   "ticker": "005930",
+   "agent": 3,
+   "rerank": "on",
+   "boost": "boost",
+   "rep": 1,
+   "status": "완료 (수정 1회) (일부 문장 제외)",
+   "completed": 1,
+   "seconds_fetch": 15.1,
+   "seconds_llm": 37.1,
+   "llm_calls": 2,
+   "claims": 7,
+   "counters": 2,
+   "claims_total": 9,
+   "claims_with_chunk": 0,
+   "chunk_ratio": 0.0,
+   "removed": 3,
+   "trimmed": 1,
+   "missing_check_first": true,
+   "removed_texts": [
+    "외국인 순매수일 평균 가격(60일, 근사)은 {S25}이고 현재가는 이보다 {S26}이며, 이 평균 가격은 실제 매입 단가가 아닙니다.",
+    "외국인 20일 순매수 강도({S4})와 시장 강도({S35})의 방향 변화, 기관 20일 강도({S13})와 시장({S38})의 반대 방향 지속 여부",
+    "뉴스 논조({S48})가 직전 8~30일 기준선({S49}) 대비 개선된 상태가 지속되는지, 검색 관심도({S54})와의 동반 변화"
+   ],
+   "checks_first": {
+    "근거": [
+     "청크 근거 주장 없음 (관련 청크가 있으면 해석 주장 2개 이상에 D번호와 chunkId 를 붙이기, 없으면 미확인에 '근거 청크 없음')"
+    ],
+    "방향": [
+     "개념 오용: S25(외국인 순매수일 평균 가격(60일, 근사))를 '매입 단가'로 표현: 현재가가 외국인 순매수일 평균 가격(근사)보다 {S26} 낮아 순매수 가격대 대비 아래에 있으나, 이 평균 ",
+     "개념 오용: S26(현재가의 외국인 순매수 평균 가격 대비)를 '매입 단가'로 표현: 현재가가 외국인 순매수일 평균 가격(근사)보다 {S26} 낮아 순매수 가격대 대비 아래에 있으나, 이 평균 ",
+     "부호 불일치: S26=-10.70% 인데 '낮아 순매수 가격대': 현재가가 외국인 순매수일 평균 가격(근사)보다 {S26} 낮아 순매수 가격대 대비 아래에 있으나, 이 평균 "
+    ]
+   },
+   "chunk_ids_in_prompt": [
+    237,
+    35052,
+    27039,
+    50258,
+    50257,
+    22410,
+    27982
+   ],
+   "rag_mode": "chunk",
+   "rerank_fallback": null,
+   "rag_error": null
+  },
+  {
+   "ticker": "005930",
+   "agent": 3,
+   "rerank": "on",
+   "boost": "boost",
+   "rep": 2,
+   "status": "완료 (수정 1회) (일부 문장 제외)",
+   "completed": 1,
+   "seconds_fetch": 15.1,
+   "seconds_llm": 54.6,
+   "llm_calls": 2,
+   "claims": 7,
+   "counters": 3,
+   "claims_total": 10,
+   "claims_with_chunk": 0,
+   "chunk_ratio": 0.0,
+   "removed": 1,
+   "trimmed": 15,
+   "missing_check_first": true,
+   "removed_texts": [
+    "외국인·기관의 실제 매수·매도 의도 및 정보 보유 여부(순매수 기록만으로는 추정 불가)"
+   ],
+   "checks_first": {
+    "문장": [
+     "수급만으로 의도·정보 보유 추정 ['매도 의도']: 외국인·기관의 실제 매수·매도 의도 및 정보 보유 여부(순매수 기록만으로는 추정 불가)"
+    ],
+    "근거": [
+     "참고용 항목만 근거인 주장(제작 기준 밖, 기준 항목 근거를 추가하거나 빼기): 20일 주가 수익률 {S42}와 코스피 대비 초과 수익률 {S43}, 6",
+     "청크 근거 주장 없음 (관련 청크가 있으면 해석 주장 2개 이상에 D번호와 chunkId 를 붙이기, 없으면 미확인에 '근거 청크 없음')"
+    ],
+    "방향": [
+     "부호 불일치: S44=-14.29% 인데 '와 초과 수익률': 20일 주가 수익률 {S42}와 코스피 대비 초과 수익률 {S43}, 60일 수익률 {S44}와 초과 수익률"
+    ]
+   },
+   "chunk_ids_in_prompt": [
+    237,
+    35052,
+    27039,
+    50258,
+    50257,
+    22410,
+    27982
+   ],
+   "rag_mode": "chunk",
+   "rerank_fallback": null,
+   "rag_error": null
+  },
+  {
+   "ticker": "005930",
+   "agent": 3,
+   "rerank": "on",
+   "boost": "boost",
+   "rep": 3,
+   "status": "완료 (수정 1회)",
+   "completed": 1,
+   "seconds_fetch": 15.1,
+   "seconds_llm": 38.1,
+   "llm_calls": 2,
+   "claims": 7,
+   "counters": 3,
+   "claims_total": 10,
+   "claims_with_chunk": 0,
+   "chunk_ratio": 0.0,
+   "removed": 0,
+   "trimmed": 2,
+   "missing_check_first": true,
+   "removed_texts": [],
+   "checks_first": {
+    "근거": [
+     "참고용 항목만 근거인 주장(제작 기준 밖, 기준 항목 근거를 추가하거나 빼기): 20일 주가 수익률은 {S42}, 코스피 대비 초과 수익률은 {S43}이",
+     "청크 근거 주장 없음 (관련 청크가 있으면 해석 주장 2개 이상에 D번호와 chunkId 를 붙이기, 없으면 미확인에 '근거 청크 없음')"
+    ],
+    "방향": [
+     "부호 불일치: S3=-4.48조원 인데 '이고 60일 순매수 수': 외국인 20일 순매수 수량은 {S2}, 금액은 {S3}이고 60일 순매수 수량도 {S5}로 순매도 흐름이 중"
+    ]
+   },
+   "chunk_ids_in_prompt": [
+    237,
+    35052,
+    27039,
+    50258,
+    50257,
+    22410,
+    27982
+   ],
+   "rag_mode": "chunk",
+   "rerank_fallback": null,
+   "rag_error": null
+  },
+  {
+   "ticker": "000660",
+   "agent": 1,
+   "rerank": "off",
+   "boost": "off",
+   "rep": 1,
+   "status": "완료 (수정 1회)",
+   "completed": 1,
+   "seconds_fetch": 7.6,
+   "seconds_llm": 37.3,
+   "llm_calls": 2,
+   "claims": 7,
+   "counters": 3,
+   "claims_total": 10,
+   "claims_with_chunk": 0,
+   "chunk_ratio": 0.0,
+   "removed": 0,
+   "trimmed": 0,
+   "missing_check_first": false,
+   "removed_texts": [],
+   "checks_first": {
+    "근거": [
+     "참고용 항목만 근거인 주장(제작 기준 밖, 기준 항목 근거를 추가하거나 빼기): 주가-필라델피아 반도체지수 동조성(250일)은 상관 강함·유의함({M66"
+    ],
+    "방향": [
+     "판정 방향 불일치: M17 는 '원화 강세' 판정인데 반대 표현 사용: 원/달러 강세는 달러 수출 대금의 원화 환산액을 줄이는 방향이지만 달러 비용 비중과 헤지 비율은 미확인이라 "
+    ]
+   },
+   "chunk_ids_in_prompt": [
+    35784,
+    26420,
+    35789,
+    22365,
+    26421,
+    34746
+   ],
+   "rag_mode": "chunk",
+   "rerank_fallback": "리랭킹 끔 (CH_RAG_RERANK=chunk)",
+   "rag_error": null
+  },
+  {
+   "ticker": "000660",
+   "agent": 1,
+   "rerank": "off",
+   "boost": "off",
+   "rep": 2,
+   "status": "완료 (수정 1회) (일부 문장 제외)",
+   "completed": 1,
+   "seconds_fetch": 7.6,
+   "seconds_llm": 34.6,
+   "llm_calls": 2,
+   "claims": 7,
+   "counters": 2,
+   "claims_total": 9,
+   "claims_with_chunk": 0,
+   "chunk_ratio": 0.0,
+   "removed": 2,
+   "trimmed": 2,
+   "missing_check_first": false,
+   "removed_texts": [
+    "주가-원/달러 동조성은 250일 {M57}·60일 {M59}로 약하고 유의하지 않으며, 주가-코스피 동조성은 250일 {M60}·60일 {M62}로 강하고 유의합니다.",
+    "원/달러 강세(환율 하락)는 달러 수출 대금의 원화 환산액을 줄이는 방향이지만, 달러 비용 비중·헤지 비율·결제 시점은 미확인이라 순효과는 단정할 수 없습니다."
+   ],
+   "checks_first": {
+    "근거": [
+     "참고용 항목만 근거인 주장(제작 기준 밖, 기준 항목 근거를 추가하거나 빼기): 주가-원/달러 동조성은 250일 {M57}·60일 {M59}로 약하고 유",
+     "참고용 항목만 근거인 주장(제작 기준 밖, 기준 항목 근거를 추가하거나 빼기): 주가-필라델피아 반도체지수 동조성은 250일 {M66}으로 강하고 유의하",
+     "참고용 항목만 근거인 주장(제작 기준 밖, 기준 항목 근거를 추가하거나 빼기): 수출·경기 노출 등급은 높음이며, 근거는 업종 기본값과 주가-필라델피아 "
+    ],
+    "방향": [
+     "판정 방향 불일치: M60 는 '유의' 판정인데 반대 표현 사용: 주가-원/달러 동조성은 250일 {M57}·60일 {M59}로 약하고 유의하지 않으며, 주가-코스피 동조성은",
+     "판정 방향 불일치: M62 는 '유의' 판정인데 반대 표현 사용: 주가-원/달러 동조성은 250일 {M57}·60일 {M59}로 약하고 유의하지 않으며, 주가-코스피 동조성은",
+     "판정 방향 불일치: M17 는 '원화 강세' 판정인데 반대 표현 사용: 원/달러 강세(환율 하락)는 달러 수출 대금의 원화 환산액을 줄이는 방향이지만, 달러 비용 비중·헤지 비율·"
+    ]
+   },
+   "chunk_ids_in_prompt": [
+    35784,
+    26420,
+    35789,
+    22365,
+    26421,
+    34746
+   ],
+   "rag_mode": "chunk",
+   "rerank_fallback": "리랭킹 끔 (CH_RAG_RERANK=chunk)",
+   "rag_error": null
+  },
+  {
+   "ticker": "000660",
+   "agent": 1,
+   "rerank": "off",
+   "boost": "off",
+   "rep": 3,
+   "status": "완료 (수정 1회) (일부 문장 제외)",
+   "completed": 1,
+   "seconds_fetch": 7.6,
+   "seconds_llm": 33.7,
+   "llm_calls": 2,
+   "claims": 6,
+   "counters": 3,
+   "claims_total": 9,
+   "claims_with_chunk": 1,
+   "chunk_ratio": 0.111,
+   "removed": 1,
+   "trimmed": 2,
+   "missing_check_first": false,
+   "removed_texts": [
+    "한국 기준금리는 {M1}로 12개월 {M3}의 인상 국면이며, 국고채 3년 {M4}·10년 {M7}도 12개월 각각 {M6}·{M9}로 인상 국면이다."
+   ],
+   "checks_first": {
+    "근거": [
+     "참고용 항목만 근거인 주장(제작 기준 밖, 기준 항목 근거를 추가하거나 빼기): 주가는 코스피와 250일 상관 {M60}·60일 {M62}로 강함·유의함",
+     "참고용 항목만 근거인 주장(제작 기준 밖, 기준 항목 근거를 추가하거나 빼기): 수출·경기 노출 등급은 높음인데, 이는 업종(반도체) 기본 높음과 주가-"
+    ]
+   },
+   "chunk_ids_in_prompt": [
+    35784,
+    26420,
+    35789,
+    22365,
+    26421,
+    34746
+   ],
+   "rag_mode": "chunk",
+   "rerank_fallback": "리랭킹 끔 (CH_RAG_RERANK=chunk)",
+   "rag_error": null
+  },
+  {
+   "ticker": "000660",
+   "agent": 1,
+   "rerank": "off",
+   "boost": "boost",
+   "rep": 1,
+   "status": "완료 (수정 1회)",
+   "completed": 1,
+   "seconds_fetch": 7.6,
+   "seconds_llm": 30.0,
+   "llm_calls": 2,
+   "claims": 7,
+   "counters": 3,
+   "claims_total": 10,
+   "claims_with_chunk": 0,
+   "chunk_ratio": 0.0,
+   "removed": 0,
+   "trimmed": 0,
+   "missing_check_first": true,
+   "removed_texts": [],
+   "checks_first": {
+    "근거": [
+     "참고용 항목만 근거인 주장(제작 기준 밖, 기준 항목 근거를 추가하거나 빼기): 주가-필라델피아 반도체지수 상관은 250일 {M66}({M66})로 강함",
+     "참고용 항목만 근거인 주장(제작 기준 밖, 기준 항목 근거를 추가하거나 빼기): 반도체 메모리 수출 최근 월은 {M49}({M49})이고 전년 대비 {M",
+     "청크 근거 주장 없음 (관련 청크가 있으면 해석 주장 2개 이상에 D번호와 chunkId 를 붙이기, 없으면 미확인에 '근거 청크 없음')"
+    ]
+   },
+   "chunk_ids_in_prompt": [
+    35784,
+    26420,
+    35789,
+    22365,
+    26421,
+    34746
+   ],
+   "rag_mode": "chunk",
+   "rerank_fallback": "리랭킹 끔 (CH_RAG_RERANK=chunk)",
+   "rag_error": null
+  },
+  {
+   "ticker": "000660",
+   "agent": 1,
+   "rerank": "off",
+   "boost": "boost",
+   "rep": 2,
+   "status": "완료 (수정 1회) (일부 문장 제외)",
+   "completed": 1,
+   "seconds_fetch": 7.6,
+   "seconds_llm": 33.3,
+   "llm_calls": 2,
+   "claims": 6,
+   "counters": 3,
+   "claims_total": 9,
+   "claims_with_chunk": 1,
+   "chunk_ratio": 0.111,
+   "removed": 1,
+   "trimmed": 0,
+   "missing_check_first": false,
+   "removed_texts": [
+    "한국 기준금리는 {M1}로 12개월 {M3}의 인상 국면이고, 국고채 3년 {M4}·10년 {M7}도 12개월 각각 {M6}·{M9}로 인상 국면입니다."
+   ],
+   "checks_first": {
+    "근거": [
+     "참고용 항목만 근거인 주장(제작 기준 밖, 기준 항목 근거를 추가하거나 빼기): 수출·경기 노출은 높음인데, 이는 업종(반도체) 기본 높음과 주가-필라델"
+    ],
+    "방향": [
+     "판정 방향 불일치: M68 는 '보통' 판정인데 반대 표현 사용: 수출·경기 노출은 높음인데, 이는 업종(반도체) 기본 높음과 주가-필라델피아 반도체지수 250일 {M66}·"
+    ]
+   },
+   "chunk_ids_in_prompt": [
+    35784,
+    26420,
+    35789,
+    22365,
+    26421,
+    34746
+   ],
+   "rag_mode": "chunk",
+   "rerank_fallback": "리랭킹 끔 (CH_RAG_RERANK=chunk)",
+   "rag_error": null
+  },
+  {
+   "ticker": "000660",
+   "agent": 1,
+   "rerank": "off",
+   "boost": "boost",
+   "rep": 3,
+   "status": "완료 (수정 1회) (일부 문장 제외)",
+   "completed": 1,
+   "seconds_fetch": 7.6,
+   "seconds_llm": 36.4,
+   "llm_calls": 2,
+   "claims": 7,
+   "counters": 3,
+   "claims_total": 10,
+   "claims_with_chunk": 0,
+   "chunk_ratio": 0.0,
+   "removed": 1,
+   "trimmed": 7,
+   "missing_check_first": true,
+   "removed_texts": [
+    "2026-10-28 뉴스 발췌에 따르면 뉴욕 증시는 FOMC와 SK하이닉스 훈풍을 주시하며 상승 출발했고, SK하이닉스는 3분기 영업이익이 1년 전보다 증가한 것으로 잠정 집계되었습니다."
+   ],
+   "checks_first": {
+    "근거": [
+     "참고용 항목만 근거인 주장(제작 기준 밖, 기준 항목 근거를 추가하거나 빼기): 수출·경기 노출 등급은 높음이며, 그 근거는 업종 기본값(반도체)과 주가",
+     "청크 근거 주장 없음 (관련 청크가 있으면 해석 주장 2개 이상에 D번호와 chunkId 를 붙이기, 없으면 미확인에 '근거 청크 없음')"
+    ]
+   },
+   "chunk_ids_in_prompt": [
+    35784,
+    26420,
+    35789,
+    22365,
+    26421,
+    34746
+   ],
+   "rag_mode": "chunk",
+   "rerank_fallback": "리랭킹 끔 (CH_RAG_RERANK=chunk)",
+   "rag_error": null
+  },
+  {
+   "ticker": "000660",
+   "agent": 1,
+   "rerank": "on",
+   "boost": "off",
+   "rep": 1,
+   "status": "완료 (수정 1회) (일부 문장 제외)",
+   "completed": 1,
+   "seconds_fetch": 6.0,
+   "seconds_llm": 32.3,
+   "llm_calls": 2,
+   "claims": 6,
+   "counters": 3,
+   "claims_total": 9,
+   "claims_with_chunk": 0,
+   "chunk_ratio": 0.0,
+   "removed": 1,
+   "trimmed": 0,
+   "missing_check_first": false,
+   "removed_texts": [
+    "한국 기준금리는 {M1}로 12개월 {M3}·3개월 {M2} 상승한 인상 국면이고, 국고채 3년({M4})·10년({M7})도 12개월 각각 {M6}·{M9} 상승한 인상 국면입니다."
+   ],
+   "checks_first": {
+    "근거": [
+     "참고용 항목만 근거인 주장(제작 기준 밖, 기준 항목 근거를 추가하거나 빼기): 주가-원/달러 동조성은 약함·유의하지 않음({M57}, 60일 {M59}"
+    ]
+   },
+   "chunk_ids_in_prompt": [
+    35784,
+    7,
+    2908,
+    34749,
+    34746,
+    3002
+   ],
+   "rag_mode": "chunk",
+   "rerank_fallback": null,
+   "rag_error": null
+  },
+  {
+   "ticker": "000660",
+   "agent": 1,
+   "rerank": "on",
+   "boost": "off",
+   "rep": 2,
+   "status": "완료 (수정 1회)",
+   "completed": 1,
+   "seconds_fetch": 6.0,
+   "seconds_llm": 26.6,
+   "llm_calls": 2,
+   "claims": 7,
+   "counters": 3,
+   "claims_total": 10,
+   "claims_with_chunk": 0,
+   "chunk_ratio": 0.0,
+   "removed": 0,
+   "trimmed": 0,
+   "missing_check_first": false,
+   "removed_texts": [],
+   "checks_first": {
+    "근거": [
+     "참고용 항목만 근거인 주장(제작 기준 밖, 기준 항목 근거를 추가하거나 빼기): 주가는 코스피와 250일 상관 {M60}·베타 {M61}로 강한 동조성을",
+     "참고용 항목만 근거인 주장(제작 기준 밖, 기준 항목 근거를 추가하거나 빼기): 주가와 원/달러 간 250일 상관은 {M57}로 약하고 유의하지 않으며,",
+     "참고용 항목만 근거인 주장(제작 기준 밖, 기준 항목 근거를 추가하거나 빼기): 반도체 수출(경기) 경로는 업종 기본 높음 등급이며, 주가와 필라델피아 "
+    ]
+   },
+   "chunk_ids_in_prompt": [
+    35784,
+    7,
+    2908,
+    34749,
+    34746,
+    3002
+   ],
+   "rag_mode": "chunk",
+   "rerank_fallback": null,
+   "rag_error": null
+  },
+  {
+   "ticker": "000660",
+   "agent": 1,
+   "rerank": "on",
+   "boost": "off",
+   "rep": 3,
+   "status": "완료 (수정 1회) (일부 문장 제외)",
+   "completed": 1,
+   "seconds_fetch": 6.0,
+   "seconds_llm": 45.1,
+   "llm_calls": 2,
+   "claims": 6,
+   "counters": 3,
+   "claims_total": 9,
+   "claims_with_chunk": 3,
+   "chunk_ratio": 0.333,
+   "removed": 1,
+   "trimmed": 0,
+   "missing_check_first": false,
+   "removed_texts": [
+    "한국 기준금리는 {M1}로 12개월 {M3} 인상 국면이고, 국고채 3년({M4})·10년({M7}) 금리도 12개월 각각 {M6}·{M9} 인상 국면이다."
+   ],
+   "checks_first": {
+    "근거": [
+     "참고용 항목만 근거인 주장(제작 기준 밖, 기준 항목 근거를 추가하거나 빼기): 주가는 코스피와 250일 상관 {M60}·60일 {M62}로 강함·유의함",
+     "참고용 항목만 근거인 주장(제작 기준 밖, 기준 항목 근거를 추가하거나 빼기): 수출·경기 노출 등급은 높음이다. 업종(반도체) 기본 높음과 주가-필라델"
+    ]
+   },
+   "chunk_ids_in_prompt": [
+    35784,
+    7,
+    2908,
+    34749,
+    34746,
+    3002
+   ],
+   "rag_mode": "chunk",
+   "rerank_fallback": null,
+   "rag_error": null
+  },
+  {
+   "ticker": "000660",
+   "agent": 1,
+   "rerank": "on",
+   "boost": "boost",
+   "rep": 1,
+   "status": "완료 (수정 1회)",
+   "completed": 1,
+   "seconds_fetch": 6.0,
+   "seconds_llm": 26.7,
+   "llm_calls": 2,
+   "claims": 6,
+   "counters": 3,
+   "claims_total": 9,
+   "claims_with_chunk": 0,
+   "chunk_ratio": 0.0,
+   "removed": 0,
+   "trimmed": 0,
+   "missing_check_first": true,
+   "removed_texts": [],
+   "checks_first": {
+    "근거": [
+     "참고용 항목만 근거인 주장(제작 기준 밖, 기준 항목 근거를 추가하거나 빼기): 주가는 필라델피아 반도체지수와 250일 상관 {M66}·베타 {M67}로",
+     "참고용 항목만 근거인 주장(제작 기준 밖, 기준 항목 근거를 추가하거나 빼기): 주가는 원/달러와 250일 상관 {M57}·60일 상관 {M59}로 약함",
+     "참고용 항목만 근거인 주장(제작 기준 밖, 기준 항목 근거를 추가하거나 빼기): 수출·경기 노출 등급은 높음이며, 그 근거는 업종 기본값과 주가-필라델피",
+     "참고용 항목만 근거인 주장(제작 기준 밖, 기준 항목 근거를 추가하거나 빼기): 미국 금리·필라델피아 반도체지수 경로는 글로벌 IT 수요 기대와 성장주 ",
+     "청크 근거 주장 없음 (관련 청크가 있으면 해석 주장 2개 이상에 D번호와 chunkId 를 붙이기, 없으면 미확인에 '근거 청크 없음')"
+    ]
+   },
+   "chunk_ids_in_prompt": [
+    35784,
+    7,
+    2908,
+    34749,
+    34746,
+    3002
+   ],
+   "rag_mode": "chunk",
+   "rerank_fallback": null,
+   "rag_error": null
+  },
+  {
+   "ticker": "000660",
+   "agent": 1,
+   "rerank": "on",
+   "boost": "boost",
+   "rep": 2,
+   "status": "완료 (수정 1회)",
+   "completed": 1,
+   "seconds_fetch": 6.0,
+   "seconds_llm": 39.0,
+   "llm_calls": 2,
+   "claims": 7,
+   "counters": 3,
+   "claims_total": 10,
+   "claims_with_chunk": 0,
+   "chunk_ratio": 0.0,
+   "removed": 0,
+   "trimmed": 6,
+   "missing_check_first": true,
+   "removed_texts": [],
+   "checks_first": {
+    "근거": [
+     "참고용 항목만 근거인 주장(제작 기준 밖, 기준 항목 근거를 추가하거나 빼기): 반도체 메모리 수출은 최근 월 {M49}로 전년 대비 {M50}, 최근 ",
+     "참고용 항목만 근거인 주장(제작 기준 밖, 기준 항목 근거를 추가하거나 빼기): 수출·경기 노출은 높음 등급으로, 업종 기본값이 높고 주가-필라델피아 반",
+     "참고용 항목만 근거인 주장(제작 기준 밖, 기준 항목 근거를 추가하거나 빼기): 원/달러와 주가의 250일 상관은 {M57}·60일 상관은 {M59}로 ",
+     "참고용 항목만 근거인 주장(제작 기준 밖, 기준 항목 근거를 추가하거나 빼기): 주가-코스피 상관은 250일 {M60}·60일 {M62}로 강하고 유의하",
+     "참고용 항목만 근거인 주장(제작 기준 밖, 기준 항목 근거를 추가하거나 빼기): 주가-미국 10년 국채금리 상관은 250일 {M63}·60일 {M65}로",
+     "청크 근거 주장 없음 (관련 청크가 있으면 해석 주장 2개 이상에 D번호와 chunkId 를 붙이기, 없으면 미확인에 '근거 청크 없음')"
+    ],
+    "방향": [
+     "판정 방향 불일치: M15 는 '인상' 판정인데 반대 표현 사용: 미국 기준금리는 12개월 {M12} 하락(인하 국면)이지만 미국 10년 국채금리는 12개월 {M15}·3개월"
+    ]
+   },
+   "chunk_ids_in_prompt": [
+    35784,
+    7,
+    2908,
+    34749,
+    34746,
+    3002
+   ],
+   "rag_mode": "chunk",
+   "rerank_fallback": null,
+   "rag_error": null
+  },
+  {
+   "ticker": "000660",
+   "agent": 1,
+   "rerank": "on",
+   "boost": "boost",
+   "rep": 3,
+   "status": "완료 (수정 1회) (일부 문장 제외)",
+   "completed": 1,
+   "seconds_fetch": 6.0,
+   "seconds_llm": 33.2,
+   "llm_calls": 2,
+   "claims": 6,
+   "counters": 3,
+   "claims_total": 9,
+   "claims_with_chunk": 0,
+   "chunk_ratio": 0.0,
+   "removed": 1,
+   "trimmed": 5,
+   "missing_check_first": true,
+   "removed_texts": [
+    "한국 기준금리는 {M1}로 12개월 {M3} 인상 국면이고, 국고채 3년 {M4}·10년 {M7}도 12개월 각각 {M6}·{M9} 인상 국면이다."
+   ],
+   "checks_first": {
+    "근거": [
+     "참고용 항목만 근거인 주장(제작 기준 밖, 기준 항목 근거를 추가하거나 빼기): 수출·경기 노출은 높음 등급으로, 업종 기본 높음에 주가-필라델피아 반도",
+     "참고용 항목만 근거인 주장(제작 기준 밖, 기준 항목 근거를 추가하거나 빼기): 미국 금리·필라델피아 반도체지수 경로는 글로벌 IT 수요 기대와 성장주 ",
+     "청크 근거 주장 없음 (관련 청크가 있으면 해석 주장 2개 이상에 D번호와 chunkId 를 붙이기, 없으면 미확인에 '근거 청크 없음')"
+    ]
+   },
+   "chunk_ids_in_prompt": [
+    35784,
+    7,
+    2908,
+    34749,
+    34746,
+    3002
+   ],
+   "rag_mode": "chunk",
+   "rerank_fallback": null,
+   "rag_error": null
+  },
+  {
+   "ticker": "000660",
+   "agent": 3,
+   "rerank": "off",
+   "boost": "off",
+   "rep": 1,
+   "status": "완료 (수정 1회) (일부 문장 제외)",
+   "completed": 1,
+   "seconds_fetch": 14.2,
+   "seconds_llm": 42.5,
+   "llm_calls": 2,
+   "claims": 7,
+   "counters": 3,
+   "claims_total": 10,
+   "claims_with_chunk": 0,
+   "chunk_ratio": 0.0,
+   "removed": 1,
+   "trimmed": 0,
+   "missing_check_first": false,
+   "removed_texts": [
+    "VIX({S46})와 코스피 대비 초과 수익률({S43}·{S45})의 추가 하락 여부, 시장 외국인·기관 강도({S35}·{S38})와의 괴리 변화"
+   ],
+   "checks_first": {
+    "문장": [
+     "청크 속 숫자 인용 ['28']: 기관이 28일 삼성전자와 SK하이닉스를 담았다는 보도({D8})가 있어 최근 기관 매수 집중의 맥락이 보도와"
+    ],
+    "근거": [
+     "참고용 항목만 근거인 주장(제작 기준 밖, 기준 항목 근거를 추가하거나 빼기): 20일 주가 수익률은 {S42}({S42}), 코스피 대비 초과 수익률은"
+    ],
+    "방향": [
+     "부호 불일치: S49=-0.171 인데 ') 대비 개선(': 뉴스 논조가 최근 7일 {S48}({S48})로 직전 8~30일 기준선 {S49}({S49}) 대비 개선({"
+    ]
+   },
+   "chunk_ids_in_prompt": [
+    2904,
+    4,
+    1737,
+    64,
+    30578,
+    1756,
+    1754
+   ],
+   "rag_mode": "chunk",
+   "rerank_fallback": "리랭킹 끔 (CH_RAG_RERANK=chunk)",
+   "rag_error": null
+  },
+  {
+   "ticker": "000660",
+   "agent": 3,
+   "rerank": "off",
+   "boost": "off",
+   "rep": 2,
+   "status": "완료 (수정 1회) (일부 문장 제외)",
+   "completed": 1,
+   "seconds_fetch": 14.2,
+   "seconds_llm": 26.4,
+   "llm_calls": 2,
+   "claims": 6,
+   "counters": 3,
+   "claims_total": 9,
+   "claims_with_chunk": 0,
+   "chunk_ratio": 0.0,
+   "removed": 1,
+   "trimmed": 0,
+   "missing_check_first": false,
+   "removed_texts": [
+    "외국인 20일 순매수 강도는 {S4}({S4})로 시장 {S35}({S35})보다 낮아, 종목과 시장이 같은 순매도 방향입니다."
+   ],
+   "checks_first": {
+    "근거": [
+     "참고용 항목만 근거인 주장(제작 기준 밖, 기준 항목 근거를 추가하거나 빼기): 20일 주가 수익률은 {S42}({S42}), 코스피 대비 초과수익률은 "
+    ],
+    "방향": [
+     "부호 불일치: 근거 S36=-7.26%p 인데 '외국인 20일 순매수 강도는': 외국인 20일 순매수 강도는 {S4}({S4})로 시장 {S35}({S35})보다 순매도 폭이 커, 종목과 "
+    ]
+   },
+   "chunk_ids_in_prompt": [
+    2904,
+    4,
+    1737,
+    64,
+    30578,
+    1756,
+    1754
+   ],
+   "rag_mode": "chunk",
+   "rerank_fallback": "리랭킹 끔 (CH_RAG_RERANK=chunk)",
+   "rag_error": null
+  },
+  {
+   "ticker": "000660",
+   "agent": 3,
+   "rerank": "off",
+   "boost": "off",
+   "rep": 3,
+   "status": "완료 (수정 1회)",
+   "completed": 1,
+   "seconds_fetch": 14.2,
+   "seconds_llm": 26.1,
+   "llm_calls": 2,
+   "claims": 7,
+   "counters": 3,
+   "claims_total": 10,
+   "claims_with_chunk": 0,
+   "chunk_ratio": 0.0,
+   "removed": 0,
+   "trimmed": 0,
+   "missing_check_first": false,
+   "removed_texts": [],
+   "checks_first": {
+    "근거": [
+     "참고용 항목만 근거인 주장(제작 기준 밖, 기준 항목 근거를 추가하거나 빼기): 20일 주가 수익률은 {S42}, 20일 코스피 대비 초과 수익률은 {S"
+    ],
+    "방향": [
+     "판정 방향 불일치: S43 는 '하회' 판정인데 반대 표현 사용: 20일 주가 수익률은 {S42}, 20일 코스피 대비 초과 수익률은 {S43}이고, 60일 주가 수익률은 {",
+     "판정 방향 불일치: S45 는 '하회' 판정인데 반대 표현 사용: 20일 주가 수익률은 {S42}, 20일 코스피 대비 초과 수익률은 {S43}이고, 60일 주가 수익률은 {"
+    ]
+   },
+   "chunk_ids_in_prompt": [
+    2904,
+    4,
+    1737,
+    64,
+    30578,
+    1756,
+    1754
+   ],
+   "rag_mode": "chunk",
+   "rerank_fallback": "리랭킹 끔 (CH_RAG_RERANK=chunk)",
+   "rag_error": null
+  },
+  {
+   "ticker": "000660",
+   "agent": 3,
+   "rerank": "off",
+   "boost": "boost",
+   "rep": 1,
+   "status": "완료 (수정 1회) (일부 문장 제외)",
+   "completed": 1,
+   "seconds_fetch": 14.2,
+   "seconds_llm": 42.2,
+   "llm_calls": 2,
+   "claims": 6,
+   "counters": 3,
+   "claims_total": 9,
+   "claims_with_chunk": 1,
+   "chunk_ratio": 0.111,
+   "removed": 1,
+   "trimmed": 0,
+   "missing_check_first": false,
+   "removed_texts": [
+    "외국인 20일 순매수 강도는 {S4}로 시장 {S35}보다 낮아, 종목과 시장이 같은 순매도 방향이다."
+   ],
+   "checks_first": {
+    "방향": [
+     "부호 불일치: 근거 S36=-7.26%p 인데 '외국인 20일 순매수 강도는': 외국인 20일 순매수 강도는 {S4}로 시장 {S35}보다 낮아, 종목과 시장이 같은 순매도 방향이다."
+    ]
+   },
+   "chunk_ids_in_prompt": [
+    2904,
+    4,
+    1737,
+    64,
+    30578,
+    1756,
+    1754
+   ],
+   "rag_mode": "chunk",
+   "rerank_fallback": "리랭킹 끔 (CH_RAG_RERANK=chunk)",
+   "rag_error": null
+  },
+  {
+   "ticker": "000660",
+   "agent": 3,
+   "rerank": "off",
+   "boost": "boost",
+   "rep": 2,
+   "status": "완료 (수정 1회)",
+   "completed": 1,
+   "seconds_fetch": 14.2,
+   "seconds_llm": 37.1,
+   "llm_calls": 2,
+   "claims": 7,
+   "counters": 3,
+   "claims_total": 10,
+   "claims_with_chunk": 0,
+   "chunk_ratio": 0.0,
+   "removed": 0,
+   "trimmed": 1,
+   "missing_check_first": true,
+   "removed_texts": [],
+   "checks_first": {
+    "근거": [
+     "참고용 항목만 근거인 주장(제작 기준 밖, 기준 항목 근거를 추가하거나 빼기): 20일 주가 수익률은 {S42}, 20일 코스피 대비 초과 수익률은 {S",
+     "청크 근거 주장 없음 (관련 청크가 있으면 해석 주장 2개 이상에 D번호와 chunkId 를 붙이기, 없으면 미확인에 '근거 청크 없음')"
+    ]
+   },
+   "chunk_ids_in_prompt": [
+    2904,
+    4,
+    1737,
+    64,
+    30578,
+    1756,
+    1754
+   ],
+   "rag_mode": "chunk",
+   "rerank_fallback": "리랭킹 끔 (CH_RAG_RERANK=chunk)",
+   "rag_error": null
+  },
+  {
+   "ticker": "000660",
+   "agent": 3,
+   "rerank": "off",
+   "boost": "boost",
+   "rep": 3,
+   "status": "완료 (수정 1회) (일부 문장 제외)",
+   "completed": 1,
+   "seconds_fetch": 14.2,
+   "seconds_llm": 27.7,
+   "llm_calls": 2,
+   "claims": 6,
+   "counters": 2,
+   "claims_total": 8,
+   "claims_with_chunk": 0,
+   "chunk_ratio": 0.0,
+   "removed": 2,
+   "trimmed": 0,
+   "missing_check_first": true,
+   "removed_texts": [
+    "외국인 20일 순매수 강도는 {S4}로 시장 {S35}보다 순매도 폭이 크며, 종목과 시장이 같은 방향입니다.",
+    "외국인 20일 순매도 금액이 {S3}으로 크고 연속 순매수 일수가 {S9}에 그쳐, 기관 집중 매수가 외국인 매도 압력을 상쇄했다고 단정하기 어렵습니다."
+   ],
+   "checks_first": {
+    "근거": [
+     "청크 근거 주장 없음 (관련 청크가 있으면 해석 주장 2개 이상에 D번호와 chunkId 를 붙이기, 없으면 미확인에 '근거 청크 없음')"
+    ],
+    "방향": [
+     "부호 불일치: 근거 S36=-7.26%p 인데 '외국인 20일 순매수 강도는': 외국인 20일 순매수 강도는 {S4}로 시장 {S35}보다 순매도 폭이 크며, 종목과 시장이 같은 방향입니다",
+     "부호 불일치: S3=-10.47조원 인데 '으로 크고 연속 순매수': 외국인 20일 순매도 금액이 {S3}으로 크고 연속 순매수 일수가 {S9}에 그쳐, 기관 집중 매수가 외국인"
+    ]
+   },
+   "chunk_ids_in_prompt": [
+    2904,
+    4,
+    1737,
+    64,
+    30578,
+    1756,
+    1754
+   ],
+   "rag_mode": "chunk",
+   "rerank_fallback": "리랭킹 끔 (CH_RAG_RERANK=chunk)",
+   "rag_error": null
+  },
+  {
+   "ticker": "000660",
+   "agent": 3,
+   "rerank": "on",
+   "boost": "off",
+   "rep": 1,
+   "status": "완료 (수정 1회) (일부 문장 제외)",
+   "completed": 1,
+   "seconds_fetch": 11.1,
+   "seconds_llm": 33.7,
+   "llm_calls": 2,
+   "claims": 7,
+   "counters": 2,
+   "claims_total": 9,
+   "claims_with_chunk": 0,
+   "chunk_ratio": 0.0,
+   "removed": 3,
+   "trimmed": 2,
+   "missing_check_first": false,
+   "removed_texts": [
+    "대차잔고는 {S56}로 20일 {S57} 줄었지만, 공매도 선행 대용치일 뿐 실제 공매도·매도 의도를 직접 보여주지 않는다.",
+    "외국인 지분율 20일 변화{S28}와 247일 범위 내 위치{S30} 추이",
+    "대차잔고 20일 변화율{S57}과 공매도 관련 후속 지표"
+   ],
+   "checks_first": {
+    "문장": [
+     "수급만으로 의도·정보 보유 추정 ['매도 의도']: 대차잔고는 {S56}로 20일 {S57} 줄었지만, 공매도 선행 대용치일 뿐 실제 공매도·매도 의도를 직접 "
+    ],
+    "근거": [
+     "참고용 항목만 근거인 주장(제작 기준 밖, 기준 항목 근거를 추가하거나 빼기): 20일 주가 수익률은 {S42}, 코스피 대비 초과 수익률은 {S43}로"
+    ],
+    "방향": [
+     "개념 오용: S25(외국인 순매수일 평균 가격(60일, 근사))를 '매수 단가'로 표현: 현재가는 외국인 순매수일 평균 가격(근사)보다 {S26} 낮아, 외국인 매수 단가 대비 가격 부담이 작아 보",
+     "개념 오용: S26(현재가의 외국인 순매수 평균 가격 대비)를 '매수 단가'로 표현: 현재가는 외국인 순매수일 평균 가격(근사)보다 {S26} 낮아, 외국인 매수 단가 대비 가격 부담이 작아 보"
+    ]
+   },
+   "chunk_ids_in_prompt": [
+    4,
+    1746,
+    64,
+    54,
+    2904,
+    20062,
+    1754
+   ],
+   "rag_mode": "chunk",
+   "rerank_fallback": null,
+   "rag_error": null
+  },
+  {
+   "ticker": "000660",
+   "agent": 3,
+   "rerank": "on",
+   "boost": "off",
+   "rep": 2,
+   "status": "완료 (수정 1회) (일부 문장 제외)",
+   "completed": 1,
+   "seconds_fetch": 11.1,
+   "seconds_llm": 35.5,
+   "llm_calls": 2,
+   "claims": 7,
+   "counters": 2,
+   "claims_total": 9,
+   "claims_with_chunk": 0,
+   "chunk_ratio": 0.0,
+   "removed": 3,
+   "trimmed": 0,
+   "missing_check_first": false,
+   "removed_texts": [
+    "현재가가 외국인 순매수일 평균 가격(근사)보다 {S26}({S26}) 낮고, 순매수일 평균 가격은 실제 매입 단가가 아니므로({S25}) 이를 매수 단가나 손실 기준으로 해석하지 않습니다.",
+    "기관 5일 순매수 강도가 직전 60일 대비 이례적({S17})이고 뉴스 논조도 최근 7일 급개선({S50})되어, 두 신호가 같은 기간에 함께 나타난 하나의 사건 묶음(X1)으로 볼 수 있습니다. 다만 외국인 20일 순매도({S2})와 지분율 하락({S28})이 이어지고 주가는 20일·60일 모두 코스피를 하회({S43}{S45})해 수급·가격 방향은 엇갈립니다.",
+    "20일·60일 코스피 대비 초과 수익률 모두 하회({S43}{S45})"
+   ],
+   "checks_first": {
+    "문장": [
+     "청크 속 숫자 인용 ['28']: 28일 실적 발표 및 추가 주주환원 방안 공개 내용"
+    ],
+    "근거": [
+     "참고용 항목만 근거인 주장(제작 기준 밖, 기준 항목 근거를 추가하거나 빼기): 20일 주가 수익률은 {S42}({S42}), 코스피 대비 초과 수익률은"
+    ],
+    "방향": [
+     "개념 오용: S25(외국인 순매수일 평균 가격(60일, 근사))를 '매수 단가'로 표현: 현재가가 외국인 순매수일 평균 가격(근사)보다 {S26}({S26}) 낮고, 순매수일 평균 가격은 실제 매입",
+     "개념 오용: S26(현재가의 외국인 순매수 평균 가격 대비)를 '매수 단가'로 표현: 현재가가 외국인 순매수일 평균 가격(근사)보다 {S26}({S26}) 낮고, 순매수일 평균 가격은 실제 매입"
+    ]
+   },
+   "chunk_ids_in_prompt": [
+    4,
+    1746,
+    64,
+    54,
+    2904,
+    20062,
+    1754
+   ],
+   "rag_mode": "chunk",
+   "rerank_fallback": null,
+   "rag_error": null
+  },
+  {
+   "ticker": "000660",
+   "agent": 3,
+   "rerank": "on",
+   "boost": "off",
+   "rep": 3,
+   "status": "완료 (수정 1회)",
+   "completed": 1,
+   "seconds_fetch": 11.1,
+   "seconds_llm": 32.5,
+   "llm_calls": 2,
+   "claims": 7,
+   "counters": 3,
+   "claims_total": 10,
+   "claims_with_chunk": 0,
+   "chunk_ratio": 0.0,
+   "removed": 0,
+   "trimmed": 0,
+   "missing_check_first": false,
+   "removed_texts": [],
+   "checks_first": {
+    "방향": [
+     "부호 불일치: S26=-8.80% 인데 ') 순매수 평균 가격이': 현재가는 외국인 순매수일 평균 가격(근사)보다 {S26} 낮아({S26}) 순매수 평균 가격이 실제 매입 단"
+    ]
+   },
+   "chunk_ids_in_prompt": [
+    4,
+    1746,
+    64,
+    54,
+    2904,
+    20062,
+    1754
+   ],
+   "rag_mode": "chunk",
+   "rerank_fallback": null,
+   "rag_error": null
+  },
+  {
+   "ticker": "000660",
+   "agent": 3,
+   "rerank": "on",
+   "boost": "boost",
+   "rep": 1,
+   "status": "완료 (수정 1회)",
+   "completed": 1,
+   "seconds_fetch": 11.1,
+   "seconds_llm": 28.1,
+   "llm_calls": 2,
+   "claims": 7,
+   "counters": 3,
+   "claims_total": 10,
+   "claims_with_chunk": 0,
+   "chunk_ratio": 0.0,
+   "removed": 0,
+   "trimmed": 0,
+   "missing_check_first": true,
+   "removed_texts": [],
+   "checks_first": {
+    "문장": [
+     "키 밖 숫자 ['1.06%p', '2.50%p']: 외국인 지분율은 {S27}로 20일 전보다 1.06%p, 60일 전보다 2.50%p 낮아졌고 247일 범위 ",
+     "수급만으로 의도·정보 보유 추정 ['매도 의도']: 대차잔고 20일 변화율 {S57}는 평소 범위이나 공매도 선행 대용치이며 실제 공매도 의도와 직접 연결되지 "
+    ],
+    "근거": [
+     "청크 근거 주장 없음 (관련 청크가 있으면 해석 주장 2개 이상에 D번호와 chunkId 를 붙이기, 없으면 미확인에 '근거 청크 없음')"
+    ]
+   },
+   "chunk_ids_in_prompt": [
+    4,
+    1746,
+    64,
+    54,
+    2904,
+    20062,
+    1754
+   ],
+   "rag_mode": "chunk",
+   "rerank_fallback": null,
+   "rag_error": null
+  },
+  {
+   "ticker": "000660",
+   "agent": 3,
+   "rerank": "on",
+   "boost": "boost",
+   "rep": 2,
+   "status": "완료 (수정 1회)",
+   "completed": 1,
+   "seconds_fetch": 11.1,
+   "seconds_llm": 27.6,
+   "llm_calls": 2,
+   "claims": 7,
+   "counters": 3,
+   "claims_total": 10,
+   "claims_with_chunk": 0,
+   "chunk_ratio": 0.0,
+   "removed": 0,
+   "trimmed": 6,
+   "missing_check_first": true,
+   "removed_texts": [],
+   "checks_first": {
+    "근거": [
+     "참고용 항목만 근거인 주장(제작 기준 밖, 기준 항목 근거를 추가하거나 빼기): 20일 주가는 {S42}, 60일 주가는 {S44}로 각각 코스피 대비 ",
+     "청크 근거 주장 없음 (관련 청크가 있으면 해석 주장 2개 이상에 D번호와 chunkId 를 붙이기, 없으면 미확인에 '근거 청크 없음')"
+    ]
+   },
+   "chunk_ids_in_prompt": [
+    4,
+    1746,
+    64,
+    54,
+    2904,
+    20062,
+    1754
+   ],
+   "rag_mode": "chunk",
+   "rerank_fallback": null,
+   "rag_error": null
+  },
+  {
+   "ticker": "000660",
+   "agent": 3,
+   "rerank": "on",
+   "boost": "boost",
+   "rep": 3,
+   "status": "완료 (수정 1회)",
+   "completed": 1,
+   "seconds_fetch": 11.1,
+   "seconds_llm": 24.8,
+   "llm_calls": 2,
+   "claims": 7,
+   "counters": 3,
+   "claims_total": 10,
+   "claims_with_chunk": 1,
+   "chunk_ratio": 0.1,
+   "removed": 0,
+   "trimmed": 0,
+   "missing_check_first": true,
+   "removed_texts": [],
+   "checks_first": {
+    "근거": [
+     "청크 근거 주장 없음 (관련 청크가 있으면 해석 주장 2개 이상에 D번호와 chunkId 를 붙이기, 없으면 미확인에 '근거 청크 없음')"
+    ]
+   },
+   "chunk_ids_in_prompt": [
+    4,
+    1746,
+    64,
+    54,
+    2904,
+    20062,
+    1754
+   ],
+   "rag_mode": "chunk",
+   "rerank_fallback": null,
+   "rag_error": null
+  },
+  {
+   "ticker": "005380",
+   "agent": 1,
+   "rerank": "off",
+   "boost": "off",
+   "rep": 1,
+   "status": "완료 (수정 1회) (일부 문장 제외)",
+   "completed": 1,
+   "seconds_fetch": 7.6,
+   "seconds_llm": 37.1,
+   "llm_calls": 2,
+   "claims": 6,
+   "counters": 3,
+   "claims_total": 9,
+   "claims_with_chunk": 0,
+   "chunk_ratio": 0.0,
+   "removed": 1,
+   "trimmed": 0,
+   "missing_check_first": false,
+   "removed_texts": [
+    "2026Q3 매출 기준선은 B0 {M94}({M94}), B1 {M95}({M95})이며 80% 예측구간은 37.89~{M97}({M96}, {M97})으로 거시 변수를 쓰지 않은 참고 범위이다."
+   ],
+   "checks_first": {
+    "근거": [
+     "참고용 항목만 근거인 주장(제작 기준 밖, 기준 항목 근거를 추가하거나 빼기): 주가-원/달러 상관은 250일 {M57}({M57})로 약함·유의하지 않"
+    ]
+   },
+   "chunk_ids_in_prompt": [
+    45689,
+    48149,
+    7661,
+    48120,
+    27716,
+    48196
+   ],
+   "rag_mode": "chunk",
+   "rerank_fallback": "리랭킹 끔 (CH_RAG_RERANK=chunk)",
+   "rag_error": null
+  },
+  {
+   "ticker": "005380",
+   "agent": 1,
+   "rerank": "off",
+   "boost": "off",
+   "rep": 2,
+   "status": "완료 (수정 1회)",
+   "completed": 1,
+   "seconds_fetch": 7.6,
+   "seconds_llm": 31.8,
+   "llm_calls": 2,
+   "claims": 7,
+   "counters": 3,
+   "claims_total": 10,
+   "claims_with_chunk": 0,
+   "chunk_ratio": 0.0,
+   "removed": 0,
+   "trimmed": 0,
+   "missing_check_first": false,
+   "removed_texts": [],
+   "checks_first": {
+    "근거": [
+     "참고용 항목만 근거인 주장(제작 기준 밖, 기준 항목 근거를 추가하거나 빼기): 현대차 주가는 코스피와 250일 상관 {M60}·베타 {M61}, 60일",
+     "참고용 항목만 근거인 주장(제작 기준 밖, 기준 항목 근거를 추가하거나 빼기): 주가-원/달러 상관은 250일 {M57}, 60일 {M59}로 약하고 유"
+    ]
+   },
+   "chunk_ids_in_prompt": [
+    45689,
+    48149,
+    7661,
+    48120,
+    27716,
+    48196
+   ],
+   "rag_mode": "chunk",
+   "rerank_fallback": "리랭킹 끔 (CH_RAG_RERANK=chunk)",
+   "rag_error": null
+  },
+  {
+   "ticker": "005380",
+   "agent": 1,
+   "rerank": "off",
+   "boost": "off",
+   "rep": 3,
+   "status": "완료 (수정 1회)",
+   "completed": 1,
+   "seconds_fetch": 7.6,
+   "seconds_llm": 27.8,
+   "llm_calls": 2,
+   "claims": 6,
+   "counters": 3,
+   "claims_total": 9,
+   "claims_with_chunk": 0,
+   "chunk_ratio": 0.0,
+   "removed": 0,
+   "trimmed": 0,
+   "missing_check_first": false,
+   "removed_texts": [],
+   "checks_first": {
+    "근거": [
+     "참고용 항목만 근거인 주장(제작 기준 밖, 기준 항목 근거를 추가하거나 빼기): 주가는 코스피와 250일 {M60}·60일 {M62}로 동조성이 강하고,"
+    ],
+    "방향": [
+     "판정 방향 불일치: M15 는 '인상' 판정인데 반대 표현 사용: 미국 금리 12개월 {M12} 인하는 할부 금융 비용 측면에서 수요 지지 요인일 수 있으나, 미국 10년 금"
+    ]
+   },
+   "chunk_ids_in_prompt": [
+    45689,
+    48149,
+    7661,
+    48120,
+    27716,
+    48196
+   ],
+   "rag_mode": "chunk",
+   "rerank_fallback": "리랭킹 끔 (CH_RAG_RERANK=chunk)",
+   "rag_error": null
+  },
+  {
+   "ticker": "005380",
+   "agent": 1,
+   "rerank": "off",
+   "boost": "boost",
+   "rep": 1,
+   "status": "완료 (수정 1회) (일부 문장 제외)",
+   "completed": 1,
+   "seconds_fetch": 7.6,
+   "seconds_llm": 41.0,
+   "llm_calls": 2,
+   "claims": 6,
+   "counters": 2,
+   "claims_total": 8,
+   "claims_with_chunk": 2,
+   "chunk_ratio": 0.25,
+   "removed": 2,
+   "trimmed": 0,
+   "missing_check_first": true,
+   "removed_texts": [
+    "관세·통상정책은 이 업종 경로에 필요하지만 DB에 없어 수출 단가와 물량 영향을 확인할 수 없습니다.",
+    "한국 기준금리는 {M1}로 12개월 {M3}·3개월 {M2} 모두 인상 국면이고, 국고채 3년 {M4}·10년 {M7}도 12개월 {M6}·{M9} 인상 국면입니다."
+   ],
+   "checks_first": {
+    "근거": [
+     "근거 없는 해석: 관세·통상정책은 이 업종 경로에 필요하지만 DB에 없어 수출 단가와 물량",
+     "청크 근거 주장 없음 (관련 청크가 있으면 해석 주장 2개 이상에 D번호와 chunkId 를 붙이기, 없으면 미확인에 '근거 청크 없음')"
+    ]
+   },
+   "chunk_ids_in_prompt": [
+    45689,
+    48149,
+    7661,
+    48120,
+    27716,
+    48196
+   ],
+   "rag_mode": "chunk",
+   "rerank_fallback": "리랭킹 끔 (CH_RAG_RERANK=chunk)",
+   "rag_error": null
+  },
+  {
+   "ticker": "005380",
+   "agent": 1,
+   "rerank": "off",
+   "boost": "boost",
+   "rep": 2,
+   "status": "완료 (수정 1회) (일부 문장 제외)",
+   "completed": 1,
+   "seconds_fetch": 7.6,
+   "seconds_llm": 21.3,
+   "llm_calls": 2,
+   "claims": 7,
+   "counters": 2,
+   "claims_total": 9,
+   "claims_with_chunk": 0,
+   "chunk_ratio": 0.0,
+   "removed": 1,
+   "trimmed": 0,
+   "missing_check_first": false,
+   "removed_texts": [
+    "관세·통상정책은 이 업종 경로에 필요하지만 DB에 없어 수출 단가와 물량 영향을 확인할 수 없습니다."
+   ],
+   "checks_first": {
+    "근거": [
+     "근거 없는 해석: 관세·통상정책은 이 업종 경로에 필요하지만 DB에 없어 수출 단가와 물량",
+     "참고용 항목만 근거인 주장(제작 기준 밖, 기준 항목 근거를 추가하거나 빼기): 현대차 주가는 코스피와 250일 상관 {M60}, 베타 {M61}로 강한",
+     "참고용 항목만 근거인 주장(제작 기준 밖, 기준 항목 근거를 추가하거나 빼기): 주가-원/달러 상관은 250일 {M57}, 60일 {M59}로 약하고 유"
+    ]
+   },
+   "chunk_ids_in_prompt": [
+    45689,
+    48149,
+    7661,
+    48120,
+    27716,
+    48196
+   ],
+   "rag_mode": "chunk",
+   "rerank_fallback": "리랭킹 끔 (CH_RAG_RERANK=chunk)",
+   "rag_error": null
+  },
+  {
+   "ticker": "005380",
+   "agent": 1,
+   "rerank": "off",
+   "boost": "boost",
+   "rep": 3,
+   "status": "완료 (수정 1회) (일부 문장 제외)",
+   "completed": 1,
+   "seconds_fetch": 7.6,
+   "seconds_llm": 26.0,
+   "llm_calls": 2,
+   "claims": 6,
+   "counters": 3,
+   "claims_total": 9,
+   "claims_with_chunk": 4,
+   "chunk_ratio": 0.444,
+   "removed": 1,
+   "trimmed": 0,
+   "missing_check_first": true,
+   "removed_texts": [
+    "한국 기준금리는 {M1}로 12개월 {M3} 인상 국면이고, 국고채 3년 {M4}·10년 {M7}도 12개월 각각 {M6}·{M9} 상승했습니다."
+   ],
+   "checks_first": {
+    "근거": [
+     "참고용 항목만 근거인 주장(제작 기준 밖, 기준 항목 근거를 추가하거나 빼기): 주가-원/달러 상관은 250일 {M57}로 약함·유의하지 않음, 60일 ",
+     "참고용 항목만 근거인 주장(제작 기준 밖, 기준 항목 근거를 추가하거나 빼기): 주가-코스피 상관은 250일 {M60}·60일 {M62}로 강함·유의함이",
+     "청크 근거 주장 없음 (관련 청크가 있으면 해석 주장 2개 이상에 D번호와 chunkId 를 붙이기, 없으면 미확인에 '근거 청크 없음')"
+    ],
+    "방향": [
+     "판정 방향 불일치: M15 는 '인상' 판정인데 반대 표현 사용: 미국 기준금리는 {M10}로 12개월 {M12} 인하 국면이지만 미국 10년 국채금리는 {M13}로 12개월"
+    ]
+   },
+   "chunk_ids_in_prompt": [
+    45689,
+    48149,
+    7661,
+    48120,
+    27716,
+    48196
+   ],
+   "rag_mode": "chunk",
+   "rerank_fallback": "리랭킹 끔 (CH_RAG_RERANK=chunk)",
+   "rag_error": null
+  },
+  {
+   "ticker": "005380",
+   "agent": 1,
+   "rerank": "on",
+   "boost": "off",
+   "rep": 1,
+   "status": "완료 (수정 1회) (일부 문장 제외)",
+   "completed": 1,
+   "seconds_fetch": 7.1,
+   "seconds_llm": 26.2,
+   "llm_calls": 2,
+   "claims": 5,
+   "counters": 3,
+   "claims_total": 8,
+   "claims_with_chunk": 0,
+   "chunk_ratio": 0.0,
+   "removed": 1,
+   "trimmed": 0,
+   "missing_check_first": false,
+   "removed_texts": [
+    "한국 기준금리는 {M1}로 12개월 {M3}·3개월 {M2} 인상 국면이며, 국고채 3년 {M4}·10년 {M7}도 12개월 각각 {M6}·{M9} 상승했습니다."
+   ],
+   "checks_first": {
+    "근거": [
+     "참고용 항목만 근거인 주장(제작 기준 밖, 기준 항목 근거를 추가하거나 빼기): 주가-원/달러 동조성은 250일 {M57}·60일 {M59} 모두 약하고",
+     "참고용 항목만 근거인 주장(제작 기준 밖, 기준 항목 근거를 추가하거나 빼기): 주가-코스피 동조성은 250일 {M60}·60일 {M62} 모두 강하고 "
+    ],
+    "방향": [
+     "판정 방향 불일치: M15 는 '인상' 판정인데 반대 표현 사용: 미국 기준금리는 {M10}로 12개월 {M12} 인하 국면이나 미국 10년 국채금리는 {M13}로 12개월 ",
+     "판정 방향 불일치: M15 는 '인상' 판정인데 반대 표현 사용: 미국 금리 인하 국면({M12})은 할부 금융 비용을 통한 차량 수요에 긍정적일 수 있으나, 미국 10년 국"
+    ]
+   },
+   "chunk_ids_in_prompt": [
+    48149,
+    38454,
+    48161,
+    7661,
+    51014,
+    48120
+   ],
+   "rag_mode": "chunk",
+   "rerank_fallback": null,
+   "rag_error": null
+  },
+  {
+   "ticker": "005380",
+   "agent": 1,
+   "rerank": "on",
+   "boost": "off",
+   "rep": 2,
+   "status": "완료 (수정 1회) (일부 문장 제외)",
+   "completed": 1,
+   "seconds_fetch": 7.1,
+   "seconds_llm": 26.7,
+   "llm_calls": 2,
+   "claims": 7,
+   "counters": 2,
+   "claims_total": 9,
+   "claims_with_chunk": 0,
+   "chunk_ratio": 0.0,
+   "removed": 1,
+   "trimmed": 0,
+   "missing_check_first": false,
+   "removed_texts": [
+    "관세·통상정책은 이 업종 전달 경로에 필요하지만 DB에 없어, 수출 단가와 물량에 대한 하방 위험을 수치로 확인할 수 없습니다."
+   ],
+   "checks_first": {
+    "근거": [
+     "근거 없는 해석: 관세·통상정책은 이 업종 전달 경로에 필요하지만 DB에 없어, 수출 단가",
+     "참고용 항목만 근거인 주장(제작 기준 밖, 기준 항목 근거를 추가하거나 빼기): 주가-원/달러 상관은 250일 {M57}로 약함·유의하지 않음, 60일 "
+    ],
+    "방향": [
+     "개념 오용: M57(주가-원/달러 상관(250일))를 '인과'로 표현: 주가-원/달러 상관은 250일 {M57}로 약함·유의하지 않음, 60일 {M59}로 약함·유의하지 않음·방향",
+     "개념 오용: M59(주가-원/달러 상관(60일))를 '인과'로 표현: 주가-원/달러 상관은 250일 {M57}로 약함·유의하지 않음, 60일 {M59}로 약함·유의하지 않음·방향"
+    ]
+   },
+   "chunk_ids_in_prompt": [
+    48149,
+    38454,
+    48161,
+    7661,
+    51014,
+    48120
+   ],
+   "rag_mode": "chunk",
+   "rerank_fallback": null,
+   "rag_error": null
+  },
+  {
+   "ticker": "005380",
+   "agent": 1,
+   "rerank": "on",
+   "boost": "off",
+   "rep": 3,
+   "status": "완료 (수정 1회) (일부 문장 제외)",
+   "completed": 1,
+   "seconds_fetch": 7.1,
+   "seconds_llm": 33.7,
+   "llm_calls": 2,
+   "claims": 6,
+   "counters": 3,
+   "claims_total": 9,
+   "claims_with_chunk": 2,
+   "chunk_ratio": 0.222,
+   "removed": 1,
+   "trimmed": 0,
+   "missing_check_first": false,
+   "removed_texts": [
+    "한국 기준금리는 {M1}로 12개월 {M3} 인상 국면이며, 국고채 3년 {M4}·10년 {M7}도 12개월 각각 {M6}·{M9} 상승했습니다."
+   ],
+   "checks_first": {
+    "문장": [
+     "키 밖 숫자 ['2.8%', '1423원']: 3분기 실적 발표에서 원·달러 평균 환율이 전년보다 2.8% 오른 1423원으로 실적에 긍정적으로 작용했다는"
+    ],
+    "근거": [
+     "참고용 항목만 근거인 주장(제작 기준 밖, 기준 항목 근거를 추가하거나 빼기): 주가-원/달러 동조성은 250일 {M57}·60일 {M59} 모두 약하고",
+     "참고용 항목만 근거인 주장(제작 기준 밖, 기준 항목 근거를 추가하거나 빼기): 주가-코스피 동조성은 250일 {M60}·60일 {M62} 모두 강하고 ",
+     "청크 속 숫자 인용 ['1423', '2.8']: 3분기 실적 발표에서 원·달러 평균 환율이 전년보다 2.8% 오른 142"
+    ],
+    "방향": [
+     "판정 방향 불일치: M15 는 '인상' 판정인데 반대 표현 사용: 미국 기준금리는 {M10}로 12개월 {M12} 인하 국면이나 미국 10년 국채금리는 {M13}로 12개월 "
+    ]
+   },
+   "chunk_ids_in_prompt": [
+    48149,
+    38454,
+    48161,
+    7661,
+    51014,
+    48120
+   ],
+   "rag_mode": "chunk",
+   "rerank_fallback": null,
+   "rag_error": null
+  },
+  {
+   "ticker": "005380",
+   "agent": 1,
+   "rerank": "on",
+   "boost": "boost",
+   "rep": 1,
+   "status": "완료 (수정 1회) (일부 문장 제외)",
+   "completed": 1,
+   "seconds_fetch": 7.1,
+   "seconds_llm": 19.7,
+   "llm_calls": 2,
+   "claims": 7,
+   "counters": 2,
+   "claims_total": 9,
+   "claims_with_chunk": 0,
+   "chunk_ratio": 0.0,
+   "removed": 2,
+   "trimmed": 0,
+   "missing_check_first": true,
+   "removed_texts": [
+    "관세·통상정책은 이 업종 경로에 필요하지만 DB에 없어 수출 단가와 물량 영향을 확인할 수 없습니다.",
+    "관세·통상정책 변수가 미확인이라 수출 단가·물량 영향을 평가할 수 없습니다."
+   ],
+   "checks_first": {
+    "근거": [
+     "근거 없는 해석: 관세·통상정책은 이 업종 경로에 필요하지만 DB에 없어 수출 단가와 물량",
+     "참고용 항목만 근거인 주장(제작 기준 밖, 기준 항목 근거를 추가하거나 빼기): 주가-원/달러 상관은 250일 {M57}, 60일 {M59}로 약하고 유",
+     "청크 근거 주장 없음 (관련 청크가 있으면 해석 주장 2개 이상에 D번호와 chunkId 를 붙이기, 없으면 미확인에 '근거 청크 없음')"
+    ]
+   },
+   "chunk_ids_in_prompt": [
+    48149,
+    38454,
+    48161,
+    7661,
+    51014,
+    48120
+   ],
+   "rag_mode": "chunk",
+   "rerank_fallback": null,
+   "rag_error": null
+  },
+  {
+   "ticker": "005380",
+   "agent": 1,
+   "rerank": "on",
+   "boost": "boost",
+   "rep": 2,
+   "status": "완료 (수정 1회)",
+   "completed": 1,
+   "seconds_fetch": 7.1,
+   "seconds_llm": 33.2,
+   "llm_calls": 2,
+   "claims": 7,
+   "counters": 3,
+   "claims_total": 10,
+   "claims_with_chunk": 0,
+   "chunk_ratio": 0.0,
+   "removed": 0,
+   "trimmed": 2,
+   "missing_check_first": true,
+   "removed_texts": [],
+   "checks_first": {
+    "근거": [
+     "참고용 항목만 근거인 주장(제작 기준 밖, 기준 항목 근거를 추가하거나 빼기): 주가-원/달러 상관은 250일 {M57}로 약함·유의하지 않음, 60일 ",
+     "참고용 항목만 근거인 주장(제작 기준 밖, 기준 항목 근거를 추가하거나 빼기): 주가-코스피 상관은 250일 {M60}로 강함·유의함, 60일 {M62}",
+     "참고용 항목만 근거인 주장(제작 기준 밖, 기준 항목 근거를 추가하거나 빼기): 유가 상승은 차량 수요(연비 선호)와 원가에 영향을 주지만, 주가-WTI",
+     "참고용 항목만 근거인 주장(제작 기준 밖, 기준 항목 근거를 추가하거나 빼기): 미국 금리 경로는 할부 금융 비용을 통한 차량 수요로 전달되나, 주가-미",
+     "청크 근거 주장 없음 (관련 청크가 있으면 해석 주장 2개 이상에 D번호와 chunkId 를 붙이기, 없으면 미확인에 '근거 청크 없음')"
+    ]
+   },
+   "chunk_ids_in_prompt": [
+    48149,
+    38454,
+    48161,
+    7661,
+    51014,
+    48120
+   ],
+   "rag_mode": "chunk",
+   "rerank_fallback": null,
+   "rag_error": null
+  },
+  {
+   "ticker": "005380",
+   "agent": 1,
+   "rerank": "on",
+   "boost": "boost",
+   "rep": 3,
+   "status": "완료 (수정 1회) (일부 문장 제외)",
+   "completed": 1,
+   "seconds_fetch": 7.1,
+   "seconds_llm": 37.0,
+   "llm_calls": 2,
+   "claims": 6,
+   "counters": 2,
+   "claims_total": 8,
+   "claims_with_chunk": 0,
+   "chunk_ratio": 0.0,
+   "removed": 3,
+   "trimmed": 0,
+   "missing_check_first": true,
+   "removed_texts": [
+    "관세·통상정책은 이 업종 전달 경로(수출 단가와 물량)에 필요하지만 DB에 없어 수출 단가와 물량 영향을 확인할 수 없습니다.",
+    "관세·통상정책 변수가 미확인이라 수출 단가와 물량 영향을 평가할 수 없습니다.",
+    "한국 기준금리는 {M1}로 12개월 {M3} 인상 국면이며, 국고채 3년 {M4}·10년 {M7}도 12개월 각각 {M6}·{M9} 상승했습니다."
+   ],
+   "checks_first": {
+    "근거": [
+     "근거 없는 해석: 관세·통상정책은 이 업종 전달 경로에 필요하지만 DB에 없어 수출 단가와",
+     "참고용 항목만 근거인 주장(제작 기준 밖, 기준 항목 근거를 추가하거나 빼기): 주가는 코스피와 250일 상관 {M60}·베타 {M61}, 60일 상관 ",
+     "참고용 항목만 근거인 주장(제작 기준 밖, 기준 항목 근거를 추가하거나 빼기): 주가-원/달러 상관은 250일 {M57}·60일 {M59}로 약하고 유의",
+     "청크 근거 주장 없음 (관련 청크가 있으면 해석 주장 2개 이상에 D번호와 chunkId 를 붙이기, 없으면 미확인에 '근거 청크 없음')"
+    ],
+    "방향": [
+     "판정 방향 불일치: M15 는 '인상' 판정인데 반대 표현 사용: 미국 기준금리는 {M10}로 12개월 {M12} 인하 국면이나 미국 10년 국채금리는 {M13}로 12개월 ",
+     "판정 방향 불일치: M15 는 '인상' 판정인데 반대 표현 사용: 미국 기준금리가 12개월 {M12} 인하 국면이라 미국 10년 국채금리 {M13} 상승과 함께 할부 금융 비"
+    ]
+   },
+   "chunk_ids_in_prompt": [
+    48149,
+    38454,
+    48161,
+    7661,
+    51014,
+    48120
+   ],
+   "rag_mode": "chunk",
+   "rerank_fallback": null,
+   "rag_error": null
+  },
+  {
+   "ticker": "005380",
+   "agent": 3,
+   "rerank": "off",
+   "boost": "off",
+   "rep": 1,
+   "status": "완료 (수정 1회) (일부 문장 제외)",
+   "completed": 1,
+   "seconds_fetch": 16.3,
+   "seconds_llm": 28.6,
+   "llm_calls": 2,
+   "claims": 6,
+   "counters": 3,
+   "claims_total": 9,
+   "claims_with_chunk": 0,
+   "chunk_ratio": 0.0,
+   "removed": 1,
+   "trimmed": 0,
+   "missing_check_first": false,
+   "removed_texts": [
+    "외국인 최근 5일 강도 표준점수는 {S8}, 기관은 {S17}으로 둘 다 절댓값 2 미만이라 평소 범위다."
+   ],
+   "checks_first": {
+    "문장": [
+     "키 밖 숫자 ['0.91%p']: 외국인 20일 순매도 금액이 크고 강도도 음수이며, 지분율도 60일 기준 0.91%p 하락했다."
+    ]
+   },
+   "chunk_ids_in_prompt": [
+    50239,
+    48109,
+    48148,
+    48162,
+    46404,
+    52578,
+    27032
+   ],
+   "rag_mode": "chunk",
+   "rerank_fallback": "리랭킹 끔 (CH_RAG_RERANK=chunk)",
+   "rag_error": null
+  },
+  {
+   "ticker": "005380",
+   "agent": 3,
+   "rerank": "off",
+   "boost": "off",
+   "rep": 2,
+   "status": "완료 (일부 문장 제외)",
+   "completed": 1,
+   "seconds_fetch": 16.3,
+   "seconds_llm": 13.3,
+   "llm_calls": 1,
+   "claims": 6,
+   "counters": 3,
+   "claims_total": 9,
+   "claims_with_chunk": 0,
+   "chunk_ratio": 0.0,
+   "removed": 1,
+   "trimmed": 0,
+   "missing_check_first": false,
+   "removed_texts": [
+    "외국인 최근 5일 강도와 기관 최근 5일 강도는 각각 직전 60일 대비 표준점수가 절댓값 2 미만으로 평소 범위이다."
+   ],
+   "checks_first": {},
+   "chunk_ids_in_prompt": [
+    50239,
+    48109,
+    48148,
+    48162,
+    46404,
+    52578,
+    27032
+   ],
+   "rag_mode": "chunk",
+   "rerank_fallback": "리랭킹 끔 (CH_RAG_RERANK=chunk)",
+   "rag_error": null
+  },
+  {
+   "ticker": "005380",
+   "agent": 3,
+   "rerank": "off",
+   "boost": "off",
+   "rep": 3,
+   "status": "완료 (수정 1회) (일부 문장 제외)",
+   "completed": 1,
+   "seconds_fetch": 16.3,
+   "seconds_llm": 38.1,
+   "llm_calls": 2,
+   "claims": 7,
+   "counters": 2,
+   "claims_total": 9,
+   "claims_with_chunk": 0,
+   "chunk_ratio": 0.0,
+   "removed": 1,
+   "trimmed": 5,
+   "missing_check_first": false,
+   "removed_texts": [
+    "현재가가 외국인 순매수일 평균 가격(근사)보다 {S26} 낮아, 순매수일 평균 가격은 실제 매입 단가가 아니므로 매입 단가 대비 손익이나 매수 의도 판단에 직접 쓰지 못한다."
+   ],
+   "checks_first": {
+    "문장": [
+     "수급만으로 의도·정보 보유 추정 ['매수 의도']: 현재가가 외국인 순매수일 평균 가격(근사)보다 {S26} 낮아, 순매수일 평균 가격은 실제 매입 단가가 아니"
+    ]
+   },
+   "chunk_ids_in_prompt": [
+    50239,
+    48109,
+    48148,
+    48162,
+    46404,
+    52578,
+    27032
+   ],
+   "rag_mode": "chunk",
+   "rerank_fallback": "리랭킹 끔 (CH_RAG_RERANK=chunk)",
+   "rag_error": null
+  },
+  {
+   "ticker": "005380",
+   "agent": 3,
+   "rerank": "off",
+   "boost": "boost",
+   "rep": 1,
+   "status": "완료 (수정 1회) (일부 문장 제외)",
+   "completed": 1,
+   "seconds_fetch": 16.3,
+   "seconds_llm": 30.3,
+   "llm_calls": 2,
+   "claims": 7,
+   "counters": 2,
+   "claims_total": 9,
+   "claims_with_chunk": 0,
+   "chunk_ratio": 0.0,
+   "removed": 8,
+   "trimmed": 0,
+   "missing_check_first": true,
+   "removed_texts": [
+    "현재가의 외국인 순매수일 평균 가격(근사) 대비 비율은 음수이고, 순매수 기록만으로 실제 매입 단가나 매수 의도를 확인할 수 없다.",
+    "외국인 20일 순매수 강도가 시장보다 순매수 쪽 차이이다{S4}, {S35}, {S36}.",
+    "외국인 20일·60일 순매수 수량과 금액이 모두 음수이다{S2}, {S3}, {S5}.",
+    "기관 20일·60일 순매수 수량과 금액이 모두 음수이다{S11}, {S12}, {S14}.",
+    "20일·60일 주가 수익률이 음수이고 코스피 대비 초과 수익률도 하회이다{S42}, {S43}, {S44}, {S45}.",
+    "외국인 지분율이 60일 동안 소폭 감소했고 247일 범위 내 위치는 낮은 쪽에 있다{S29}, {S30}.",
+    "외국인 지분율 20일·60일 변화{S28}, {S29}",
+    "대차잔고 20일 변화율{S57}"
+   ],
+   "checks_first": {
+    "근거": [
+     "청크 근거 주장 없음 (관련 청크가 있으면 해석 주장 2개 이상에 D번호와 chunkId 를 붙이기, 없으면 미확인에 '근거 청크 없음')"
+    ],
+    "방향": [
+     "판정 방향 불일치: S43 는 '하회' 판정인데 반대 표현 사용: 20일·60일 주가 수익률은 음수이고 코스피 대비 초과 수익률도 음수이며, VIX는 1년 내 높은 쪽에 있다",
+     "판정 방향 불일치: S45 는 '하회' 판정인데 반대 표현 사용: 20일·60일 주가 수익률은 음수이고 코스피 대비 초과 수익률도 음수이며, VIX는 1년 내 높은 쪽에 있다",
+     "부호 불일치: 근거 S36=+1.61%p 인데 '외국인 20일 순매도는 시장': 외국인 20일 순매도는 시장보다 순매도 폭이 작지만, 시장 자체도 순매도라 종목만의 순매수 전환으로 보기 어",
+     "개념 오용: S25(외국인 순매수일 평균 가격(60일, 근사))를 '매입 단가'로 표현: 외국인 순매수일 평균 가격 대비 현재가 비율은 음수이고, 순매수 기록만으로 실제 매입 단가나 매수 의도를 확",
+     "개념 오용: S26(현재가의 외국인 순매수 평균 가격 대비)를 '매입 단가'로 표현: 외국인 순매수일 평균 가격 대비 현재가 비율은 음수이고, 순매수 기록만으로 실제 매입 단가나 매수 의도를 확",
+     "판정 방향 불일치: S43 는 '하회' 판정인데 반대 표현 사용: 20일·60일 주가 수익률이 음수이고 코스피 대비 초과 수익률도 음수이다{S42}, {S43}, {S44},",
+     "판정 방향 불일치: S45 는 '하회' 판정인데 반대 표현 사용: 20일·60일 주가 수익률이 음수이고 코스피 대비 초과 수익률도 음수이다{S42}, {S43}, {S44},"
+    ]
+   },
+   "chunk_ids_in_prompt": [
+    50239,
+    48109,
+    48148,
+    48162,
+    46404,
+    52578,
+    27032
+   ],
+   "rag_mode": "chunk",
+   "rerank_fallback": "리랭킹 끔 (CH_RAG_RERANK=chunk)",
+   "rag_error": null
+  },
+  {
+   "ticker": "005380",
+   "agent": 3,
+   "rerank": "off",
+   "boost": "boost",
+   "rep": 2,
+   "status": "완료 (일부 문장 제외)",
+   "completed": 1,
+   "seconds_fetch": 16.3,
+   "seconds_llm": 15.3,
+   "llm_calls": 1,
+   "claims": 7,
+   "counters": 3,
+   "claims_total": 10,
+   "claims_with_chunk": 1,
+   "chunk_ratio": 0.1,
+   "removed": 1,
+   "trimmed": 0,
+   "missing_check_first": false,
+   "removed_texts": [
+    "외국인 지분율 20일·60일 변화({S28}, {S29})와 연속 순매수/순매도 일수({S9}, {S18})"
+   ],
+   "checks_first": {},
+   "chunk_ids_in_prompt": [
+    50239,
+    48109,
+    48148,
+    48162,
+    46404,
+    52578,
+    27032
+   ],
+   "rag_mode": "chunk",
+   "rerank_fallback": "리랭킹 끔 (CH_RAG_RERANK=chunk)",
+   "rag_error": null
+  },
+  {
+   "ticker": "005380",
+   "agent": 3,
+   "rerank": "off",
+   "boost": "boost",
+   "rep": 3,
+   "status": "완료 (수정 1회) (일부 문장 제외)",
+   "completed": 1,
+   "seconds_fetch": 16.3,
+   "seconds_llm": 38.3,
+   "llm_calls": 2,
+   "claims": 7,
+   "counters": 3,
+   "claims_total": 10,
+   "claims_with_chunk": 0,
+   "chunk_ratio": 0.0,
+   "removed": 4,
+   "trimmed": 8,
+   "missing_check_first": true,
+   "removed_texts": [
+    "외국인·기관 20일 순매도와 개인 순매수로 주체별 수급이 엇갈림{S2}·{S3}·{S11}·{S12}·{S20}·{S21}",
+    "20일·60일 코스피 대비 초과 수익률이 각각 {S43}·{S45}로 하회함{S43}·{S45}",
+    "유튜브 댓글 감성이 {S53}으로 낮고 문서 수가 적음{S53}",
+    "대차잔고 20일 변화율{S57}과 공매도 관련 후속 지표"
+   ],
+   "checks_first": {
+    "근거": [
+     "청크 근거 주장 없음 (관련 청크가 있으면 해석 주장 2개 이상에 D번호와 chunkId 를 붙이기, 없으면 미확인에 '근거 청크 없음')"
+    ]
+   },
+   "chunk_ids_in_prompt": [
+    50239,
+    48109,
+    48148,
+    48162,
+    46404,
+    52578,
+    27032
+   ],
+   "rag_mode": "chunk",
+   "rerank_fallback": "리랭킹 끔 (CH_RAG_RERANK=chunk)",
+   "rag_error": null
+  },
+  {
+   "ticker": "005380",
+   "agent": 3,
+   "rerank": "on",
+   "boost": "off",
+   "rep": 1,
+   "status": "완료 (수정 1회) (일부 문장 제외)",
+   "completed": 1,
+   "seconds_fetch": 12.7,
+   "seconds_llm": 31.9,
+   "llm_calls": 2,
+   "claims": 7,
+   "counters": 3,
+   "claims_total": 10,
+   "claims_with_chunk": 0,
+   "chunk_ratio": 0.0,
+   "removed": 2,
+   "trimmed": 0,
+   "missing_check_first": false,
+   "removed_texts": [
+    "외국인 지분율 20일 변화{S28}와 247일 범위 내 위치{S30} 추이",
+    "대차잔고 20일 변화율{S57}과 공매도 관련 대용치 흐름"
+   ],
+   "checks_first": {
+    "방향": [
+     "판정 방향 불일치: S35 는 '시장 동행' 판정인데 반대 표현 사용: 외국인·기관은 20일 순매도, 개인은 순매수로 수급 주체가 엇갈리며, 외국인은 시장보다 덜 순매도(종목 {S",
+     "판정 방향 불일치: S4 는 '시장 동행' 판정인데 반대 표현 사용: 외국인·기관은 20일 순매도, 개인은 순매수로 수급 주체가 엇갈리며, 외국인은 시장보다 덜 순매도(종목 {S"
+    ]
+   },
+   "chunk_ids_in_prompt": [
+    23900,
+    23902,
+    50239,
+    7732,
+    21512,
+    48148,
+    48109
+   ],
+   "rag_mode": "chunk",
+   "rerank_fallback": null,
+   "rag_error": null
+  },
+  {
+   "ticker": "005380",
+   "agent": 3,
+   "rerank": "on",
+   "boost": "off",
+   "rep": 2,
+   "status": "완료 (수정 1회)",
+   "completed": 1,
+   "seconds_fetch": 12.7,
+   "seconds_llm": 30.0,
+   "llm_calls": 2,
+   "claims": 7,
+   "counters": 3,
+   "claims_total": 10,
+   "claims_with_chunk": 0,
+   "chunk_ratio": 0.0,
+   "removed": 0,
+   "trimmed": 5,
+   "missing_check_first": false,
+   "removed_texts": [],
+   "checks_first": {
+    "근거": [
+     "참고용 항목만 근거인 주장(제작 기준 밖, 기준 항목 근거를 추가하거나 빼기): 20일 코스피 대비 초과 수익률은 {S43}, 60일 코스피 대비 초과 "
+    ]
+   },
+   "chunk_ids_in_prompt": [
+    23900,
+    23902,
+    50239,
+    7732,
+    21512,
+    48148,
+    48109
+   ],
+   "rag_mode": "chunk",
+   "rerank_fallback": null,
+   "rag_error": null
+  },
+  {
+   "ticker": "005380",
+   "agent": 3,
+   "rerank": "on",
+   "boost": "off",
+   "rep": 3,
+   "status": "완료 (수정 1회) (일부 문장 제외)",
+   "completed": 1,
+   "seconds_fetch": 12.7,
+   "seconds_llm": 37.6,
+   "llm_calls": 2,
+   "claims": 7,
+   "counters": 3,
+   "claims_total": 10,
+   "claims_with_chunk": 0,
+   "chunk_ratio": 0.0,
+   "removed": 1,
+   "trimmed": 11,
+   "missing_check_first": false,
+   "removed_texts": [
+    "대차잔고 20일 변화율{S57} 추이"
+   ],
+   "checks_first": {
+    "방향": [
+     "부호 불일치: S49=-0.215 인데 '대비 개선됨': 뉴스 감성 최근 7일 {S48}이 직전 8~30일 기준선 {S49} 대비 개선됨"
+    ]
+   },
+   "chunk_ids_in_prompt": [
+    23900,
+    23902,
+    50239,
+    7732,
+    21512,
+    48148,
+    48109
+   ],
+   "rag_mode": "chunk",
+   "rerank_fallback": null,
+   "rag_error": null
+  },
+  {
+   "ticker": "005380",
+   "agent": 3,
+   "rerank": "on",
+   "boost": "boost",
+   "rep": 1,
+   "status": "완료 (일부 문장 제외)",
+   "completed": 1,
+   "seconds_fetch": 12.7,
+   "seconds_llm": 33.8,
+   "llm_calls": 2,
+   "claims": 7,
+   "counters": 3,
+   "claims_total": 10,
+   "claims_with_chunk": 1,
+   "chunk_ratio": 0.1,
+   "removed": 2,
+   "trimmed": 4,
+   "missing_check_first": false,
+   "removed_texts": [
+    "뉴스 논조·검색 관심 급증은 키워드 사전 기준선과 검색 배율 기준 이상 징후이나, 감성 점수는 학습 모델이 아니며 관심 증가가 매수 의도로 이어진다는 보장은 없다.",
+    "대차잔고 20일 변화율과 공매도 관련 흐름(다음 영업일 13시 공개 기준)"
+   ],
+   "checks_first": {
+    "문장": [
+     "수급만으로 의도·정보 보유 추정 ['매수 의도']: 뉴스 논조·검색 관심 급증은 키워드 사전 기준선과 검색 배율 기준 이상 징후이나, 감성 점수는 학습 모델이 "
+    ]
+   },
+   "chunk_ids_in_prompt": [
+    23900,
+    23902,
+    50239,
+    7732,
+    21512,
+    48148,
+    48109
+   ],
+   "rag_mode": "chunk",
+   "rerank_fallback": null,
+   "rag_error": null
+  },
+  {
+   "ticker": "005380",
+   "agent": 3,
+   "rerank": "on",
+   "boost": "boost",
+   "rep": 2,
+   "status": "완료 (수정 1회) (일부 문장 제외)",
+   "completed": 1,
+   "seconds_fetch": 12.7,
+   "seconds_llm": 41.0,
+   "llm_calls": 2,
+   "claims": 7,
+   "counters": 3,
+   "claims_total": 10,
+   "claims_with_chunk": 0,
+   "chunk_ratio": 0.0,
+   "removed": 4,
+   "trimmed": 1,
+   "missing_check_first": true,
+   "removed_texts": [
+    "현대차증권 보도에서 외국인 수급 개선 기대와 11월 중하순 주목, 주요 이벤트 마무리 시 외국인 중심 투자심리 회복 가능성이 거론됐다.",
+    "증권가 목표주가 하향과 4분기 생산 회복·원자재·환율·중국차 경쟁 변수, 연간 판매·이익률 눈높이 하향 보도가 있어 실적·가이던스 관련 불확실성이 거론된다.",
+    "증권가 목표주가 하향, 연간 판매·이익률 눈높이 하향, 원자재·환율·중국차 경쟁 변수 보도가 있어 실적·가이던스 관련 불확실성이 거론된다.",
+    "대차잔고 20일 변화율과 공매도 관련 대용치 방향(다음 영업일 13시 공개)"
+   ],
+   "checks_first": {
+    "문장": [
+     "수급만으로 의도·정보 보유 추정 ['매도 의도', '내부 정보']: 외국인·기관의 종목별 매수·매도 의도, 내부 정보 보유 여부"
+    ],
+    "근거": [
+     "청크 근거 주장 없음 (관련 청크가 있으면 해석 주장 2개 이상에 D번호와 chunkId 를 붙이기, 없으면 미확인에 '근거 청크 없음')"
+    ],
+    "방향": [
+     "부호 불일치: 근거 S36=+1.61%p 인데 '외국인 20일 순매도는 시장': 외국인 20일 순매도는 시장과 같은 방향이므로 종목만의 독자적 매도 압력으로 보기 어렵고, 시장 항목을 독립"
+    ]
+   },
+   "chunk_ids_in_prompt": [
+    23900,
+    23902,
+    50239,
+    7732,
+    21512,
+    48148,
+    48109
+   ],
+   "rag_mode": "chunk",
+   "rerank_fallback": null,
+   "rag_error": null
+  },
+  {
+   "ticker": "005380",
+   "agent": 3,
+   "rerank": "on",
+   "boost": "boost",
+   "rep": 3,
+   "status": "완료 (수정 1회) (일부 문장 제외)",
+   "completed": 1,
+   "seconds_fetch": 12.7,
+   "seconds_llm": 33.1,
+   "llm_calls": 2,
+   "claims": 5,
+   "counters": 3,
+   "claims_total": 8,
+   "claims_with_chunk": 0,
+   "chunk_ratio": 0.0,
+   "removed": 3,
+   "trimmed": 2,
+   "missing_check_first": true,
+   "removed_texts": [
+    "현대차증권 보도에서 외국인 수급 개선 기대와 11월 중하순 주목, 주요 이벤트 마무리 후 외국인 중심 투자심리 회복 가능성이 언급됐다.",
+    "외국인 최근 5일 순매수 강도 평균은 양수이고 직전 60일 대비 표준점수는 {S8}으로 절댓값 2 미만이라 평소 범위다.",
+    "기관 최근 5일 순매수 강도 평균은 음수이나 직전 60일 대비 표준점수는 {S17}으로 절댓값 2 미만이라 평소 범위다."
+   ],
+   "checks_first": {
+    "근거": [
+     "청크 근거 주장 없음 (관련 청크가 있으면 해석 주장 2개 이상에 D번호와 chunkId 를 붙이기, 없으면 미확인에 '근거 청크 없음')"
+    ]
+   },
+   "chunk_ids_in_prompt": [
+    23900,
+    23902,
+    50239,
+    7732,
+    21512,
+    48148,
+    48109
+   ],
+   "rag_mode": "chunk",
+   "rerank_fallback": null,
+   "rag_error": null
+  }
+ ]
+}

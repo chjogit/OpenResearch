@@ -1,6 +1,7 @@
 """청크 리랭킹 (R4-2, 11/2 사용자 지시서): 하이브리드 합산 점수 상위 20 청크를 질의와의 관련도로 다시 매깁니다.
 
 - 켜기: 환경변수 CH_RAG_RERANK=on (기본 꺼짐 → 청크 근거·리랭킹 모두 쓰지 않고 지금 결과와 완전히 같음).
+  CH_RAG_RERANK=chunk 는 청크 근거만 쓰고 리랭킹은 하지 않음(합산 순위, 리랭커 호출 0회. #18 비교의 '리랭킹 끔').
 - 기본 구현은 Cohere Rerank v2 API (POST https://api.cohere.com/v2/rerank, docs.cohere.com/reference/rerank).
   모델은 CH_RERANK_MODEL (기본 rerank-v5.0-pro: 다국어·한국어 지원, docs.cohere.com/docs/rerank 11/2 확인).
   키는 COHERE_API_KEY (.env), 로그·출력에 남기지 않음. 트라이얼 키는 월 1,000회이므로 호출 수를 기록합니다.
@@ -21,8 +22,18 @@ MAX_TOKENS_PER_DOC = 512                    # 제목+발췌 400자면 충분 (�
 CALLS = {"total": 0}                        # 이 프로세스에서 실제로 보낸 리랭킹 요청 수 (실패 응답 포함)
 
 
+def _mode() -> str:
+    return os.getenv("CH_RAG_RERANK", "off").strip().lower()
+
+
 def enabled() -> bool:
-    return os.getenv("CH_RAG_RERANK", "off").lower() == "on"
+    """리랭커 호출 여부 (on 일 때만)."""
+    return _mode() == "on"
+
+
+def chunks_enabled() -> bool:
+    """청크 근거 사용 여부 (on: 청크+리랭킹, chunk: 청크만·합산 순위)."""
+    return _mode() in ("on", "chunk")
 
 
 def model_name() -> str:
