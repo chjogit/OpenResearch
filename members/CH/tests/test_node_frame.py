@@ -69,7 +69,8 @@ def test_pipeline_node_count_is_base_count_plus_executed_extensions():
     assert nodes.pipeline_executed(reps) == 8
 
 
-def test_unregistered_runner_is_failed_not_silently_ok():
+def test_unregistered_runner_is_failed_not_silently_ok(monkeypatch):
+    monkeypatch.setattr(nodes, "RUNNERS", {})      # 다른 모듈(flow_nodes·macro_nodes)이 import 되며 등록한 실행 함수와 무관하게
     r = run_agent_nodes(3, "005930", AS_OF, available=ALL, runners={})
     assert r["status"] == "FAILED" and "등록되지 않음" in r["nodes"][0]["reason"]
 

@@ -139,6 +139,12 @@ prompt_block = docs_for_prompt(docs)                # 프롬프트에 붙일 D1,
 - E5 재시도 상한 `MAX_REPAIR_ATTEMPTS`(기본 1, `CH_MAX_REPAIR_ATTEMPTS`, 최대 2): 노드 틀과 `run_agent`(기존 '수정 1회')가 같은 값을 씀. 초과하면 `unresolved`.
 - 계약 `r4-1.3`(선택 필드만 추가): `agent.agentNos`, `claims[].tag`, `nodes[]`, `nodeSummary`, `conflicts`, `predictionSkippedReason`. 옛 출력은 변환표(`p01`→3, `p03`→4·6)로 `contract.upgrade_legacy` 가 채우며 분석 값은 그대로.
 
+## 에이전트 3 거시경제·정책 (#24, `ch_agents/macro_nodes.py`)
+
+- `run_macro_agent(ticker, as_of_date, extension=False, scenario=None)` — N05 기업별 거시 노출(기본), N06 거시 시나리오·민감도(확장). 기존 에이전트 1(`agent1_macro.compute`)의 계산을 그대로 쓰므로 같은 입력이면 지표·노출 등급·정적 환산 값이 같습니다(테스트로 대조). LLM 서술 단계는 아직 붙이지 않았습니다.
+- N05: 기준일 다음 날 이후 관측은 도구 계층에서 제거하고, 기준일에 공표 전이던 월별 관측은 공표 시점 규칙으로 뺍니다(`artifacts.pit`에 건수·지표). 발표·수정 이력은 보관하지 않아 PIT 한계로 표시(`missing_items`). 노출 등급 행과 장부 항목마다 `공시 사실`/`외부 추정`(·`계산`·`외부 지표`) 구분이 붙고, 근거 키 없는 업종 기본값 행은 결론이 아니라 참고(note)입니다. 미확인 전제·공백 목록은 `artifacts.unconfirmed`.
+- N06: 사용자가 준 금리·환율 시나리오를 회사 공시 민감도로 선형 환산(공시 충격 폭 안에서만), 같은 크기의 반대 조건 값과 한계를 함께 냅니다. 숫자는 장부 키만 근거. 충격 폭 초과(OUT_OF_SUPPORT)·단위 모호·공시 없음은 보류하고 이유를 남기며, 환산 가능한 시나리오가 하나도 없으면 `prediction_skipped_reason`(SCENARIO_UNSUPPORTED). 시나리오 가정이 없으면 노드 틀이 N06 을 스킵합니다. 환산값은 실적 예측·인과효과·확률이 아니며 거시 변수를 실적 예측의 개선 근거로 서술하지 않습니다.
+
 ## 기초기획서 R4 대응 (에이전트 1·3)
 
 | 기획서 요구 | 구현 |
