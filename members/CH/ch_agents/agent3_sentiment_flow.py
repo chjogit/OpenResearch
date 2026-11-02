@@ -87,11 +87,14 @@ WHERE d.company_id = %(cid)s AND d.published_at::date <= %(as_of)s::date
 GROUP BY 1, 2
 """
 
-# 보관 기한(kic-agent-data 028)으로 지운 블로그·카페 문서의 일별 집계. 표가 없으면 호출 쪽(agents.fetch_bundle)이 None 으로 둠.
+# 보관 기한(kic-agent-data 028, #15 2주)으로 지운 문서의 일별 집계. 메인은 뉴스·유튜브 댓글, kic-opinion 은 블로그·카페.
+# skip_src: 분리 후 메인 집계에 남은 블로그·카페 행은 kic-opinion 집계와 겹치므로 뺌 (메인 'docs' 와 같은 규칙).
+# 표가 없으면 호출 쪽(agents.fetch_bundle)이 None 으로 둠.
 DOC_AGG_SQL = """
 SELECT d, source, n_scored AS n, CASE WHEN n_scored > 0 THEN score_sum / n_scored END AS score
 FROM core.doc_daily_agg
 WHERE company_id = %(cid)s AND d <= %(as_of)s::date AND d > %(as_of)s::date - 30
+  AND source <> ALL(%(skip_src)s::text[])
 """
 
 

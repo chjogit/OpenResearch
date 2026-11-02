@@ -55,6 +55,7 @@ def test_merge_docs_weights_by_count_and_is_identity_without_agg():
 
 
 def test_fetch_bundle_reads_agg_and_tolerates_missing_table(monkeypatch):
+    monkeypatch.delenv("OPINION_DATABASE_URL", raising=False)   # .env 의 kic-opinion 접속 정보와 무관하게 분리 전 동작을 봄
     calls = []
     monkeypatch.setattr(agents.db, "bundle", lambda sql, p: {"x": 1})
     monkeypatch.setattr(agents.rag, "fetch", lambda a, co, as_of: {})
