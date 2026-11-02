@@ -368,6 +368,8 @@ def doc_line(i: int, d: dict, with_summary: bool = True) -> str:
         sub = " · 자회사 관련" if d.get("subsidiary") else ""
         return f"- D{i}: {d['published']} [공시·{d['event']}] {d['title']}{extra}{sub}"
     line = f"- D{i}: {d['published']} [{d.get('kind', '뉴스')}] {d['title']}"
+    if d.get("excerpt") is not None:  # R4-2 청크 근거: chunk_id 와 본문 발췌(최대 400자)
+        return line + f" · chunk_id={d['chunk_id']}\n    발췌: {d['excerpt']}"
     if with_summary and d.get("summary"):
         line += f"\n    요약: {d['summary']}"
     return line

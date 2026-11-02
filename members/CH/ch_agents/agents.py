@@ -6,7 +6,7 @@ from datetime import datetime, timedelta, timezone
 from types import ModuleType
 from typing import Any
 
-from . import agent1_macro, agent3_sentiment_flow, db, etf, exposure, financial, forecast, p03, quality, rag, rag_hybrid
+from . import agent1_macro, agent3_sentiment_flow, db, etf, exposure, financial, forecast, p03, quality, rag, rag_hybrid, rerank
 from .facts import Facts
 
 KST = timezone(timedelta(hours=9))
@@ -145,6 +145,11 @@ def fetch_bundle(agent_id: int, co: dict, as_of: str, use_rag: bool = True) -> d
             out["rag"] = rag.fetch(agent_id, co, as_of)
             if rag_hybrid.enabled():
                 out["rag"]["hybrid"] = rag_hybrid.fetch_hybrid(agent_id, co, as_of, out["rag"])
+            if rerank.enabled():  # R4-2 청크 근거·리랭킹 (기본 꺼짐: 꺼져 있으면 아래를 건너뛰어 지금과 같음)
+                out["rag"]["chunks"] = rag_hybrid.fetch_chunks(agent_id, co, as_of, out["rag"])
+                hits = out["rag"]["chunks"].get("hits")
+                out["rag"]["rerank"] = (rag_hybrid.fetch_rerank(agent_id, co, as_of, out["rag"], hits) if hits
+                                        else {"error": "청크 없음", "calls": 0})
         except Exception as e:  # noqa: BLE001  문서 검색이 실패해도 숫자 분석은 진행
             out["rag"] = {"error": f"{type(e).__name__}: {e}"}
     if agent_id == 3:  # 보관 기한으로 지운 문서의 일별 집계 (kic-agent-data 028·#15). 표가 없으면 살아 있는 문서만 씀
@@ -215,7 +220,9 @@ def build_agent_data(agent_id: int, co: dict, bundle: dict, as_of: str, opts: di
         if raw.get("error"):
             extra["rag_error"] = raw["error"]
         else:
-            if "hybrid" in raw:
+            if "chunks" in raw:   # R4-2 청크 근거 (CH_RAG_RERANK=on 으로 받은 스냅샷만)
+                docs, extra["rag_chunks"] = rag_hybrid.select_chunks(agent_id, raw, co, as_of)
+            elif "hybrid" in raw:
                 docs, extra["rag_hybrid"] = rag_hybrid.select_hybrid(agent_id, raw, co, as_of)
             else:
                 docs = rag.select(agent_id, raw, co, as_of)  # 관점 프리셋으로 고른 문서가 모듈 기본 문서를 대신함

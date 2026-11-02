@@ -45,6 +45,7 @@
           "typeLabel": {"type": "string", "enum": ["사실", "해석", "예측"]},
           "evidenceIds": {"type": "array", "items": {"type": "string", "pattern": "^E\\d+$"}},
           "sourceTags": {"type": "array", "items": {"type": "string"}},
+          "chunkIds": {"type": "array", "items": {"type": "integer"}, "description": "선택: 주장이 근거로 쓴 rag.chunk.chunk_id (R4-2 청크 근거)"},
           "verification": {
             "type": "object", "required": ["status", "checkedBy"],
             "properties": {"status": {"type": "string", "enum": ["passed", "failed"]}, "checkedBy": {"type": "string"},
