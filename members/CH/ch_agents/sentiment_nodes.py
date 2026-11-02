@@ -297,8 +297,9 @@ def n11(b: dict, as_of: str) -> NodeResult:
             or v["label"].startswith("검색 관심도")}
     arts["agent3_sentiment_facts"] = keep            # 에이전트 3 와 같은 라벨·같은 값(보관 집계 포함)
     for k, v in keep.items():
-        f.items[f"T_{k}"] = {**v, "group": "논조"}
-        finds.append(_find("number", f"{v['label']} {v['text']}", "Computation", [f"T_{k}"]))
+        nk = f"T{len(f.items) + 1}"          # 장부 키 규칙(대문자+숫자)에 맞는 새 키. 값·라벨은 에이전트 3 와 같음
+        f.items[nk] = {**v, "group": "논조"}
+        finds.append(_find("number", f"{v['label']} {v['text']}", "Computation", [nk]))
     f.gaps += [g for g in legacy.gaps if g["label"].endswith("감성(최근 7일)") or "감성 변화" in g["label"] or g["label"].startswith("검색") or g["label"] == "문서 감성"]
     if not events:
         missing.append("근거 문장이 있는 대상 기업 기사")

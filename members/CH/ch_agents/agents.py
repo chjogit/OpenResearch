@@ -36,6 +36,19 @@ class AgentData:
     docs: list[dict]
     period: str
     extra: dict[str, Any] = field(default_factory=dict)
+    spec: AgentSpec | None = None   # 노드 기반 에이전트 3·4·6 (#25). 없으면 옛 AGENTS[agent_id]
+
+
+def spec_of(data: AgentData) -> AgentSpec:
+    """옛 번호 1·3 과 새 번호 3·4·6 이 겹치므로(3), 번호가 아니라 데이터가 가진 spec 을 우선한다."""
+    return data.spec or AGENTS[data.agent_id]
+
+
+def family(data: AgentData) -> str:
+    """출력 구성 분기: 'p01'(옛 거시), 'p03'(옛 투자심리·수급), 'node'(노드 기반 3·4·6), 'other'."""
+    if data.extra.get("node_agent"):
+        return "node"
+    return {1: "p01", 3: "p03"}.get(data.agent_id, "other")
 
 
 AGENTS: dict[int, AgentSpec] = {

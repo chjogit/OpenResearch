@@ -10,7 +10,7 @@ from __future__ import annotations
 import re
 import time
 
-from .agents import AGENTS, MY_AGENTS, AgentData, fetch_agent_data
+from .agents import AGENTS, MY_AGENTS, AgentData, fetch_agent_data, spec_of
 from .facts import fmt
 from .rag import PROMPT_RULE as RAG_RULE
 from .rag import docs_for_prompt, docs_markdown
@@ -161,7 +161,7 @@ REVIEW_SCHEMA = """반드시 아래 JSON 하나만 출력하십시오:
 
 
 def _review_messages(data: AgentData, report: str, rows: list[dict], mode: str) -> tuple[str, str]:
-    spec = AGENTS[data.agent_id]
+    spec = spec_of(data)
     mine = [r for r in rows if r.get("agent_id") == data.agent_id]
     verdicts = "\n".join(f"- '{r['text']}' → {r['verdict']} (장부 {r['key']} {r['label']} = {r['db_text']})"
                          for r in mine) or "- (이 관점에 해당하는 숫자 없음)"

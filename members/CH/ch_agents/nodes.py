@@ -234,7 +234,9 @@ def run_agent_nodes(agent_no: int, ticker: str, as_of_date: str, extension: bool
            counts{base, extSelected, extExecuted, executed(= 기본 + 실행한 확장)}, prediction_skipped_reason,
            results{nodeId: NodeResult}}"""
     from .asof import require_as_of
+    from .node_registry import ensure_registered
 
+    ensure_registered()   # 어느 진입점에서든 같은 노드가 등록되게 (#25)
     if agent_no not in AGENTS:
         raise KeyError(f"알 수 없는 에이전트 번호: {agent_no} (3·4·6)")
     as_of = require_as_of(as_of_date)

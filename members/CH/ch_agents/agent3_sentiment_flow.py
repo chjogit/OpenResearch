@@ -30,6 +30,7 @@
 from __future__ import annotations
 
 from . import etf, p03
+from .flow_core import SRC_FLOW, WHO, add_net_buy, add_streak
 from .facts import Facts, check_freshness, daily_returns, pct_change, percentile_rank, series_points, streak
 
 SQL = """
@@ -121,13 +122,11 @@ def merge_docs(docs: list[dict] | None, agg: list[dict] | None) -> list[dict] | 
     return list(merged.values())
 
 
-SRC_FLOW = "core.investor_flow_daily (네이버 투자자별 매매)"
 SRC_DOC = "rag.document × core.doc_sentiment (키워드 사전)"
 SRC_MKT = "core.investor_flow_daily × core.price_daily (KOSPI 200 합산, 이 종목 제외)"
 MKT = "KOSPI 200 합산, 대용치"
 MKT_MIN_SHARE = 0.8    # 시장 합산에 쓴 종목 수가 기간 최대의 이 비율 미만인 날은 뺌 (수집 누락일)
 SAME, OPPOSITE = "시장과 같은 방향", "시장과 반대 방향"
-WHO = (("외국인", "fq"), ("기관", "iq"), ("개인", "pq"))
 MIN_DOCS = 5
 MIN_PRIOR_DOCS = 20
 DEFAULT_PERIOD = 20
@@ -202,20 +201,7 @@ def compute(b: dict, co: dict, as_of: str, period: int | None = None, question: 
         check_freshness(f, "투자자별 수급", rows[0]["d"], as_of, 5)
         d0 = rows[0]["d"]
         for who, col in WHO:
-            for n in windows:
-                if len(rows) < n:
-                    continue
-                win = rows[:n]
-                f.add(f"{who} {n}일 순매수 수량", sum(r[col] or 0 for r in win), "주", d0, SRC_FLOW, kind="calc", group=g)
-                if n in (20, P) and all(r.get("close") for r in win):
-                    amt = sum((r[col] or 0) * r["close"] for r in win)
-                    f.add(f"{who} {n}일 순매수 금액(근사)", amt, "KRW±", d0, SRC_FLOW + " × 종가", kind="proxy", group=g,
-                          note="일별 순매수 수량 × 종가")
-                    tv = sum(r["tv"] or 0 for r in win)
-                    if tv and all(r.get("tv") for r in win):
-                        f.add(f"{who} {n}일 순매수 강도(거래대금 대비)", amt / tv * 100, "%", d0,
-                              SRC_FLOW + " × core.price_daily", kind="proxy", group=g,
-                              note="순매수 금액 근사 ÷ 같은 기간 거래대금. 종목 간 비교용")
+            add_net_buy(f, rows, who, col, windows, (20, P), g)    # 공용 계산(flow_core): 에이전트 4 N08 과 같은 코드
             if who != "개인":  # 이상 징후: 집중 매매
                 z = _intensity_z(rows, col)
                 if z:
@@ -240,10 +226,8 @@ def compute(b: dict, co: dict, as_of: str, period: int | None = None, question: 
                                      "rule": f"표준점수 절댓값 {Z_ALERT:g} 이상이면 이례적"})
                 else:
                     f.gap(f"{who} 집중 매매 점검", "강도 계산에 필요한 65거래일 미만")
-            s = streak([r[col] for r in rows])
+            s, k = add_streak(f, rows, who, col, g)
             if s:
-                k = f.add(f"{who} 연속 순{'매수' if s > 0 else '매도'} 일수", abs(s), "일", d0, SRC_FLOW, kind="calc",
-                          group=g)
                 if who != "개인" and abs(s) >= 5 and k:
                     f.flag(f"{who} {abs(s)}거래일 연속 순{'매수' if s > 0 else '매도'} ({{{k}}})")
         # 외국인 순매수일 평균 가격(근사) 대비 현재가: 최근 60일 중 외국인이 순매수한 날의 수량 가중 종가

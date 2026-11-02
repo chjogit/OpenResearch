@@ -11,7 +11,7 @@ import re
 import time
 from typing import Any
 
-from .agents import AGENTS, MY_AGENTS, AgentData, fetch_agent_data
+from .agents import AGENTS, MY_AGENTS, AgentData, family, fetch_agent_data, spec_of
 from .availability import AVAIL_SHORT, availability
 from . import contract as contract_mod
 from . import exposure as exposure_mod
@@ -129,7 +129,7 @@ def invoke(model, msgs):
 # ---------------------------------------------------------------- 프롬프트
 
 def build_messages(data: AgentData, mode: str = "expert") -> tuple[str, str]:
-    spec = AGENTS[data.agent_id]
+    spec = spec_of(data)
     f = data.facts
     system = f"""당신은 OpenResearch의 [{spec.name}]입니다.
 {spec.role}
@@ -140,7 +140,7 @@ def build_messages(data: AgentData, mode: str = "expert") -> tuple[str, str]:
 """ + "\n".join(f"- {c}" for c in spec.checklist) + f"""
 
 [출력 모드]
-{mode_guide(mode, data.agent_id)}
+{mode_guide(mode, data.agent_id if family(data) != "node" else f"n{data.agent_id}")}
 
 {OUTPUT_SCHEMA}
 
@@ -212,9 +212,31 @@ def _task_section(data: AgentData) -> list[str]:
     return out
 
 
+def node_lines(report: dict) -> list[str]:
+    """노드 실행 현황 한 줄씩: 노드·종류·실행/건너뜀·상태·이유. 프롬프트와 마크다운이 같이 씀."""
+    out = []
+    for n in report["nodes"]:
+        kind = "기본" if n["kind"] == "base" else "확장"
+        if n["state"] == "skipped":
+            out.append(f"{n['nodeId']} {n['name']}({kind}): 건너뜀 — {n['reason']}" + (f" (부족: {', '.join(n['missingInputs'])})" if n["missingInputs"] else ""))
+        else:
+            out.append(f"{n['nodeId']} {n['name']}({kind}): 실행 {n['status']}" + (f" — {n['reason']}" if n["reason"] else ""))
+    if report.get("prediction_skipped_reason"):
+        out.append(f"예측·추론 생략 사유: {report['prediction_skipped_reason']}")
+    return out
+
+
+def _node_section(data: AgentData) -> list[str]:
+    rep = data.extra.get("node_report")
+    if not rep:
+        return []
+    return ["", "[노드 실행 현황] (건너뛴 노드와 예측 생략 사유는 숫자 없이 미확인에 그대로 전달. 건너뛴 노드의 내용을 추측해 쓰지 말 것)",
+            *[f"- {x}" for x in node_lines(rep)]]
+
+
 def _extra_sections(data: AgentData) -> str:
     """에이전트별 코드 표를 프롬프트에 넣습니다: 과업 계약, 1 미확인 전제, 3 기준선 비교."""
-    out = _task_section(data)
+    out = _task_section(data) + _node_section(data)
     prem = data.extra.get("premises")
     if prem:
         out += ["", "[미확인 전제] (확인되지 않은 것은 가정하지 말 것)"]
@@ -615,7 +637,7 @@ NEGATIVE_RE = re.compile(r"악화|하회|순매도|높음|급증|지연|경고|�
 
 def fallback_result(data: AgentData) -> dict:
     f = data.facts
-    spec = AGENTS[data.agent_id]
+    spec = spec_of(data)
     claims = [{"문장": fl, "구분": "사실", "근거": PLACEHOLDER.findall(fl)} for fl in f.flags]
     claims = [c for c in claims if c["근거"]]
     seen_groups = set()
@@ -680,12 +702,12 @@ def _tables(data: AgentData) -> list[str]:
     if prem:
         out += ["", "**미확인 전제 (노출 등급은 아래 전제가 확인되지 않은 상태의 참고치)**", "",
                 exposure_mod.premises_md(prem, r)]
-    if data.agent_id == 3 and data.extra.get("p03"):
+    if family(data) == "p03" and data.extra.get("p03"):
         p3 = data.extra["p03"]
         out += ["", "**세 줄 요약 (제작 기준 P03 20장)**", ""]
         out += [f"- {k}: {r(v)}" for k, v in (p3.get("summary") or {}).items()]
         out += p03_mod.plan_md(p3["plan"]) + p03_mod.event_md(p3.get("events") or [])
-    if data.agent_id == 3:
+    if family(data) == "p03":
         an = data.extra.get("anomalies") or []
         out += ["", "**이상 징후**", ""] + ([f"- {r(x)}" for x in an] or ["- 없음 (코드 기준에 걸린 항목 없음)"])
         base = data.extra.get("baseline") or []
@@ -727,6 +749,8 @@ def to_markdown(data: AgentData, result: dict, status: str, checks: dict, remove
         out.append(f"- **reportId**: `{report_id}` · 기준일 {data.as_of}")
     out.append(f"- **핵심 진단**: {r(result.get('핵심진단', ''))}")
     out += _tables(data)
+    if data.extra.get("node_report"):
+        out += ["", "**노드 실행 현황**", ""] + [f"- {x}" for x in node_lines(data.extra["node_report"])]
     out += ["", "**주장과 근거** (claimId · 근거 ID·장부 키)", ""]
     out += [_claim_line(c, data, emap) for c in result.get("주장", [])]
     counter = result.get("반대근거") or []
@@ -850,9 +874,24 @@ def run_agent(agent_id: int, ticker: str | None = None, mode: str = "expert", ll
         out["rag_chunks"] = data.extra["rag_chunks"]
     # 데이터 계약 (R4 3장): reportId·claimId·evidenceId·사실/해석/예측·반대 근거·미확인·기준일/공개시각·출처 태그
     out["contract"] = contract_mod.build(out, data, mode)
+    if data.extra.get("node_report"):   # 노드 기반 에이전트: 노드 목록·스킵 이유·충돌 구역·예측 생략 사유 (r4-1.3 선택 필드)
+        out["contract"] = contract_mod.with_nodes(out["contract"], data.extra["node_report"])
+        out["node_report"] = {k: v for k, v in data.extra["node_report"].items() if k != "results"}
     out["report_id"] = out["contract"]["reportId"]
     out["analysis"] = to_markdown(data, result, status, checks, removed, mode, vlog, out["report_id"])
     return out
+
+
+def run_node_agent(agent_no: int, ticker: str, mode: str = "expert", llm=None, as_of: str | None = None,
+                   extension: bool = False, scenario: str | None = None, focus: list[str] | None = None,
+                   max_repair: int | None = None, data: AgentData | None = None) -> dict:
+    """노드 기반 에이전트 3(거시)·4(수급)·6(투자심리·뉴스)를 노드 단위로 실행하고 서술·검증·계약까지 만듭니다 (#25).
+    extension=True 면 확장 노드(요건 충족 시)도 실행합니다. data 를 넘기면 DB·노드 실행을 건너뜁니다(재현·테스트)."""
+    from . import node_agents
+
+    if data is None:
+        data = node_agents.build_data(agent_no, ticker, as_of, extension=extension, scenario=scenario, focus=focus)
+    return run_agent(agent_no, mode=mode, llm=llm, data=data, max_repair=max_repair)
 
 
 def run_my_agents(ticker: str, mode: str = "expert", agent_ids=MY_AGENTS, as_of: str | None = None,
