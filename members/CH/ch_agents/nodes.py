@@ -43,7 +43,7 @@ NODES: dict[str, NodeSpec] = {s.node_id: s for s in (
     NodeSpec("N07", "Flow_Base", 4, "base", "유동성·거래대금", ("price", "trading_value")),
     NodeSpec("N08", "Flow_Ext", 4, "ext", "수급 전환·가격 불일치", ("N07", "investor_flow")),
     NodeSpec("N11", "Sentiment_Base", 6, "base", "감성·불확실성", ("documents",)),
-    NodeSpec("N12", "Sentiment_Ext", 6, "ext", "후속 시장 반응 검증", ("N11", "price_after_event", "validated_sample")),
+    NodeSpec("N12", "Sentiment_Ext", 6, "ext", "후속 시장 반응 검증", ("N11", "price_after_event")),   # 표본·감성 모델 검증은 노드 안에서 게이트(미충족 시 추론만 건너뜀, CAR 표는 냄)
 )}
 
 # 옛 출력(p01 거시, p03 투자심리·수급) → 새 번호. 옛 3번(투자심리·수급)과 새 3번(거시)이 겹치므로 이름이 아니라 이 표로만 옮긴다.
