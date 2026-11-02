@@ -1,0 +1,1568 @@
+{
+ "as_of": "2026-10-30",
+ "cohere_calls": 6,
+ "model": "rerank-v5.0-pro",
+ "runs": [
+  {
+   "ticker": "005930",
+   "agent": 1,
+   "rerank": "off",
+   "status": "완료 (수정 1회) (일부 문장 제외)",
+   "seconds_fetch": 9.8,
+   "seconds_llm": 52.7,
+   "seconds_total": 62.5,
+   "llm_attempts": 2,
+   "claims": 6,
+   "counters": 2,
+   "removed": 2,
+   "trimmed": 3,
+   "claims_with_chunk": 0,
+   "removed_texts": [
+    "미국 10년 국채금리 상승({M13}·{M15})은 성장주 할인율과 글로벌 IT 수요 기대에 부담 방향이나 주가와의 250일 상관 {M63}은 약하고 유의하며 60일 {M65}는 보통·유의하지 않다.",
+    "한국 기준금리는 {M1}로 12개월 {M3}·3개월 {M2} 상승 국면이고, 국고채 3년 {M4}·10년 {M7}도 12개월 각각 {M6}·{M9} 상승 국면이다."
+   ],
+   "checks_first": {
+    "근거": [
+     "참고용 항목만 근거인 주장(제작 기준 밖, 기준 항목 근거를 추가하거나 빼기): 주가는 코스피와 250일 상관 {M60}·베타 {M61}로 강하고 60일"
+    ],
+    "방향": [
+     "판정 방향 불일치: M15 는 '인상' 판정인데 반대 표현 사용: 미국 기준금리는 {M10}로 12개월 {M12} 인하 국면이나 미국 10년 국채금리는 {M13}로 12개월 ",
+     "판정 방향 불일치: M63 는 '유의' 판정인데 반대 표현 사용: 미국 10년 국채금리 상승({M13}·{M15})은 성장주 할인율과 글로벌 IT 수요 기대에 부담 방향이나 "
+    ]
+   },
+   "docs": [
+    {
+     "kind": "사업보고서(회사 공시)",
+     "source": "dart_report",
+     "published": "2026-03-10",
+     "doc_id": 327925,
+     "chunk_id": null,
+     "score": 9.0,
+     "rerank_score": null,
+     "title": "FY2025 사업보고서 · 환위험 관리"
+    },
+    {
+     "kind": "뉴스",
+     "source": "naver_news",
+     "published": "2026-10-29",
+     "doc_id": 713797,
+     "chunk_id": null,
+     "score": 6.533,
+     "rerank_score": null,
+     "title": "[컨콜] 삼성전자 “환율 리스크, ‘내추럴 헤지’로 관리”"
+    },
+    {
+     "kind": "뉴스",
+     "source": "naver_news",
+     "published": "2026-10-30",
+     "doc_id": 955816,
+     "chunk_id": null,
+     "score": 5.0,
+     "rerank_score": null,
+     "title": "\"삼성전자, 50만원 간다...주주환원은 시점 문제\"…현대차, 환율·신사업..."
+    },
+    {
+     "kind": "뉴스",
+     "source": "naver_news",
+     "published": "2026-10-29",
+     "doc_id": 713810,
+     "chunk_id": null,
+     "score": 4.667,
+     "rerank_score": null,
+     "title": "삼성전자 \"내추럴 헤지·환노출 기간 축소로 환율 변동성 관리\""
+    },
+    {
+     "kind": "뉴스",
+     "source": "naver_news",
+     "published": "2026-10-30",
+     "doc_id": 895799,
+     "chunk_id": null,
+     "score": 4.0,
+     "rerank_score": null,
+     "title": "[오늘의 신문] ‘올공’ 투표지 247만장 반출...삼성전자 반도체 영업익..."
+    },
+    {
+     "kind": "사업보고서(회사 공시)",
+     "source": "dart_report",
+     "published": "2026-03-10",
+     "doc_id": 327983,
+     "chunk_id": null,
+     "score": 3.6,
+     "rerank_score": null,
+     "title": "FY2025 사업보고서 · 가격변동 추이(1)"
+    }
+   ],
+   "rag_chunks": null,
+   "rag_error": null
+  },
+  {
+   "ticker": "005930",
+   "agent": 1,
+   "rerank": "on",
+   "status": "완료 (수정 1회) (일부 문장 제외)",
+   "seconds_fetch": 7.4,
+   "seconds_llm": 32.4,
+   "seconds_total": 39.8,
+   "llm_attempts": 2,
+   "claims": 7,
+   "counters": 3,
+   "removed": 2,
+   "trimmed": 3,
+   "claims_with_chunk": 1,
+   "removed_texts": [
+    "미국 10년 국채금리 12개월 {M15} 상승으로 성장주 할인율 부담 가능성(주가 상관은 250일 {M63} 유의, 60일 {M65} 유의하지 않음)",
+    "2026Q3 실적 발표 시 기준선 B1 {M95}·80% 예측구간 {M96}~{M97}과 실제 매출 대조, 단독분기 매출 급변 {M93} 원문 대조"
+   ],
+   "checks_first": {
+    "문장": [
+     "단위 중복: M93=+130.00% 뒤에 '원': 2026Q3 실적 발표 시 기준선 B1 {M95}·80% 예측구간 {M96}~{M97}과 실제 매출 대조, "
+    ],
+    "근거": [
+     "참고용 항목만 근거인 주장(제작 기준 밖, 기준 항목 근거를 추가하거나 빼기): 주가는 코스피와 250일 상관 {M60}·베타 {M61}로 강한 동조성을",
+     "참고용 항목만 근거인 주장(제작 기준 밖, 기준 항목 근거를 추가하거나 빼기): 주가-원/달러 상관은 250일 {M57}·60일 {M59}로 약하고 유의"
+    ],
+    "방향": [
+     "판정 방향 불일치: M63 는 '유의' 판정인데 반대 표현 사용: 주가-원/달러 상관은 250일 {M57}·60일 {M59}로 약하고 유의하지 않으며, 주가-미국 10년 국채"
+    ]
+   },
+   "docs": [
+    {
+     "kind": "뉴스",
+     "source": "naver_news",
+     "published": "2026-10-29",
+     "doc_id": 724392,
+     "chunk_id": 38593,
+     "score": 0.3433,
+     "rerank_score": 0.566934,
+     "title": "삼성전자, 韓 첫 ‘분기 영업익 100조원’ 돌파… 메모리 호황에 가려진..."
+    },
+    {
+     "kind": "뉴스",
+     "source": "naver_news",
+     "published": "2026-10-29",
+     "doc_id": 713797,
+     "chunk_id": 36555,
+     "score": 0.6882,
+     "rerank_score": 0.530277,
+     "title": "[컨콜] 삼성전자 “환율 리스크, ‘내추럴 헤지’로 관리”"
+    },
+    {
+     "kind": "뉴스",
+     "source": "naver_news",
+     "published": "2026-10-29",
+     "doc_id": 713815,
+     "chunk_id": 36573,
+     "score": 0.3393,
+     "rerank_score": 0.394125,
+     "title": "삼성전자 \"환포지션이 발생하면 달러조기 매각해 환변동 노출 최소화\""
+    },
+    {
+     "kind": "뉴스",
+     "source": "naver_news",
+     "published": "2026-10-29",
+     "doc_id": 713810,
+     "chunk_id": 36568,
+     "score": 0.6079,
+     "rerank_score": 0.378136,
+     "title": "삼성전자 \"내추럴 헤지·환노출 기간 축소로 환율 변동성 관리\""
+    },
+    {
+     "kind": "뉴스",
+     "source": "naver_news",
+     "published": "2026-10-21",
+     "doc_id": 6681,
+     "chunk_id": 191,
+     "score": 0.3036,
+     "rerank_score": 0.187485,
+     "title": "삼성전자 6% 급등…외국인 매수·마이크론 파업 변수"
+    },
+    {
+     "kind": "뉴스",
+     "source": "naver_news",
+     "published": "2026-10-26",
+     "doc_id": 159792,
+     "chunk_id": 20282,
+     "score": 0.3029,
+     "rerank_score": 0.18654,
+     "title": "삼성전자, 주주환원 기대에도 약세…반등 열쇠는 배당·실적"
+    }
+   ],
+   "rag_chunks": {
+    "mode": "chunk",
+    "fallback": null,
+    "calls": 1,
+    "rerank": {
+     "provider": "cohere",
+     "model": "rerank-v5.0-pro",
+     "seconds": 0.4,
+     "before": [
+      27912,
+      36555,
+      36568,
+      27913,
+      51096,
+      2151,
+      1810,
+      35046,
+      2861,
+      1805,
+      1803,
+      38593,
+      36573,
+      29636,
+      191,
+      20282,
+      48274,
+      1809,
+      31869,
+      27040
+     ],
+     "after": [
+      38593,
+      36555,
+      36573,
+      36568,
+      191,
+      20282,
+      1805,
+      1803,
+      2151,
+      1809,
+      2861,
+      51096,
+      48274,
+      27912,
+      29636,
+      35046,
+      27040,
+      1810,
+      31869,
+      27913
+     ]
+    }
+   },
+   "rag_error": null
+  },
+  {
+   "ticker": "005930",
+   "agent": 3,
+   "rerank": "off",
+   "status": "완료 (수정 1회) (일부 문장 제외)",
+   "seconds_fetch": 11.1,
+   "seconds_llm": 22.1,
+   "seconds_total": 33.2,
+   "llm_attempts": 2,
+   "claims": 7,
+   "counters": 3,
+   "removed": 2,
+   "trimmed": 0,
+   "claims_with_chunk": 0,
+   "removed_texts": [
+    "외국인 지분율 20일 변화{S28}와 연속 순매도 일수{S9} 갱신 여부",
+    "뉴스 논조{S48}·{S50}가 단기 개선 후 다시 기준선{S49} 수준으로 회귀하는지"
+   ],
+   "checks_first": {
+    "문장": [
+     "수급만으로 의도·정보 보유 추정 ['매도 의도']: 외국인·기관의 실제 매수·매도 의도와 보유 정보 여부 (순매수 기록만으로는 추정 불가)"
+    ]
+   },
+   "docs": [
+    {
+     "kind": "공시",
+     "source": "dart",
+     "published": "2026-07-23",
+     "doc_id": null,
+     "chunk_id": null,
+     "score": null,
+     "rerank_score": null,
+     "title": "풍문또는보도에대한해명(미확정)"
+    },
+    {
+     "kind": "뉴스",
+     "source": "naver_news",
+     "published": "2026-10-30",
+     "doc_id": 1000170,
+     "chunk_id": null,
+     "score": 17.5,
+     "rerank_score": null,
+     "title": "삼성전자·SK하이닉스 거래대금 3조원 감소…외국인 6천억대 순매도"
+    },
+    {
+     "kind": "뉴스",
+     "source": "naver_news",
+     "published": "2026-10-27",
+     "doc_id": 198979,
+     "chunk_id": null,
+     "score": 14.0,
+     "rerank_score": null,
+     "title": "[심층분석] \"외국인·기관 융단폭격에 수급 무너졌다\"…삼성전자·알테..."
+    },
+    {
+     "kind": "뉴스",
+     "source": "naver_news",
+     "published": "2026-10-28",
+     "doc_id": 625837,
+     "chunk_id": null,
+     "score": 13.125,
+     "rerank_score": null,
+     "title": "SK스퀘어·삼성전자우 11% 급등…기관·외국인 수급 대비"
+    },
+    {
+     "kind": "뉴스",
+     "source": "naver_news",
+     "published": "2026-10-30",
+     "doc_id": 843388,
+     "chunk_id": null,
+     "score": 12.5,
+     "rerank_score": null,
+     "title": "\"외국인이 1조원 이상 사야 의미 달라진다\"…삼성전자 반등 열쇠는 수급"
+    },
+    {
+     "kind": "뉴스",
+     "source": "naver_news",
+     "published": "2026-10-26",
+     "doc_id": 82887,
+     "chunk_id": null,
+     "score": 12.444,
+     "rerank_score": null,
+     "title": "[특징주] 외국인·기관, 루닛 동반 순매수…삼성전자·빅텍은 매매 엇갈..."
+    },
+    {
+     "kind": "뉴스",
+     "source": "naver_news",
+     "published": "2026-10-26",
+     "doc_id": 52104,
+     "chunk_id": null,
+     "score": 11.667,
+     "rerank_score": null,
+     "title": "[투자자 순매수 TOP5] 외국인, 삼성전자 순매수 1위…SK하이닉스 순매도..."
+    },
+    {
+     "kind": "뉴스",
+     "source": "naver_news",
+     "published": "2026-10-30",
+     "doc_id": 843387,
+     "chunk_id": null,
+     "score": 11.0,
+     "rerank_score": null,
+     "title": "삼성전자우 주가 3.26% 하락…외국인 2천143억원 순매도"
+    }
+   ],
+   "rag_chunks": null,
+   "rag_error": null
+  },
+  {
+   "ticker": "005930",
+   "agent": 3,
+   "rerank": "on",
+   "status": "완료 (수정 1회)",
+   "seconds_fetch": 13.1,
+   "seconds_llm": 19.9,
+   "seconds_total": 33.0,
+   "llm_attempts": 2,
+   "claims": 6,
+   "counters": 3,
+   "removed": 0,
+   "trimmed": 0,
+   "claims_with_chunk": 0,
+   "removed_texts": [],
+   "checks_first": {
+    "근거": [
+     "참고용 항목만 근거인 주장(제작 기준 밖, 기준 항목 근거를 추가하거나 빼기): 현재가가 외국인 순매수일 평균 가격보다 낮아, 순매수일 평균 가격 대비로"
+    ]
+   },
+   "docs": [
+    {
+     "kind": "공시",
+     "source": "dart",
+     "published": "2026-07-23",
+     "doc_id": null,
+     "chunk_id": null,
+     "score": null,
+     "rerank_score": null,
+     "title": "풍문또는보도에대한해명(미확정)"
+    },
+    {
+     "kind": "뉴스",
+     "source": "naver_news",
+     "published": "2026-10-20",
+     "doc_id": 6727,
+     "chunk_id": 237,
+     "score": 0.5166,
+     "rerank_score": 0.661878,
+     "title": "삼성전자, 낙폭 키워 3% 하락 마감…SK하이닉스도 4.2%↓(종합)"
+    },
+    {
+     "kind": "뉴스",
+     "source": "naver_news",
+     "published": "2026-10-28",
+     "doc_id": 625841,
+     "chunk_id": 35052,
+     "score": 0.5904,
+     "rerank_score": 0.657065,
+     "title": "[공매도 브리핑] 10월 28일 SK하이닉스·삼성전자 공매도 84% 급증"
+    },
+    {
+     "kind": "뉴스",
+     "source": "naver_news",
+     "published": "2026-10-27",
+     "doc_id": 316094,
+     "chunk_id": 27039,
+     "score": 0.5182,
+     "rerank_score": 0.646244,
+     "title": "삼성전자·SK하이닉스 거래대금 7.4조원…하루 새 26% 급증"
+    },
+    {
+     "kind": "뉴스",
+     "source": "naver_news",
+     "published": "2026-10-30",
+     "doc_id": 843388,
+     "chunk_id": 50258,
+     "score": 0.6716,
+     "rerank_score": 0.603845,
+     "title": "\"외국인이 1조원 이상 사야 의미 달라진다\"…삼성전자 반등 열쇠는 수급"
+    },
+    {
+     "kind": "뉴스",
+     "source": "naver_news",
+     "published": "2026-10-30",
+     "doc_id": 843387,
+     "chunk_id": 50257,
+     "score": 0.6395,
+     "rerank_score": 0.601788,
+     "title": "삼성전자우 주가 3.26% 하락…외국인 2천143억원 순매도"
+    },
+    {
+     "kind": "뉴스",
+     "source": "naver_news",
+     "published": "2026-10-26",
+     "doc_id": 198980,
+     "chunk_id": 22410,
+     "score": 0.5186,
+     "rerank_score": 0.587764,
+     "title": "SK하이닉스·삼성전자 거래대금 5조8천억원대…상위 50종목 절반 넘어"
+    },
+    {
+     "kind": "뉴스",
+     "source": "naver_news",
+     "published": "2026-10-28",
+     "doc_id": 349896,
+     "chunk_id": 27982,
+     "score": 0.5846,
+     "rerank_score": 0.586743,
+     "title": "[반도체 훈풍] 반도체주, 앤트로픽 IPO 소식에 급등…삼성전자·SK하이닉..."
+    }
+   ],
+   "rag_chunks": {
+    "mode": "chunk",
+    "fallback": null,
+    "calls": 1,
+    "rerank": {
+     "provider": "cohere",
+     "model": "rerank-v5.0-pro",
+     "seconds": 0.38,
+     "before": [
+      22409,
+      8029,
+      35048,
+      50258,
+      2928,
+      50257,
+      163,
+      35052,
+      27982,
+      48274,
+      191,
+      1809,
+      164,
+      22410,
+      27039,
+      237,
+      31844,
+      31882,
+      50255,
+      23342
+     ],
+     "after": [
+      237,
+      35052,
+      27039,
+      50258,
+      50257,
+      22410,
+      27982,
+      163,
+      22409,
+      48274,
+      8029,
+      2928,
+      191,
+      164,
+      31844,
+      1809,
+      31882,
+      35048,
+      23342,
+      50255
+     ]
+    }
+   },
+   "rag_error": null
+  },
+  {
+   "ticker": "000660",
+   "agent": 1,
+   "rerank": "off",
+   "status": "완료 (수정 1회)",
+   "seconds_fetch": 5.6,
+   "seconds_llm": 17.9,
+   "seconds_total": 23.5,
+   "llm_attempts": 2,
+   "claims": 7,
+   "counters": 3,
+   "removed": 0,
+   "trimmed": 0,
+   "claims_with_chunk": 0,
+   "removed_texts": [],
+   "checks_first": {
+    "근거": [
+     "참고용 항목만 근거인 주장(제작 기준 밖, 기준 항목 근거를 추가하거나 빼기): 주가는 필라델피아 반도체지수와 250일 상관 {M66}으로 강함·유의함,",
+     "참고용 항목만 근거인 주장(제작 기준 밖, 기준 항목 근거를 추가하거나 빼기): 반도체 메모리 수출은 {M49}이고 전년 대비 {M50}이며, 주가와 필"
+    ]
+   },
+   "docs": [
+    {
+     "kind": "뉴스",
+     "source": "naver_news",
+     "published": "2026-10-29",
+     "doc_id": 670760,
+     "chunk_id": null,
+     "score": 16.333,
+     "rerank_score": null,
+     "title": "미국증시 장중 하락 뒤 소폭 상승…연준 금리 동결에 SK하이닉스 13.3% 급..."
+    },
+    {
+     "kind": "사업보고서(회사 공시)",
+     "source": "dart_report",
+     "published": "2026-03-17",
+     "doc_id": 310965,
+     "chunk_id": null,
+     "score": 12.0,
+     "rerank_score": null,
+     "title": "FY2025 사업보고서 · 환위험 관리"
+    },
+    {
+     "kind": "뉴스",
+     "source": "naver_news",
+     "published": "2026-10-29",
+     "doc_id": 670765,
+     "chunk_id": null,
+     "score": 5.6,
+     "rerank_score": null,
+     "title": "[美증시] 금리동결·SK하이닉스 폭등에 3대 지수 동반 랠리…반도체·AI..."
+    },
+    {
+     "kind": "뉴스",
+     "source": "naver_news",
+     "published": "2026-10-26",
+     "doc_id": 198170,
+     "chunk_id": null,
+     "score": 5.444,
+     "rerank_score": null,
+     "title": "미국증시 장초반 동반 상승…유가 하락에 테슬라·엔비디아·SK하이닉스..."
+    },
+    {
+     "kind": "사업보고서(회사 공시)",
+     "source": "dart_report",
+     "published": "2026-03-17",
+     "doc_id": 310966,
+     "chunk_id": null,
+     "score": 5.4,
+     "rerank_score": null,
+     "title": "FY2025 사업보고서 · 가격변동 추이(1)"
+    },
+    {
+     "kind": "뉴스",
+     "source": "naver_news",
+     "published": "2026-10-29",
+     "doc_id": 670774,
+     "chunk_id": null,
+     "score": 4.667,
+     "rerank_score": null,
+     "title": "[속보]美증시, 연준 동결 속 소폭 상승…SK하이닉스 ADR 13%↑"
+    }
+   ],
+   "rag_chunks": null,
+   "rag_error": null
+  },
+  {
+   "ticker": "000660",
+   "agent": 1,
+   "rerank": "on",
+   "status": "완료 (수정 1회) (일부 문장 제외)",
+   "seconds_fetch": 8.3,
+   "seconds_llm": 29.3,
+   "seconds_total": 37.6,
+   "llm_attempts": 2,
+   "claims": 6,
+   "counters": 2,
+   "removed": 2,
+   "trimmed": 0,
+   "claims_with_chunk": 0,
+   "removed_texts": [
+    "미국 10년 국채금리 {M13}가 12개월 {M15} 인상 국면이라 성장주 할인율 부담이 될 수 있으나, 주가와의 250일 상관 {M63}은 약하고 60일 {M65}는 보통·유의하지 않습니다.",
+    "한국 기준금리는 {M1}로 12개월 {M3}·3개월 {M2} 인상 국면이고, 국고채 3년 {M4}·10년 {M7}도 12개월 각각 {M6}·{M9} 상승했습니다."
+   ],
+   "checks_first": {
+    "근거": [
+     "참고용 항목만 근거인 주장(제작 기준 밖, 기준 항목 근거를 추가하거나 빼기): 수출·경기 노출 등급은 높음이며, 근거는 업종(반도체) 기본 높음과 주가"
+    ],
+    "방향": [
+     "판정 방향 불일치: M15 는 '인상' 판정인데 반대 표현 사용: 미국 기준금리는 {M10}로 12개월 {M12} 인하 국면이나 미국 10년 국채금리는 {M13}로 12개월 ",
+     "판정 방향 불일치: M68 는 '보통' 판정인데 반대 표현 사용: 수출·경기 노출 등급은 높음이며, 근거는 업종(반도체) 기본 높음과 주가-필라델피아 반도체지수 250일 상관",
+     "판정 방향 불일치: M17 는 '원화 강세' 판정인데 반대 표현 사용: 원/달러 강세({M17})는 수출 대금 환산액을 줄이는 방향이지만, 환헤지 비율과 달러 비용 비중은 미확인이",
+     "판정 방향 불일치: M63 는 '유의' 판정인데 반대 표현 사용: 미국 10년 국채금리 {M13}가 12개월 {M15} 상승해 성장주 할인율 부담이 될 수 있으나, 주가와의 ",
+     "판정 방향 불일치: M68 는 '보통' 판정인데 반대 표현 사용: 주가-필라델피아 반도체지수 250일 상관 {M66}·60일 {M68}의 강한 동조성"
+    ]
+   },
+   "docs": [
+    {
+     "kind": "뉴스",
+     "source": "naver_news",
+     "published": "2026-10-29",
+     "doc_id": 670760,
+     "chunk_id": 35784,
+     "score": 0.833,
+     "rerank_score": 0.492859,
+     "title": "미국증시 장중 하락 뒤 소폭 상승…연준 금리 동결에 SK하이닉스 13.3% 급..."
+    },
+    {
+     "kind": "뉴스",
+     "source": "naver_news",
+     "published": "2026-10-21",
+     "doc_id": 6497,
+     "chunk_id": 7,
+     "score": 0.3932,
+     "rerank_score": 0.460176,
+     "title": "초호황에 숨겨진 SK하이닉스의 걱정거리… “HBM4 시장서 우위 약화”"
+    },
+    {
+     "kind": "뉴스",
+     "source": "naver_news",
+     "published": "2026-10-26",
+     "doc_id": 51983,
+     "chunk_id": 2908,
+     "score": 0.4521,
+     "rerank_score": 0.226588,
+     "title": "SK하이닉스, 실적 호재냐 美 금리 부담이냐…주가 시험대"
+    },
+    {
+     "kind": "뉴스",
+     "source": "naver_news",
+     "published": "2026-10-28",
+     "doc_id": 622839,
+     "chunk_id": 34749,
+     "score": 0.447,
+     "rerank_score": 0.214689,
+     "title": "미국증시 상승 출발…SK하이닉스 11% 급등·마이크론 5% 강세, 연준 결정..."
+    },
+    {
+     "kind": "뉴스",
+     "source": "naver_news",
+     "published": "2026-10-28",
+     "doc_id": 622836,
+     "chunk_id": 34746,
+     "score": 0.4521,
+     "rerank_score": 0.202329,
+     "title": "뉴욕 증시, FOMC·SK하이닉스 훈풍 주시하며 상승 출발"
+    },
+    {
+     "kind": "뉴스",
+     "source": "naver_news",
+     "published": "2026-10-26",
+     "doc_id": 53043,
+     "chunk_id": 3002,
+     "score": 0.4348,
+     "rerank_score": 0.194332,
+     "title": "삼성전자, 장 초반 1% 안팎 약세…SK하이닉스 강보합[핫스탁]"
+    }
+   ],
+   "rag_chunks": {
+    "mode": "chunk",
+    "fallback": null,
+    "calls": 1,
+    "rerank": {
+     "provider": "cohere",
+     "model": "rerank-v5.0-pro",
+     "seconds": 0.35,
+     "before": [
+      35784,
+      26420,
+      35789,
+      22365,
+      26421,
+      34746,
+      2908,
+      35798,
+      34749,
+      3002,
+      34759,
+      35794,
+      31422,
+      1743,
+      34747,
+      7,
+      2224,
+      81,
+      2859,
+      1730
+     ],
+     "after": [
+      35784,
+      7,
+      2908,
+      34749,
+      34746,
+      3002,
+      1730,
+      2859,
+      35794,
+      22365,
+      35789,
+      2224,
+      34759,
+      81,
+      35798,
+      31422,
+      34747,
+      26420,
+      26421,
+      1743
+     ]
+    }
+   },
+   "rag_error": null
+  },
+  {
+   "ticker": "000660",
+   "agent": 3,
+   "rerank": "off",
+   "status": "완료 (수정 1회) (일부 문장 제외)",
+   "seconds_fetch": 9.4,
+   "seconds_llm": 27.2,
+   "seconds_total": 36.6,
+   "llm_attempts": 2,
+   "claims": 6,
+   "counters": 3,
+   "removed": 1,
+   "trimmed": 0,
+   "claims_with_chunk": 0,
+   "removed_texts": [
+    "외국인 20일 순매수 강도는 {S4}로 시장({S35})보다 순매도 폭이 크며, 종목과 시장이 같은 방향이다."
+   ],
+   "checks_first": {
+    "근거": [
+     "참고용 항목만 근거인 주장(제작 기준 밖, 기준 항목 근거를 추가하거나 빼기): 20일 주가 수익률은 {S42}, 코스피 대비 초과 수익률은 {S43}로"
+    ],
+    "방향": [
+     "부호 불일치: 근거 S36=-7.26%p 인데 '외국인 20일 순매수 강도는': 외국인 20일 순매수 강도는 {S4}로 시장({S35})보다 순매도 폭이 크며, 종목과 시장이 같은 방향이다"
+    ]
+   },
+   "docs": [
+    {
+     "kind": "공시",
+     "source": "dart",
+     "published": "2026-10-29",
+     "doc_id": null,
+     "chunk_id": null,
+     "score": null,
+     "rerank_score": null,
+     "title": "풍문또는보도에대한해명(미확정)"
+    },
+    {
+     "kind": "공시",
+     "source": "dart",
+     "published": "2026-09-18",
+     "doc_id": null,
+     "chunk_id": null,
+     "score": null,
+     "rerank_score": null,
+     "title": "조회공시요구(풍문또는보도)에대한답변(미확정)"
+    },
+    {
+     "kind": "공시",
+     "source": "dart",
+     "published": "2026-08-21",
+     "doc_id": null,
+     "chunk_id": null,
+     "score": null,
+     "rerank_score": null,
+     "title": "조회공시요구(풍문또는보도)"
+    },
+    {
+     "kind": "뉴스",
+     "source": "naver_news",
+     "published": "2026-10-26",
+     "doc_id": 51979,
+     "chunk_id": null,
+     "score": 11.667,
+     "rerank_score": null,
+     "title": "[투자자 순매수 TOP5] 외국인, 삼성전자 순매수 1위…SK하이닉스 순매도..."
+    },
+    {
+     "kind": "뉴스",
+     "source": "naver_news",
+     "published": "2026-10-30",
+     "doc_id": 998612,
+     "chunk_id": null,
+     "score": 10.5,
+     "rerank_score": null,
+     "title": "삼성전자·SK하이닉스 거래대금 3조원 감소…외국인 6천억대 순매도"
+    },
+    {
+     "kind": "블로그(개인 의견)",
+     "source": "naver_blog",
+     "published": "2026-10-30",
+     "doc_id": 859009,
+     "chunk_id": null,
+     "score": 10.075,
+     "rerank_score": null,
+     "title": "10월 30일 기관·외국인 수급 총정리 | 삼성전자, SK, SK하이닉스 외 27...."
+    },
+    {
+     "kind": "뉴스",
+     "source": "naver_news",
+     "published": "2026-10-21",
+     "doc_id": 6494,
+     "chunk_id": null,
+     "score": 9.13,
+     "rerank_score": null,
+     "title": "[거래소 외국인] 삼성전자 SK하이닉스 현대차 다시 '왕성한 식욕'"
+    },
+    {
+     "kind": "뉴스",
+     "source": "naver_news",
+     "published": "2026-10-30",
+     "doc_id": 952177,
+     "chunk_id": null,
+     "score": 8.5,
+     "rerank_score": null,
+     "title": "[공매도 브리핑] 10월 30일 SK하이닉스 3,488억·157% 급증"
+    },
+    {
+     "kind": "뉴스",
+     "source": "naver_news",
+     "published": "2026-10-22",
+     "doc_id": 8227,
+     "chunk_id": null,
+     "score": 8.273,
+     "rerank_score": null,
+     "title": "삼성전자·SK하이닉스 급등 이후…22일 주식시장 향방은"
+    },
+    {
+     "kind": "블로그(개인 의견)",
+     "source": "naver_blog",
+     "published": "2026-10-30",
+     "doc_id": 852260,
+     "chunk_id": null,
+     "score": 7.6,
+     "rerank_score": null,
+     "title": "10월 29일 연기금 순매수 종목, 순매도 종목 정리 (SK하이닉스, 두산에...."
+    }
+   ],
+   "rag_chunks": null,
+   "rag_error": null
+  },
+  {
+   "ticker": "000660",
+   "agent": 3,
+   "rerank": "on",
+   "status": "완료 (수정 1회) (일부 문장 제외)",
+   "seconds_fetch": 11.7,
+   "seconds_llm": 25.2,
+   "seconds_total": 36.9,
+   "llm_attempts": 2,
+   "claims": 6,
+   "counters": 3,
+   "removed": 1,
+   "trimmed": 0,
+   "claims_with_chunk": 0,
+   "removed_texts": [
+    "외국인 20일 순매수 수량은 {S2}, 강도는 {S4}로 같은 기간 시장 강도 {S35}보다 순매도 폭이 크다."
+   ],
+   "checks_first": {
+    "문장": [
+     "수급만으로 의도·정보 보유 추정 ['매도 의도']: 솔리다임 상장 관련 주주환원·지분 매각의 실제 영향과 외국인의 매도 의도"
+    ],
+    "근거": [
+     "참고용 항목만 근거인 주장(제작 기준 밖, 기준 항목 근거를 추가하거나 빼기): 현재가는 외국인 순매수일 평균 가격(근사)보다 {S26} 낮고, 20일 "
+    ],
+    "방향": [
+     "부호 불일치: 근거 S36=-7.26%p 인데 '외국인 20일 순매수 수량은': 외국인 20일 순매수 수량은 {S2}, 강도는 {S4}로 같은 기간 시장 강도 {S35}보다 순매도 폭이 크"
+    ]
+   },
+   "docs": [
+    {
+     "kind": "공시",
+     "source": "dart",
+     "published": "2026-10-29",
+     "doc_id": null,
+     "chunk_id": null,
+     "score": null,
+     "rerank_score": null,
+     "title": "풍문또는보도에대한해명(미확정)"
+    },
+    {
+     "kind": "공시",
+     "source": "dart",
+     "published": "2026-09-18",
+     "doc_id": null,
+     "chunk_id": null,
+     "score": null,
+     "rerank_score": null,
+     "title": "조회공시요구(풍문또는보도)에대한답변(미확정)"
+    },
+    {
+     "kind": "공시",
+     "source": "dart",
+     "published": "2026-08-21",
+     "doc_id": null,
+     "chunk_id": null,
+     "score": null,
+     "rerank_score": null,
+     "title": "조회공시요구(풍문또는보도)"
+    },
+    {
+     "kind": "뉴스",
+     "source": "naver_news",
+     "published": "2026-10-21",
+     "doc_id": 6494,
+     "chunk_id": 4,
+     "score": 0.7374,
+     "rerank_score": 0.617471,
+     "title": "[거래소 외국인] 삼성전자 SK하이닉스 현대차 다시 '왕성한 식욕'"
+    },
+    {
+     "kind": "뉴스",
+     "source": "naver_news",
+     "published": "2026-10-22",
+     "doc_id": 8236,
+     "chunk_id": 1746,
+     "score": 0.3312,
+     "rerank_score": 0.608809,
+     "title": "SK하이닉스, 솔리다임 상장 앞두고 '3% 지분 매각'…외국인 이탈에 주주..."
+    },
+    {
+     "kind": "뉴스",
+     "source": "naver_news",
+     "published": "2026-10-20",
+     "doc_id": 6554,
+     "chunk_id": 64,
+     "score": 0.6125,
+     "rerank_score": 0.606869,
+     "title": "삼성전자, 낙폭 키워 3% 하락 마감…SK하이닉스도 4.2%↓(종합)"
+    },
+    {
+     "kind": "뉴스",
+     "source": "naver_news",
+     "published": "2026-10-20",
+     "doc_id": 6544,
+     "chunk_id": 54,
+     "score": 0.3346,
+     "rerank_score": 0.559563,
+     "title": "SK하이닉스, 122만원대 추락…시총 900조 붕괴 위기"
+    },
+    {
+     "kind": "뉴스",
+     "source": "naver_news",
+     "published": "2026-10-23",
+     "doc_id": 27029,
+     "chunk_id": 2580,
+     "score": 0.3281,
+     "rerank_score": 0.554903,
+     "title": "\"상장 철회가 신의 한 수?\"…SK하이닉스 주가 전망 엇갈려"
+    },
+    {
+     "kind": "뉴스",
+     "source": "naver_news",
+     "published": "2026-10-26",
+     "doc_id": 51979,
+     "chunk_id": 2904,
+     "score": 0.8397,
+     "rerank_score": 0.549569,
+     "title": "[투자자 순매수 TOP5] 외국인, 삼성전자 순매수 1위…SK하이닉스 순매도..."
+    },
+    {
+     "kind": "뉴스",
+     "source": "naver_news",
+     "published": "2026-10-26",
+     "doc_id": 159026,
+     "chunk_id": 20062,
+     "score": 0.3329,
+     "rerank_score": 0.540678,
+     "title": "삼성전자 1.16%·SK하이닉스 0.16% 주가 하락 마감"
+    }
+   ],
+   "rag_chunks": {
+    "mode": "chunk",
+    "fallback": null,
+    "calls": 1,
+    "rerank": {
+     "provider": "cohere",
+     "model": "rerank-v5.0-pro",
+     "seconds": 0.39,
+     "before": [
+      2904,
+      4,
+      1737,
+      64,
+      30578,
+      1756,
+      1754,
+      54,
+      30593,
+      26595,
+      20062,
+      31413,
+      38255,
+      38225,
+      1746,
+      1750,
+      23549,
+      34753,
+      2580,
+      60
+     ],
+     "after": [
+      4,
+      1746,
+      64,
+      54,
+      2580,
+      2904,
+      20062,
+      1754,
+      1756,
+      1737,
+      26595,
+      60,
+      38255,
+      30578,
+      1750,
+      38225,
+      23549,
+      31413,
+      34753,
+      30593
+     ]
+    }
+   },
+   "rag_error": null
+  },
+  {
+   "ticker": "005380",
+   "agent": 1,
+   "rerank": "off",
+   "status": "완료 (수정 1회) (일부 문장 제외)",
+   "seconds_fetch": 5.5,
+   "seconds_llm": 26.7,
+   "seconds_total": 32.2,
+   "llm_attempts": 2,
+   "claims": 5,
+   "counters": 3,
+   "removed": 3,
+   "trimmed": 1,
+   "claims_with_chunk": 0,
+   "removed_texts": [
+    "한국 기준금리는 12개월 {M2}로 인상 국면이고 국고채 3년·10년 금리도 12개월 상승했으며, 원/달러는 3개월 {M17}로 원화 강세 국면입니다. 현대차 주가는 코스피와 250일 상관 {M60}로 유의하고 강하지만 원/달러와는 250일 상관 {M57}로 약하고 유의하지 않습니다.",
+    "현대차 주가는 코스피와 250일 상관 {M60}, 베타 {M61}로 유의하고 강하지만 원/달러와는 250일 상관 {M57}, 베타 {M58}로 약하고 유의하지 않습니다.",
+    "국고채 3년 금리는 {M4}, 10년 금리는 {M7}이며 각각 12개월 {M6}, {M9}로 인상 국면입니다."
+   ],
+   "checks_first": {
+    "근거": [
+     "참고용 항목만 근거인 주장(제작 기준 밖, 기준 항목 근거를 추가하거나 빼기): 현대차 주가는 코스피와 250일 상관 {M60}, 베타 {M61}로 강하"
+    ],
+    "방향": [
+     "판정 방향 불일치: M15 는 '인상' 판정인데 반대 표현 사용: 미국 기준금리는 {M10}로 12개월 {M12} 인하 국면이지만 미국 10년 국채금리는 {M13}로 12개월",
+     "판정 방향 불일치: M60 는 '유의' 판정인데 반대 표현 사용: 현대차 주가는 코스피와 250일 상관 {M60}, 베타 {M61}로 강하지만 원/달러와는 250일 상관 {M",
+     "판정 방향 불일치: M60 는 '유의' 판정인데 반대 표현 사용: 한국 기준금리는 12개월 {M2}로 인상 국면이고 국고채 3년·10년 금리도 12개월 상승했으며, 원/달러는"
+    ]
+   },
+   "docs": [
+    {
+     "kind": "사업보고서(회사 공시)",
+     "source": "dart_report",
+     "published": "2026-03-18",
+     "doc_id": 751784,
+     "chunk_id": null,
+     "score": 11.4,
+     "rerank_score": null,
+     "title": "FY2025 사업보고서 · 환헤지 계약"
+    },
+    {
+     "kind": "뉴스",
+     "source": "naver_news",
+     "published": "2026-10-29",
+     "doc_id": 789579,
+     "chunk_id": null,
+     "score": 8.4,
+     "rerank_score": null,
+     "title": "관세·파업 뚫고 실적 선방…현대차, 신차·하이브리드로 성장동력 강화..."
+    },
+    {
+     "kind": "뉴스",
+     "source": "naver_news",
+     "published": "2026-10-30",
+     "doc_id": 955587,
+     "chunk_id": null,
+     "score": 7.0,
+     "rerank_score": null,
+     "title": "현대차·기아, 美 투자 연계 관세 감면 추진…기존 투자도 대상 되나"
+    },
+    {
+     "kind": "뉴스",
+     "source": "naver_news",
+     "published": "2026-10-30",
+     "doc_id": 955540,
+     "chunk_id": null,
+     "score": 7.0,
+     "rerank_score": null,
+     "title": "노무라, 현대차 목표가 52만원→37만원 하향…\"금리·환율 부담\""
+    },
+    {
+     "kind": "뉴스",
+     "source": "naver_news",
+     "published": "2026-10-30",
+     "doc_id": 895535,
+     "chunk_id": null,
+     "score": 7.0,
+     "rerank_score": null,
+     "title": "트럼프, 美 공장 짓는 자동차 기업에 관세 감면 추진…현대차·기아도 ..."
+    },
+    {
+     "kind": "뉴스",
+     "source": "naver_news",
+     "published": "2026-10-26",
+     "doc_id": 82510,
+     "chunk_id": null,
+     "score": 7.0,
+     "rerank_score": null,
+     "title": "현대차 29만500원 하락…판매 믹스와 환율 변수 주시"
+    }
+   ],
+   "rag_chunks": null,
+   "rag_error": null
+  },
+  {
+   "ticker": "005380",
+   "agent": 1,
+   "rerank": "on",
+   "status": "완료 (수정 1회) (일부 문장 제외)",
+   "seconds_fetch": 7.9,
+   "seconds_llm": 19.9,
+   "seconds_total": 27.7,
+   "llm_attempts": 2,
+   "claims": 7,
+   "counters": 2,
+   "removed": 2,
+   "trimmed": 0,
+   "claims_with_chunk": 0,
+   "removed_texts": [
+    "원/달러는 최근 3개월 원화 강세({M17})로 전환돼 환율 상승 시 이익 증가 구조({M76})와 방향이 엇갈리며, 실제 영향은 수출 대금 결제 통화·결제 시점·환헤지 비율이 미확인이라 축소될 수 있다.",
+    "원/달러 최근 3개월 원화 강세({M17})는 환율 상승 시 이익 증가 구조({M76})와 반대 방향이라, 결제·헤지 전제가 확인되지 않으면 실제 전달이 약할 수 있다."
+   ],
+   "checks_first": {
+    "근거": [
+     "참고용 항목만 근거인 주장(제작 기준 밖, 기준 항목 근거를 추가하거나 빼기): 주가-원/달러 상관은 250일 {M57}로 약함·유의하지 않음, 60일 "
+    ],
+    "방향": [
+     "부호 불일치: M17=-7.92% 인데 ')로 전환돼 환율 상승': 원/달러는 최근 3개월 원화 강세({M17})로 전환돼 환율 상승 시 이익 증가 구조({M76})와 방향이 ",
+     "부호 불일치: M17=-7.92% 인데 ')는 환율 상승 시 이': 원/달러 최근 3개월 원화 강세({M17})는 환율 상승 시 이익 증가 구조({M76})와 반대 방향이라, "
+    ]
+   },
+   "docs": [
+    {
+     "kind": "뉴스",
+     "source": "naver_news",
+     "published": "2026-10-29",
+     "doc_id": 789579,
+     "chunk_id": 48149,
+     "score": 0.6982,
+     "rerank_score": 0.534288,
+     "title": "관세·파업 뚫고 실적 선방…현대차, 신차·하이브리드로 성장동력 강화..."
+    },
+    {
+     "kind": "뉴스",
+     "source": "naver_news",
+     "published": "2026-10-29",
+     "doc_id": 724123,
+     "chunk_id": 38454,
+     "score": 0.5179,
+     "rerank_score": 0.47363,
+     "title": "현대차, 판매 급감에도 '하이브리드 선방'…3분기 영업이익 5.5%↑"
+    },
+    {
+     "kind": "뉴스",
+     "source": "naver_news",
+     "published": "2026-10-29",
+     "doc_id": 789592,
+     "chunk_id": 48161,
+     "score": 0.5844,
+     "rerank_score": 0.468096,
+     "title": "환율로 버틴 현대차···원가 부담에 연간 목표 낮췄다"
+    },
+    {
+     "kind": "뉴스",
+     "source": "naver_news",
+     "published": "2026-10-26",
+     "doc_id": 82510,
+     "chunk_id": 7661,
+     "score": 0.6164,
+     "rerank_score": 0.453586,
+     "title": "현대차 29만500원 하락…판매 믹스와 환율 변수 주시"
+    },
+    {
+     "kind": "뉴스",
+     "source": "naver_news",
+     "published": "2026-10-30",
+     "doc_id": 895508,
+     "chunk_id": 51014,
+     "score": 0.5136,
+     "rerank_score": 0.450061,
+     "title": "[모닝 리포트] 현대차, 3분기 '환율 착시' 실적…목표가 44만원 상향"
+    },
+    {
+     "kind": "뉴스",
+     "source": "naver_news",
+     "published": "2026-10-29",
+     "doc_id": 789542,
+     "chunk_id": 48120,
+     "score": 0.6042,
+     "rerank_score": 0.401587,
+     "title": "현대차, 3분기 영업이익 1400억 원↑… “HEV 판매와 환율 효과 겹쳤다”"
+    }
+   ],
+   "rag_chunks": {
+    "mode": "chunk",
+    "fallback": null,
+    "calls": 1,
+    "rerank": {
+     "provider": "cohere",
+     "model": "rerank-v5.0-pro",
+     "seconds": 0.36,
+     "before": [
+      45689,
+      48149,
+      7661,
+      48120,
+      27716,
+      48196,
+      48161,
+      38463,
+      48197,
+      38458,
+      51037,
+      22911,
+      48215,
+      38491,
+      27029,
+      20270,
+      51021,
+      38454,
+      51014,
+      51025
+     ],
+     "after": [
+      48149,
+      38454,
+      48161,
+      7661,
+      51014,
+      48120,
+      38458,
+      48196,
+      38463,
+      48197,
+      51021,
+      22911,
+      48215,
+      45689,
+      27029,
+      51037,
+      20270,
+      38491,
+      51025,
+      27716
+     ]
+    }
+   },
+   "rag_error": null
+  },
+  {
+   "ticker": "005380",
+   "agent": 3,
+   "rerank": "off",
+   "status": "완료 (일부 문장 제외)",
+   "seconds_fetch": 9.1,
+   "seconds_llm": 12.0,
+   "seconds_total": 21.1,
+   "llm_attempts": 1,
+   "claims": 6,
+   "counters": 3,
+   "removed": 1,
+   "trimmed": 0,
+   "claims_with_chunk": 0,
+   "removed_texts": [
+    "뉴스 감성 최근 7일 {S48}은 직전 8~30일 기준선 {S49} 대비 {S50}만큼 개선되었고, 검색 관심도 배율 {S54}는 기준선 대비 이례적입니다."
+   ],
+   "checks_first": {},
+   "docs": [
+    {
+     "kind": "공시",
+     "source": "dart",
+     "published": "2026-10-30",
+     "doc_id": null,
+     "chunk_id": null,
+     "score": null,
+     "rerank_score": null,
+     "title": "풍문또는보도에대한해명(미확정)"
+    },
+    {
+     "kind": "뉴스",
+     "source": "naver_news",
+     "published": "2026-10-30",
+     "doc_id": 955528,
+     "chunk_id": null,
+     "score": 10.0,
+     "rerank_score": null,
+     "title": "[마켓H] 현대차, 5개월 새 64% 급락…증권가도 성장 기대 낮췄다"
+    },
+    {
+     "kind": "뉴스",
+     "source": "naver_news",
+     "published": "2026-10-30",
+     "doc_id": 843093,
+     "chunk_id": null,
+     "score": 10.0,
+     "rerank_score": null,
+     "title": "현대차 인도법인, 순이익 24% 감소에도 주가 5.6% 급등"
+    },
+    {
+     "kind": "블로그(개인 의견)",
+     "source": "naver_blog",
+     "published": "2026-10-30",
+     "doc_id": 1034721,
+     "chunk_id": null,
+     "score": 9.525,
+     "rerank_score": null,
+     "title": "에스티아이·한화비전·루닛·KB금융·현대차 주가 — 수급 흐름과 다...."
+    },
+    {
+     "kind": "뉴스",
+     "source": "naver_news",
+     "published": "2026-10-30",
+     "doc_id": 955560,
+     "chunk_id": null,
+     "score": 9.0,
+     "rerank_score": null,
+     "title": "[Invest]로봇 없는 현대차 '밍밍한' 컨콜…실망감에 주가 눈높이도 하락"
+    },
+    {
+     "kind": "뉴스",
+     "source": "naver_news",
+     "published": "2026-10-30",
+     "doc_id": 955603,
+     "chunk_id": null,
+     "score": 8.5,
+     "rerank_score": null,
+     "title": "현대차 9조 새만금 투자, 현장 거점 가동"
+    },
+    {
+     "kind": "뉴스",
+     "source": "naver_news",
+     "published": "2026-10-30",
+     "doc_id": 906735,
+     "chunk_id": null,
+     "score": 8.5,
+     "rerank_score": null,
+     "title": "현대차그룹, 새만금에 현지사무소 개소…AI데이터센터 내년 3월 착공"
+    },
+    {
+     "kind": "뉴스",
+     "source": "naver_news",
+     "published": "2026-10-29",
+     "doc_id": 789593,
+     "chunk_id": null,
+     "score": 8.4,
+     "rerank_score": null,
+     "title": "현대차 \"4분기도 경영 여건 어렵지만..생산 정상화, 신차 효과 기대\""
+    }
+   ],
+   "rag_chunks": null,
+   "rag_error": null
+  },
+  {
+   "ticker": "005380",
+   "agent": 3,
+   "rerank": "on",
+   "status": "완료 (수정 1회) (일부 문장 제외)",
+   "seconds_fetch": 14.5,
+   "seconds_llm": 24.4,
+   "seconds_total": 38.9,
+   "llm_attempts": 2,
+   "claims": 7,
+   "counters": 3,
+   "removed": 4,
+   "trimmed": 0,
+   "claims_with_chunk": 0,
+   "removed_texts": [
+    "목표주가 하향 보도와 연간 판매·이익률 눈높이 하향 보도가 있다{D5}·{D8}",
+    "외국인·기관 20·60일 누적 순매도가 이어지고 외국인 지분율이 247일 범위 하단에 있다{S2}·{S5}·{S11}·{S14}·{S27}·{S29}·{S30}",
+    "20일·60일 코스피 대비 초과수익률이 하회했고 VIX가 1년 내 높은 백분위다{S43}·{S45}·{S46}·{S47}",
+    "외국인 지분율 20일 변화{S28}와 247일 범위 내 위치{S30} 재확인지점"
+   ],
+   "checks_first": {
+    "문장": [
+     "금지 표현 ['목표가']: 목표가 하향과 연간 판매·이익률 눈높이 하향 보도가 있다{D5}·{D8}"
+    ]
+   },
+   "docs": [
+    {
+     "kind": "공시",
+     "source": "dart",
+     "published": "2026-10-30",
+     "doc_id": null,
+     "chunk_id": null,
+     "score": null,
+     "rerank_score": null,
+     "title": "풍문또는보도에대한해명(미확정)"
+    },
+    {
+     "kind": "뉴스",
+     "source": "naver_news",
+     "published": "2026-10-27",
+     "doc_id": 270204,
+     "chunk_id": 23900,
+     "score": 0.3243,
+     "rerank_score": 0.55898,
+     "title": "현대차證 \"외국인, 美 중간선거 이후 수급 개선 기대…11월 중하순 주목..."
+    },
+    {
+     "kind": "뉴스",
+     "source": "naver_news",
+     "published": "2026-10-27",
+     "doc_id": 270206,
+     "chunk_id": 23902,
+     "score": 0.3135,
+     "rerank_score": 0.505773,
+     "title": "현대차證 \"내달 중순 증시 반등 가능성…美 중간선거 등 이벤트 주목\""
+    },
+    {
+     "kind": "뉴스",
+     "source": "naver_news",
+     "published": "2026-10-30",
+     "doc_id": 843093,
+     "chunk_id": 50239,
+     "score": 0.817,
+     "rerank_score": 0.288734,
+     "title": "현대차 인도법인, 순이익 24% 감소에도 주가 5.6% 급등"
+    },
+    {
+     "kind": "뉴스",
+     "source": "naver_news",
+     "published": "2026-10-23",
+     "doc_id": 82581,
+     "chunk_id": 7732,
+     "score": 0.6103,
+     "rerank_score": 0.194098,
+     "title": "보스턴다이내믹스로 날아오른 현대차…목표가 120만→41만원 '급락' [공..."
+    },
+    {
+     "kind": "뉴스",
+     "source": "naver_news",
+     "published": "2026-10-26",
+     "doc_id": 191880,
+     "chunk_id": 21512,
+     "score": 0.6607,
+     "rerank_score": 0.185829,
+     "title": "[특징주] 현대차 로봇 공급망 기대…나무가, 애프터마켓 20% 급등"
+    },
+    {
+     "kind": "뉴스",
+     "source": "naver_news",
+     "published": "2026-10-29",
+     "doc_id": 789578,
+     "chunk_id": 48148,
+     "score": 0.7205,
+     "rerank_score": 0.184999,
+     "title": "4분기 생산 회복 나선 현대차...원자재·환율·중국차 경쟁은 변수"
+    },
+    {
+     "kind": "뉴스",
+     "source": "naver_news",
+     "published": "2026-10-29",
+     "doc_id": 789531,
+     "chunk_id": 48109,
+     "score": 0.7289,
+     "rerank_score": 0.148854,
+     "title": "현대차, 연간 판매·이익률 눈높이 낮췄다"
+    }
+   ],
+   "rag_chunks": {
+    "mode": "chunk",
+    "fallback": null,
+    "calls": 1,
+    "rerank": {
+     "provider": "cohere",
+     "model": "rerank-v5.0-pro",
+     "seconds": 0.39,
+     "before": [
+      50239,
+      48109,
+      48148,
+      48162,
+      46404,
+      52578,
+      27032,
+      21512,
+      48219,
+      30923,
+      23910,
+      27022,
+      27026,
+      21504,
+      7732,
+      27028,
+      30941,
+      7814,
+      23900,
+      23902
+     ],
+     "after": [
+      23900,
+      23902,
+      50239,
+      7732,
+      21512,
+      48148,
+      48109,
+      46404,
+      48162,
+      27032,
+      48219,
+      30923,
+      7814,
+      27028,
+      27022,
+      23910,
+      27026,
+      52578,
+      21504,
+      30941
+     ]
+    }
+   },
+   "rag_error": null
+  }
+ ]
+}

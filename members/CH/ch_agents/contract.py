@@ -167,6 +167,7 @@ def build(run: dict, data, mode: str = "expert") -> dict:
                 "sourceTags": [f"[출처: {s}]" for s in c.get("출처") or []],
                 "verification": {"status": "passed" if v.get("ok", True) else "failed",
                                  "checkedBy": "fact_source_verifier", "unmatched": v.get("unmatched") or []},
+                **({"chunkIds": list(c["chunkId"])} if c.get("chunkId") else {}),  # 선택 (R4-2 청크 근거)
             })
 
     def items(field, prefix):

@@ -17,7 +17,7 @@ from . import contract as contract_mod
 from . import exposure as exposure_mod
 from . import verify as verifier
 from .glossary import terms_for
-from .prompts import mode_guide
+from .prompts import CHUNK_OUTPUT_RULE, CHUNK_RUNTIME_RULE, mode_guide
 from .rag import PROMPT_RULE as RAG_RULE
 from .rag import docs_for_prompt, docs_markdown
 from .semantic import baseline_problems, direction_problems, flag_directions, slot_problems
@@ -144,6 +144,9 @@ def build_messages(data: AgentData, mode: str = "expert") -> tuple[str, str]:
 {OUTPUT_SCHEMA}
 
 {EXAMPLE}"""
+    chunk_mode = _chunk_mode(data)
+    if chunk_mode:  # R4-2: 청크 근거가 붙을 때만 (CH_RAG_RERANK=on). 꺼져 있으면 프롬프트가 지금과 같음
+        system += f"\n\n[근거 청크 지시]\n{CHUNK_RUNTIME_RULE}\n{CHUNK_OUTPUT_RULE}"
     docs = docs_for_prompt(data.docs)
     flags = "\n".join(f"- {x}" for x in f.flags) or "- (없음)"
     notes = "\n".join(f"- {x}" for x in f.notes) or "- (없음)"
@@ -172,6 +175,12 @@ def build_messages(data: AgentData, mode: str = "expert") -> tuple[str, str]:
 {_extra_sections(data)}
 [참고 문서] (DB에서 이 관점으로 검색한 공시·뉴스·여론. 정성 근거, 근거 키로 D번호 사용)
 {docs}"""
+    if chunk_mode:
+        if _chunk_ids(data):
+            user = user.replace("[참고 문서] (DB에서 이 관점으로 검색한 공시·뉴스·여론. 정성 근거, 근거 키로 D번호 사용)",
+                                "[근거 청크] (공시 제목 + 검색한 청크 본문 발췌. 근거 키로 D번호, 청크는 chunk_id 도 함께)")
+        else:
+            user = user.replace("[참고 문서] (DB에서", "[근거 청크]\n- (근거 청크 없음)\n\n[참고 문서] (DB에서")
     return system, user
 
 
@@ -272,7 +281,7 @@ def normalize_keys(obj, valid: set[str]):
     if isinstance(obj, list):
         return [normalize_keys(x, valid) for x in obj]
     if isinstance(obj, dict):
-        return {k: (v if k == "근거" else normalize_keys(v, valid)) for k, v in obj.items()}
+        return {k: (v if k in ("근거", "chunkId") else normalize_keys(v, valid)) for k, v in obj.items()}
     return obj
 
 
@@ -356,10 +365,62 @@ def auto_keys(obj, data: AgentData):
         if isinstance(x, list):
             return [walk(y) for y in x]
         if isinstance(x, dict):
-            return {k: (v if k == "근거" else walk(v)) for k, v in x.items()}
+            return {k: (v if k in ("근거", "chunkId") else walk(v)) for k, v in x.items()}
         return x
 
     return walk(obj)
+
+
+# ---------------------------------------------------------------- R4-2 청크 근거 검사 (청크 근거가 붙었을 때만)
+
+NUM_TOKEN = re.compile(r"\d[\d,]*(?:\.\d+)?")
+
+
+def _chunk_mode(data: AgentData) -> bool:
+    return (data.extra or {}).get("rag_chunks") is not None
+
+
+def _chunk_ids(data: AgentData) -> dict[int, str]:
+    """프롬프트에 준 청크의 chunk_id → D키."""
+    return {int(d["chunk_id"]): f"D{i + 1}" for i, d in enumerate(data.docs) if d.get("excerpt") is not None}
+
+
+def _as_ids(v) -> list:
+    out = []
+    for x in v if isinstance(v, list) else ([] if v in (None, "") else [v]):
+        t = str(x).strip().lstrip("#")
+        out.append(int(t) if t.isdigit() else t)
+    return out
+
+
+def _nums(text: str) -> set[str]:
+    """두 자리 이상이거나 소수인 숫자 (한 자리 숫자는 너무 흔해 대조하지 않음)."""
+    return {t for t in (x.replace(",", "") for x in NUM_TOKEN.findall(text)) if len(t.replace(".", "")) >= 2 or "." in t}
+
+
+def chunk_numbers(data: AgentData) -> set[str]:
+    """청크 발췌에 있는 숫자 중 장부 항목 이름·기준일·관측 기간에 없는 것 (이걸 문장에 쓰면 청크 숫자를 옮긴 것)."""
+    nums: set[str] = set()
+    for d in data.docs:
+        if d.get("excerpt") is not None:
+            nums |= _nums(str(d["excerpt"]))
+    allowed = _nums(" ".join(v["label"] for v in data.facts.items.values()) + f" {data.as_of} {data.period}")
+    return nums - allowed
+
+
+def chunk_problems(text: str, chunk_ref, data: AgentData | None, nums: set[str] | None = None) -> list[str]:
+    """목록 밖 chunk_id, 청크 속 숫자 인용. 청크 근거가 없으면 빈 목록(지금과 같음)."""
+    if data is None or not _chunk_mode(data):
+        return []
+    probs = []
+    ids = _chunk_ids(data)
+    bad = [x for x in _as_ids(chunk_ref) if x not in ids]
+    if bad:
+        probs.append(f"목록 밖 chunk_id {bad}")
+    hit = sorted(_nums(PLACEHOLDER.sub("", str(text))) & (chunk_numbers(data) if nums is None else nums))
+    if hit:
+        probs.append(f"청크 속 숫자 인용 {hit}")
+    return probs
 
 
 def check_output(result: dict, data: AgentData) -> dict[str, list[str]]:
@@ -433,6 +494,16 @@ def check_output(result: dict, data: AgentData) -> dict[str, list[str]]:
         head = [k for k in PLACEHOLDER.findall(str(result.get("핵심진단", ""))) if k in data.facts.items]
         if head and set(head) <= ref:
             checks["근거"].append("핵심진단이 참고용 항목만 인용함 (제작 기준 항목을 중심으로)")
+    if _chunk_mode(data):   # R4-2: 목록 밖 chunk_id·청크 속 숫자 (꺼져 있으면 검사하지 않음)
+        nums = chunk_numbers(data)
+        for c in claims + counter:
+            if isinstance(c, dict):
+                for p in chunk_problems(str(c.get("문장", "")), c.get("chunkId"), data, nums):
+                    checks["근거"].append(f"{p}: {str(c.get('문장'))[:40]}")
+        for t in [str(result.get("핵심진단", ""))] + [str(x) for k in ("긍정요인", "리스크요인", "미확인", "다음점검")
+                                                       for x in result.get(k) or []]:
+            for p in chunk_problems(t, None, data, nums):
+                checks["문장"].append(f"{p}: {t[:60]}")
     return {k: v for k, v in checks.items() if v}
 
 
@@ -472,10 +543,15 @@ def sanitize(result: dict, data: AgentData) -> tuple[dict, list[str]]:
     valid, allowed = _valid_keys(data), label_terms(data)
     dirs = flag_directions(data.facts)
 
-    def bad(t: str, refs=None) -> bool:
+    chunk_mode = _chunk_mode(data)
+    nums = chunk_numbers(data) if chunk_mode else set()
+    cids = _chunk_ids(data)
+
+    def bad(t: str, refs=None, chunk_ref=None) -> bool:
         return bool(sentence_problems(t, valid, allowed) or slot_problems(t, data.facts)
                     or direction_problems(t, data.facts, refs, dirs)
-                    or baseline_problems(t, refs, data.extra.get("baseline")) or duplicate_problems(t, refs, data))
+                    or baseline_problems(t, refs, data.extra.get("baseline")) or duplicate_problems(t, refs, data)
+                    or (chunk_mode and chunk_problems(t, chunk_ref, data, nums)))
 
     removed: list[str] = []
     opinion = _opinion_keys(data)
@@ -490,11 +566,17 @@ def sanitize(result: dict, data: AgentData) -> tuple[dict, list[str]]:
                 continue
             refs = [str(k) for k in (c.get("근거") or []) if str(k) in valid]
             text = str(c.get("문장", ""))
-            if bad(text, refs) or (c.get("구분") in ("사실", "해석") and not refs) \
+            if bad(text, refs, c.get("chunkId")) or (c.get("구분") in ("사실", "해석") and not refs) \
                     or c.get("구분") not in VALID_KINDS or (c.get("구분") == "사실" and set(refs) <= opinion):
                 removed.append(text)
                 continue
-            claims.append({"문장": text, "구분": c["구분"], "근거": refs})
+            claim = {"문장": text, "구분": c["구분"], "근거": refs}
+            if chunk_mode:  # R4-2: 주장별 chunkId = LLM 이 붙인 것 + 근거 D키가 가리키는 청크
+                d2c = {v: k for k, v in cids.items()}
+                ids = list(dict.fromkeys(_as_ids(c.get("chunkId")) + [d2c[k] for k in refs if k in d2c]))
+                if ids:
+                    claim["chunkId"] = ids
+            claims.append(claim)
         out[field] = claims
     for k in ("긍정요인", "리스크요인", "미확인", "다음점검", "스스로질문"):
         kept = []
@@ -739,6 +821,8 @@ def run_agent(agent_id: int, ticker: str | None = None, mode: str = "expert", ll
         "quality": data.extra.get("quality"), "premises": data.extra.get("premises"),
         "baseline": data.extra.get("baseline"), "dup_clusters": data.extra.get("dup_clusters"),
     }
+    if _chunk_mode(data):   # R4-2 청크 선별·리랭킹 상태 (꺼져 있으면 키 자체가 없음)
+        out["rag_chunks"] = data.extra["rag_chunks"]
     # 데이터 계약 (R4 3장): reportId·claimId·evidenceId·사실/해석/예측·반대 근거·미확인·기준일/공개시각·출처 태그
     out["contract"] = contract_mod.build(out, data, mode)
     out["report_id"] = out["contract"]["reportId"]
