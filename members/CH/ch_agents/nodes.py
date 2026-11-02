@@ -272,7 +272,8 @@ def run_agent_nodes(agent_no: int, ticker: str, as_of_date: str, extension: bool
     return {"agentNo": agent_no, "status": status, "nodes": nodes,
             "counts": {"base": n_base, "extSelected": n_ext if extension else 0, "extExecuted": ext_exec,
                        "executed": n_base + ext_exec},
-            "prediction_skipped_reason": skipped_ext.reason if skipped_ext and base_ok else None,
+            "prediction_skipped_reason": (skipped_ext.reason if skipped_ext and base_ok else None)
+            or next((x.prediction_skipped_reason for x in results if x.prediction_skipped_reason), None),
             "results": {x.node_id: x for x in results}}
 
 
