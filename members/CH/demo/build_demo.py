@@ -1,0 +1,229 @@
+"""#41 시연용 HTML 생성: 에이전트 3·4·6 을 종목 × 확장 켬/끔으로 실제 실행하고(LLM 포함) 결과를 한 파일 HTML 로 만듭니다.
+
+예선 에이전트 코드는 바꾸지 않고 출력(계약 JSON·렌더 결과)만 읽습니다 (specs/demo-page.md D5).
+
+다시 만들기 (members\\CH 에서, 프로젝트 .venv):
+    python demo\\build_demo.py run  2026-10-30     # 실행 24회(LLM 포함) → demo\\_cache\\runs.json (이어서 하기 가능)
+    python demo\\build_demo.py html 2026-10-30     # 캐시 + 데이터 현황(DB 읽기 전용) → demo\\demo.html
+    python demo\\build_demo.py all  2026-10-30     # 위 둘을 차례로
+"""
+from __future__ import annotations
+
+import json
+import os
+import re
+import sys
+import time
+from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime, timedelta, timezone
+from pathlib import Path
+
+HERE = Path(__file__).resolve().parent
+sys.path.insert(0, str(HERE.parent))
+
+TICKERS = (("005930", "삼성전자"), ("000660", "SK하이닉스"), ("005380", "현대차"), ("105560", "KB금융"))
+AGENTS = {3: "거시경제", 4: "수급", 6: "투자심리·뉴스"}
+LEVELS = ("L1", "L2", "L3")
+CACHE = HERE / "_cache" / "runs.json"
+OUT = HERE / "demo.html"
+MAX_STR = 240          # 근거·문장 등 긴 문자열은 잘라서 기사 전문이 들어가지 않게 함
+
+# 검증 기록 (고정 값): 티켓 Comments 에 기록된 성적표 측정치. 표본 수가 적어 범위가 겹칠 수 있음.
+VALIDATION = {
+    "note": "8종목 × 에이전트 3·4·6, 기준일 2026-10-30, LLM 포함. 값은 각 티켓 Comments 의 기록이며 반복 2~3회 평균입니다. 표본이 적어 범위가 겹칠 수 있습니다.",
+    "rows": [
+        {"stage": "분리 전 (에이전트 1·3, 16회)", "removed_total": "8", "range": "-", "note": "기준선. 제거 문장 합계(에이전트 1: 4, 3: 4)"},
+        {"stage": "#30 노드 분리 후 (3회)", "removed_total": "41.0", "range": "22~65", "note": "에이전트 3·4·6 합계. 방향 점검 오탐·노드 번호를 근거로 단 문장·에이전트 6 폭주 생성 1건"},
+        {"stage": "#32 점검 오탐 정리 (2회)", "removed_total": "29.5", "range": "24~35", "note": "노드 번호 근거 오류 40.7 → 7.0, 완료 유지"},
+        {"stage": "#33 부호·표현 보완 (2회)", "removed_total": "-", "range": "-",
+         "note": "에이전트 3 제거 9.5 → 6.0 (5~7), 에이전트 6 제거 17.5 → 7.5 (7~8). 에이전트 4 는 재측정하지 않음(합계 없음)"},
+    ],
+    "meaning": [
+        "'제거 문장'은 LLM 이 쓴 문장 중 근거 키 오류·장부 밖 숫자·부호 불일치·금지 표현 등 점검에 걸려 화면에서 빠진 수입니다. 적을수록 좋지만 0 이 목표는 아닙니다(진짜 위반은 걸러져야 함).",
+        "점검을 느슨하게 해서 줄인 것이 아닙니다. 진짜 위반(긍정 의도 추정·증권사 목표가·실제 인과 주장·부호가 다른 서술)은 계속 걸리도록 시험으로 고정했습니다.",
+        "아직 못 한 것: 에이전트 4 의 #33 이후 재측정, 감성 사전의 정확도(사람 라벨 평가셋 #39 진행 중 — 표시: SENT_MODEL_UNVALIDATED).",
+    ],
+}
+
+OVERVIEW = {
+    "flow": ["수집 (kic-agent-data)", "DB 배치 (메인·kic-opinion·Object Storage)", "노드 N05~N08·N11·N12", "계약 r4-1.3 (JSON)", "SW 오케스트레이터"],
+    "principles": ["숫자는 DB 값만 씁니다 (LLM 은 장부의 키만 인용, 장부 밖 숫자는 제거).", "자료가 없으면 '미확보'로 적고 채워 넣지 않습니다.",
+                   "투자 권유·목표주가는 쓰지 않습니다 (점검에 걸리면 화면에서 뺍니다)."],
+    "nodes": [("N05·N06", "거시경제(에이전트 3)", "기본/확장"), ("N07·N08", "수급(에이전트 4)", "기본/확장"), ("N11·N12", "투자심리·뉴스(에이전트 6)", "기본/확장")],
+}
+
+
+def _cut(v):
+    if isinstance(v, str):
+        return v if len(v) <= MAX_STR else v[:MAX_STR] + "…"
+    if isinstance(v, list):
+        return [_cut(x) for x in v]
+    if isinstance(v, dict):
+        return {k: _cut(x) for k, x in v.items()}
+    return v
+
+
+def slim_run(out: dict, ticker: str, name: str, agent_no: int, extension: bool) -> dict:
+    """run_node_agent 결과 → 페이지에 넣을 만큼만 (원문 attempts·prompt 는 빼고 개수만)."""
+    from ch_agents import renderer
+
+    c = out["contract"]
+    keep = ("agent", "target", "asOf", "status", "summary", "claims", "upsideFactors", "downsideRisks", "unverified", "nextChecks",
+            "evidence", "nodes", "nodeSummary", "predictionSkippedReason", "conflicts", "dataQuality", "disclaimer", "reportId", "schemaVersion")
+    rendered = renderer.render_all(c)
+    return {
+        "ticker": ticker, "name": name, "agentNo": agent_no, "agentName": AGENTS[agent_no], "ext": bool(extension),
+        "status": out["status"], "seconds": out["seconds"], "attempts": len(out["attempts"]),
+        "removed": len(out.get("removed") or []), "claims": len(c.get("claims") or []),
+        "contract": _cut({k: c[k] for k in keep if k in c}),
+        "render": {lv: _cut(rendered[f"{lv}-defensive"]["markdown"]) for lv in LEVELS},
+    }
+
+
+def run_one(as_of: str, ticker: str, name: str, agent_no: int, extension: bool) -> dict:
+    from ch_agents import llm
+
+    t0 = time.monotonic()
+    out = llm.run_node_agent(agent_no, ticker, as_of=as_of, extension=extension)
+    r = slim_run(out, ticker, name, agent_no, extension)
+    r["wall_seconds"] = round(time.monotonic() - t0, 1)
+    return r
+
+
+def key_of(ticker: str, agent_no: int, ext: bool) -> str:
+    return f"{ticker}|{agent_no}|{int(ext)}"
+
+
+def collect_runs(as_of: str, workers: int = 4, cache: Path = CACHE, runner=run_one) -> dict:
+    """24회 실행. 이미 캐시에 있는 조합은 건너뜀(중단 후 이어서 하기). 기준일이 다르면 캐시를 버림."""
+    data = {"as_of": as_of, "runs": {}}
+    if cache.exists():
+        old = json.loads(cache.read_text(encoding="utf-8"))
+        if old.get("as_of") == as_of:
+            data = old
+    todo = [(t, n, a, e) for t, n in TICKERS for a in AGENTS for e in (False, True) if key_of(t, a, e) not in data["runs"]]
+    cache.parent.mkdir(parents=True, exist_ok=True)
+
+    def work(job):
+        t, n, a, e = job
+        return key_of(t, a, e), runner(as_of, t, n, a, e)
+
+    with ThreadPoolExecutor(max_workers=workers) as ex:
+        for k, r in ex.map(work, todo):
+            data["runs"][k] = r
+            cache.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
+    return data
+
+
+STATUS_SQL = {
+    "docs": "SELECT source, count(*) AS n, min(published_at)::date AS first, max(published_at)::date AS last FROM rag.document GROUP BY source ORDER BY n DESC",
+    "size": "SELECT round(pg_database_size(current_database()) / 1048576.0)::int AS mb",
+}
+TABLES = (("core.price_daily", "일별 시세"), ("core.investor_flow_daily", "투자자별 수급"), ("core.stock_lending_daily", "대차잔고"),
+          ("core.financial_fact", "재무제표 계정"), ("core.disclosure", "공시 목록"), ("rag.chunk", "공시·기사 청크"),
+          ("core.macro_obs", "거시 지표 관측치"), ("core.ownership_report", "대량보유상황보고(신규)"), ("core.largest_holder", "최대주주 지분(신규)"),
+          ("core.audit_opinion", "감사의견(신규)"), ("core.financial_item", "재무 항목: 감가상각·이자비용 등(신규)"))
+SOURCE_KO = {"naver_news": "뉴스(국내)", "finnhub_news": "뉴스(해외)", "naver_news_backfill": "뉴스(과거 보강)", "dart_report": "공시 보고서",
+             "youtube_comment": "유튜브 댓글", "naver_blog": "블로그", "naver_cafe": "카페"}
+UNAVAILABLE = [
+    "호가 잔량·세부 투자자(금융투자·투신·연기금) 자료 — 수급 노드가 '미확보'로 표시",
+    "신용공여 잔고(시장 전체) — 수집 코드는 만들었고 공공 데이터 키 활성(11/4) 뒤 확인·적재 예정",
+    "감성 사전의 정확도 — 사람 라벨 평가셋(600건) 라벨링 진행 중, 그전까지 SENT_MODEL_UNVALIDATED",
+    "공시 주석표 속 감가상각·이자 등 일부 재무 항목 — 계정 매핑 보강은 본선 후보",
+]
+
+
+def collect_status() -> dict:
+    """데이터 현황: 메인·kic-opinion 을 읽기 전용으로 집계. 접속 정보는 결과에 넣지 않음."""
+    import psycopg
+    from dotenv import load_dotenv
+
+    load_dotenv()
+    out: dict = {"main": {}, "opinion": {}, "tables": [], "unavailable": UNAVAILABLE}
+    for key, env in (("main", "DATABASE_URL"), ("opinion", "OPINION_DATABASE_URL")):
+        url = os.getenv(env, "")
+        if not url:
+            out[key] = {"error": "접속 설정 없음"}
+            continue
+        with psycopg.connect(url, autocommit=True) as conn:
+            conn.execute("SET default_transaction_read_only = on")
+            conn.execute("SET statement_timeout = '60s'")
+            docs = conn.execute(STATUS_SQL["docs"]).fetchall()
+            out[key] = {"mb": conn.execute(STATUS_SQL["size"]).fetchone()[0],
+                        "docs": [{"source": SOURCE_KO.get(s, s), "n": n, "first": str(a), "last": str(b)} for s, n, a, b in docs]}
+            if key == "main":
+                for tbl, label in TABLES:
+                    try:
+                        n = conn.execute(f"SELECT count(*) FROM {tbl}").fetchone()[0]
+                    except Exception as e:  # noqa: BLE001  아직 적용 전인 표 등
+                        n, _ = None, e
+                    out["tables"].append({"table": tbl, "label": label, "n": n})
+    out["limits"] = {"main_mb": 800, "retention_days": 14}
+    return out
+
+
+def kst_now() -> str:
+    return datetime.now(timezone(timedelta(hours=9))).strftime("%Y-%m-%d %H:%M KST")
+
+
+def build_payload(runs: dict, status: dict, generated_at: str | None = None) -> dict:
+    rs = runs["runs"]
+    return {
+        "meta": {"asOf": runs["as_of"], "generatedAt": generated_at or kst_now(), "runs": len(rs),
+                 "llmCalls": sum(r["attempts"] for r in rs.values()), "contract": "r4-1.3"},
+        "tickers": [{"ticker": t, "name": n} for t, n in TICKERS], "agents": {str(k): v for k, v in AGENTS.items()},
+        "runs": rs, "status": status, "validation": VALIDATION, "overview": OVERVIEW,
+    }
+
+
+FORBIDDEN = (re.compile(r"postgres(ql)?://", re.I), re.compile(r"\bsk-[A-Za-z0-9]{16,}"), re.compile(r"api[_-]?key\s*[=:]", re.I),
+             re.compile(r"AWS_(ACCESS|SECRET)", re.I), re.compile(r"neon\.tech", re.I), re.compile(r"목표\s*주가\s*는?\s*\d"))
+
+
+def forbidden_hits(html: str, secrets: list[str] | None = None) -> list[str]:
+    """비밀값·DB 주소·권유 표현 검색. secrets: 실제 환경 값(8자 이상)이 그대로 들어 있으면 잡음."""
+    hits = [p.pattern for p in FORBIDDEN if p.search(html)]
+    hits += [f"환경 값 포함({i})" for i, s in enumerate(secrets or []) if len(s) >= 8 and s in html]
+    return hits
+
+
+def build_html(payload: dict) -> str:
+    tpl = (HERE / "template.html").read_text(encoding="utf-8")
+    blob = json.dumps(payload, ensure_ascii=False, separators=(",", ":")).replace("</", "<\\/").replace("\u2028", "\\u2028").replace("\u2029", "\\u2029")
+    return tpl.replace("/*__DATA__*/null", blob, 1)
+
+
+def env_secrets() -> list[str]:
+    from dotenv import load_dotenv
+
+    load_dotenv()
+    names = ("DATABASE_URL", "OPINION_DATABASE_URL", "UPSTAGE_API_KEY", "ECOS_API_KEY", "COHERE_API_KEY", "DART_API_KEY",
+             "AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "AWS_ENDPOINT_URL_S3")
+    return [os.environ[n] for n in names if os.environ.get(n)]
+
+
+def main(argv: list[str]) -> int:
+    if len(argv) < 2 or argv[0] not in ("run", "html", "all"):
+        print(__doc__)
+        return 2
+    cmd, as_of = argv[0], argv[1]
+    if cmd in ("run", "all"):
+        runs = collect_runs(as_of)
+        print(f"실행 {len(runs['runs'])}건, LLM 호출 {sum(r['attempts'] for r in runs['runs'].values())}회")
+    if cmd in ("html", "all"):
+        runs = json.loads(CACHE.read_text(encoding="utf-8"))
+        if runs.get("as_of") != as_of or len(runs["runs"]) < len(TICKERS) * len(AGENTS) * 2:
+            print("캐시가 기준일과 다르거나 덜 찼습니다. run 먼저 실행하세요.")
+            return 1
+        html = build_html(build_payload(runs, collect_status()))
+        bad = forbidden_hits(html, env_secrets())
+        if bad:
+            print("금지 패턴 발견, 저장하지 않음:", bad)
+            return 1
+        OUT.write_text(html, encoding="utf-8")
+        print(f"저장: {OUT} ({len(html) // 1024} KB)")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))
