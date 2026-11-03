@@ -98,10 +98,32 @@ SAME_RE = re.compile(r"같은\s*사건|중복|하나의\s*(사건|근거|묶음)
 CLAIM_FIELDS = ("주장", "반대근거")
 
 
+# 호출 한도 (#31, E1 constraints): 정상 출력은 3천 자 안팎(#30 실측 최대 3,254자, 약 3천 토큰)이라 6천 토큰이면 넉넉하고,
+# 반복 생성이 시작되면 131,072 토큰까지 가서 20분 가까이 걸렸음. 넘으면 오류 → 규칙 기반 대체로 빠르게 끝남.
+MAX_OUTPUT_TOKENS = int(os.getenv("CH_LLM_MAX_TOKENS", "6000"))
+CALL_TIMEOUT_S = float(os.getenv("CH_LLM_TIMEOUT", "120"))        # 정상 응답 최대 약 75초
+MAX_PROMPT_CHARS = int(os.getenv("CH_LLM_MAX_PROMPT_CHARS", "60000"))   # 정상 프롬프트 최대 약 3만 자 (에이전트 6 트림 뒤)
+
+
+class PromptTooLarge(RuntimeError):
+    pass
+
+
 def get_llm(temperature: float = 0.0):
     from langchain_upstage import ChatUpstage
 
-    return ChatUpstage(model=MODEL, temperature=temperature)
+    return ChatUpstage(model=MODEL, temperature=temperature, max_tokens=MAX_OUTPUT_TOKENS, timeout=CALL_TIMEOUT_S,
+                       max_retries=1)
+
+
+def llm_failure_note(err: str) -> str:
+    """LLM 호출 실패 이유를 상태 문구용 짧은 말로."""
+    name = err.split(":")[0]
+    if "Length" in name:
+        return "LLM 출력 상한 초과"
+    if name == "PromptTooLarge":
+        return "프롬프트 크기 초과"
+    return f"LLM 호출 실패: {name}"
 
 
 # JSON 출력 모드: 지원하면 형식 오류가 줄어듦. 매개변수 오류가 나면 이번 실행 동안 끄고 일반 호출로 진행
@@ -813,12 +835,17 @@ def run_agent(agent_id: int, ticker: str | None = None, mode: str = "expert", ll
         data = fetch_agent_data(agent_id, ticker, as_of, focus=focus, period=period, scenario=scenario,
                                 question=question)
     system, user = build_messages(data, mode)
+    prompt_stats = {"system_chars": len(system), "user_chars": len(user), "est_tokens": (len(system) + len(user)) // 2,
+                    "ledger_items": len(data.facts.items),
+                    "ledger_trimmed": getattr(data.facts, "trimmed_items", 0), "max_chars": MAX_PROMPT_CHARS}
     attempts: list[dict] = []
     result, checks, status, best_at, best_n = None, {}, "실패", -1, None
     t0 = time.monotonic()
     try:
         from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 
+        if len(system) + len(user) > MAX_PROMPT_CHARS:   # 너무 큰 프롬프트는 부르지 않고 바로 규칙 기반으로
+            raise PromptTooLarge(f"{len(system) + len(user)}자 > {MAX_PROMPT_CHARS}자")
         model = llm or get_llm()
         msgs = [SystemMessage(content=system), HumanMessage(content=user)]
         for attempt in range(max_repair + 1):
@@ -844,7 +871,7 @@ def run_agent(agent_id: int, ticker: str | None = None, mode: str = "expert", ll
     if result is None:
         err = next((a["error"] for a in attempts if "error" in a), None)
         result, vlog, _ = verifier.apply(fallback_result(data), data)
-        status = "규칙 기반 대체" + (f" (LLM 호출 실패: {err.split(':')[0]})" if err else " (JSON 형식 아님)")
+        status = "규칙 기반 대체" + (f" ({llm_failure_note(err)})" if err else " (JSON 형식 아님)")
     else:
         result, removed = sanitize(result, data)
         result, trimmed = cap_claims(result)
@@ -862,7 +889,7 @@ def run_agent(agent_id: int, ticker: str | None = None, mode: str = "expert", ll
         "agent_id": agent_id, "agent_name": data.name, "status": status, "period": data.period,
         "as_of": data.as_of, "result": result, "facts": facts.items, "gaps": facts.gaps, "flags": facts.flags,
         "checks": checks, "removed": removed, "attempts": attempts, "seconds": round(time.monotonic() - t0, 1),
-        "claim_stats": claim_stats(result, vlog, removed, trimmed),
+        "prompt_stats": prompt_stats, "claim_stats": claim_stats(result, vlog, removed, trimmed),
         "source": "Neon " + ", ".join(sorted({v["source"].split(" (")[0] for v in facts.items.values()}
                                              | ({"rag.document·core.disclosure"} if data.docs else set()))),
         "docs": data.docs, "verification": vlog,
