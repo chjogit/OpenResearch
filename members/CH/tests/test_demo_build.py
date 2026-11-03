@@ -121,3 +121,49 @@ def test_opinion_leaks_detects_remaining_snippet_or_domain():
 
 def test_conflict_doc_ids_collects_doc_links():
     assert bd.conflict_doc_ids(_opinion_runs()) == [11, 22, 33]
+
+
+def _kr_runs():
+    r = _run("005930", 6, True)
+    r["contract"] = {"claims": [], "evidence": [{"evidenceId": "E1", "kind": "document", "label": "현대차 3.6%↓…목표주가 줄하향", "source": "naver_news"}],
+                     "nodes": [{"nodeId": "N12", "state": "skipped", "reason": "확장 노드 입력 요건 미충족", "missingInputs": ["price_after_event", "scenario_assumptions", "호가 잔량"]}],
+                     "unverified": [{"item": "price_after_event 기반 후속 반응이 수행되지 않음", "reason": "x"}], "nextChecks": ["충족 시 price_after_event 기반 확인"],
+                     "conflicts": [{"views": [{"text": "긍정 분류: 목표가 상향 소식 뉴스", "evidenceLinks": []}]}]}
+    r["render"] = {lv: "정상 문장" for lv in bd.LEVELS}
+    return {"as_of": "2026-10-30", "runs": {"005930|6|1": r}}
+
+
+def test_localize_missing_replaces_internal_keys_with_korean():
+    runs = _kr_runs()
+    assert bd.raw_key_hits(runs) == ["price_after_event", "scenario_assumptions"] or "price_after_event" in bd.raw_key_hits(runs)
+    out = bd.localize_missing(runs)
+    c = out["runs"]["005930|6|1"]["contract"]
+    assert c["nodes"][0]["missingInputs"] == [bd.MISSING_KO["price_after_event"], bd.MISSING_KO["scenario_assumptions"], "호가 잔량(공개 원천 없음)"]
+    assert "사건 이후 주가 기반 후속 반응" in c["unverified"][0]["item"]
+    assert "사건 이후 주가 기반 확인" in c["nextChecks"][0] and bd.raw_key_hits(out) == []
+
+
+def test_raw_key_hits_flags_unmapped_key():
+    runs = _kr_runs()
+    runs["runs"]["005930|6|1"]["contract"]["nodes"][0]["missingInputs"].append("some_new_key")
+    assert "some_new_key" in bd.raw_key_hits(bd.localize_missing(runs))
+
+
+def test_mask_target_price_only_in_quotes():
+    out = bd.mask_target_price(_kr_runs())
+    c = out["runs"]["005930|6|1"]["contract"]
+    assert c["evidence"][0]["label"] == "현대차 3.6%↓…[증권사 가격 전망] 줄하향"
+    assert c["conflicts"][0]["views"][0]["text"] == "긍정 분류: [증권사 가격 전망] 상향 소식 뉴스"
+    assert not bd.TARGET_PRICE.search(json.dumps(out, ensure_ascii=False))
+
+
+def test_youtube_comments_are_masked_like_blog_cafe():
+    runs = _opinion_runs()
+    runs["runs"]["005930|6|1"]["contract"]["evidence"].append(
+        {"evidenceId": "E9", "kind": "document", "label": "유튜브 댓글 조각이 들어 있는 근거 문장입니다", "source": "youtube_comment", "url": "https://www.youtube.com/watch?v=x", "note": "m"})
+    out, snippets = bd.mask_opinion(runs, {11: "youtube_comment", 22: "naver_news", 33: "naver_news"})
+    c = out["runs"]["005930|6|1"]["contract"]
+    assert c["evidence"][2]["label"] == bd.HIDDEN and c["evidence"][2]["url"] is None
+    assert c["conflicts"][0]["views"][0]["text"].endswith(bd.HIDDEN) and "뉴스 제목 인용" in c["conflicts"][0]["views"][1]["text"]
+    assert bd.opinion_leaks(json.dumps(out, ensure_ascii=False), snippets) == []
+    assert bd.opinion_leaks("https://www.youtube.com/watch?v=x", [])
