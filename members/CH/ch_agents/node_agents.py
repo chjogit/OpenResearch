@@ -20,6 +20,9 @@ DIRECTION_RULE = ("방향어 규칙: 장부 키 바로 뒤에 그 값의 방향�
                   "음수인 '순매수 수량'은 '순매도'로 쓰고, 키 뒤 12자 안에 반대 방향어가 오지 않게 문장을 나눌 것")
 GROUP = {"N05": "거시 노출", "N06": "시나리오", "N07": "유동성", "N08": "수급 전환", "N11": "사건 감성", "N12": "후속 반응"}
 KIND_TEXT = {"base": "기본", "ext": "확장"}
+# 프롬프트에 올리는 장부 크기 상한 (#31): 사건이 수백 개인 종목(셀트리온 462개)에서 장부가 930항목·10만 자가 되어 응답이 폭주했음.
+# 진술문(판정 문장)이 가리키는 사건 항목만 남기고, 나머지 사건 항목은 노드 산출물(artifacts.events)에만 둠.
+TRIM_LABEL = re.compile(r"^사건 E\d+")   # N11 사건별 항목(평균 감성·불확실성 표현 비율)
 
 NODE_SPECS: dict[int, AgentSpec] = {}
 
@@ -142,7 +145,17 @@ def merge_facts(report: dict) -> tuple[Facts, list[str]]:
             f.gaps.append({"label": m, "reason": f"{nid} 미충족 항목"}) if not any(g["label"] == m for g in f.gaps) else None
     f.flags += conflicts
     f.notes.append(DIRECTION_RULE)
+    f.trimmed_items = trim_ledger(f)
     return f, conflicts
+
+
+def trim_ledger(f: Facts) -> int:
+    """판정·한계 문장에서 쓰지 않는 사건 항목('사건 E#' 항목)을 장부에서 뺌. 반환: 뺀 항목 수."""
+    used = {k for t in [*f.flags, *f.notes] for k in PLACEHOLDER.findall(t)}
+    drop = [k for k, v in f.items.items() if TRIM_LABEL.match(v["label"]) and k not in used]
+    for k in drop:
+        del f.items[k]
+    return len(drop)
 
 
 def docs_from_report(report: dict, limit: int = 12) -> list[dict]:
