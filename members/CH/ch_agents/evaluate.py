@@ -71,6 +71,63 @@ def llm_scorecard(tickers: list[str] | None = None, agent_ids=MY_AGENTS, mode: s
     return summary
 
 
+NODE_AGENT_IDS = (3, 4, 6)
+BASELINE_FILE = "eval_results.json"          # 분리 전(10/30, 에이전트 1·3) 기록. 덮어쓰지 않음
+
+
+def summarize_runs(results: list[dict]) -> dict:
+    """성적표 요약 (llm_scorecard 와 같은 항목)."""
+    status = Counter(r["status"].split(" (")[0] for r in results)
+    n = max(len(results), 1)
+    return {
+        "runs": len(results), "status": dict(status),
+        "repaired": sum(1 for r in results if len(r.get("attempts", [])) > 1),
+        "removed_sentences": sum(len(r.get("removed", [])) for r in results),
+        "check_violations_last_attempt": dict(Counter(k for r in results for k in (r.get("checks") or {}))),
+        "avg_seconds": round(sum(r.get("seconds", 0) for r in results) / n, 1),
+        "avg_claims": round(sum(len(r["result"].get("주장", [])) for r in results) / n, 1),
+        "llm_errors": dict(Counter(a["error"][:200] for r in results for a in r.get("attempts", []) if "error" in a)),
+    }
+
+
+def node_scorecard(tickers: list[str] | None = None, agent_nos=NODE_AGENT_IDS, mode: str = "expert", extension: bool = True,
+                   scenario: str | None = "환율 5% 상승", as_of: str | None = None, save_to: str | None = None,
+                   llm=None, baseline: str | None = BASELINE_FILE) -> dict:
+    """노드 기반 에이전트 3·4·6 의 LLM 성적표 (#25). 결과 파일은 새 이름(기본 eval_results_nodes_<기준일>.json)이고
+    baseline(분리 전 기록)이 있으면 요약을 나란히 둔다. 기존 eval_results.json 은 건드리지 않는다."""
+    from .llm import run_node_agent
+
+    as_of = normalize_as_of(as_of)
+    save_to = save_to if save_to is not None else f"eval_results_nodes_{as_of}.json"
+    if save_to == baseline:
+        raise ValueError("분리 전 기록(eval_results.json)을 덮어쓸 수 없습니다. 다른 파일 이름을 쓰세요.")
+    results = []
+    for t in tickers or DEFAULT_TICKERS:
+        co = db.company(t)
+        for a in agent_nos:
+            try:
+                res = run_node_agent(a, t, mode=mode, llm=llm, as_of=as_of, extension=extension,
+                                     scenario=scenario if a == 3 else None)
+            except Exception as e:  # noqa: BLE001  한 종목의 오류가 전체를 멈추지 않게
+                results.append({"ticker": t, "agent_id": a, "status": "실행 오류", "attempts": [{"error": f"{type(e).__name__}: {e}"}],
+                                "result": {}, "seconds": 0})
+                continue
+            res.pop("analysis", None)
+            res["node_states"] = [(n["nodeId"], n["state"], n["status"]) for n in res.get("node_report", {}).get("nodes", [])]
+            results.append({"ticker": t, "name": co["name"], **res})
+    out = {"as_of": as_of, "extension": extension, "summary": summarize_runs(results), "by_agent": {
+        str(a): summarize_runs([r for r in results if r.get("agent_id") == a]) for a in agent_nos}}
+    if baseline and Path(baseline).exists():
+        old = json.loads(Path(baseline).read_text(encoding="utf-8"))
+        out["before_split"] = {"file": baseline, "summary": old.get("summary"),
+                               "by_agent": {str(a): summarize_runs([r for r in old["results"] if r.get("agent_id") == a])
+                                            for a in (1, 3)}}
+    if save_to:
+        Path(save_to).write_text(json.dumps({**out, "results": results}, ensure_ascii=False, indent=1, default=str),
+                                 encoding="utf-8")
+    return out
+
+
 # ---------------------------------------------------------------- 교차 검증
 
 SQL_XCHECK = """

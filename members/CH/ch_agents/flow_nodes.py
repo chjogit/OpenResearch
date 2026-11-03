@@ -12,7 +12,8 @@ from __future__ import annotations
 import math
 from statistics import mean, pstdev
 
-from .agent3_sentiment_flow import SRC_FLOW, TV_JUMP, WHO, Z_ALERT, _intensity_z
+from .agent3_sentiment_flow import TV_JUMP, Z_ALERT, _intensity_z
+from .flow_core import SRC_FLOW, WHO, add_net_buy, add_streak
 from .asof import cut_future, require_as_of
 from .facts import MAX_DAILY_MOVE, Facts, series_points, streak
 from .nodes import Conflict, ConflictView, Finding, NodeResult, NodeTask, register
@@ -281,22 +282,14 @@ def n08(inp: dict, as_of: str) -> NodeResult:
     table = {}
     for who, col in WHO:
         row = {}
+        got = add_net_buy(f, rows, who, col, (5, 20, 60), (20,), "누적")      # 공용 계산(flow_core): 옛 에이전트 3 과 같은 코드
         for n in (5, 20, 60):
-            if len(rows) >= n:
-                k = f.add(f"{who} {n}일 순매수 수량", sum(r[col] or 0 for r in rows[:n]), "주", d0, SRC_FLOW, kind="calc", group="누적")
-                row[f"{n}일"] = k
-        if len(rows) >= 20 and all(r.get("close") for r in rows[:20]):
-            amt = sum((r[col] or 0) * r["close"] for r in rows[:20])
-            ka = f.add(f"{who} 20일 순매수 금액(근사)", amt, "KRW±", d0, SRC_FLOW + " × 종가", kind="proxy", group="누적",
-                       note="일별 순매수 수량 × 종가")
-            tv = sum(r["tv"] or 0 for r in rows[:20])
-            if tv and all(r.get("tv") for r in rows[:20]):
-                f.add(f"{who} 20일 순매수 강도(거래대금 대비)", amt / tv * 100, "%", d0, SRC_FLOW + " × core.price_daily",
-                      kind="proxy", group="누적", note="순매수 금액 근사 ÷ 같은 기간 거래대금")
-            row["금액"] = ka
-        s = streak([r[col] for r in rows])
+            if n in got:
+                row[f"{n}일"] = got[n]
+        if ("금액", 20) in got:
+            row["금액"] = got[("금액", 20)]
+        s, ks = add_streak(f, rows, who, col, "지속성")
         if s:
-            ks = f.add(f"{who} 연속 순{'매수' if s > 0 else '매도'} 일수", abs(s), "일", d0, SRC_FLOW, kind="calc", group="지속성")
             row["연속"] = ks
         table[who] = row
         for k in row.values():

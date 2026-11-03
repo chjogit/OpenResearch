@@ -29,6 +29,8 @@ LOOKBACK = 14           # 사건 표에 쓰는 최근 일수(원문이 남아 �
 HORIZONS = (1, 3, 5)    # 사건 이후 거래일 (t+1·t+3·t+5)
 MIN_DAYS = 60           # N12: 일별 감성이 있는 날 최소 수
 MIN_EVENTS = 20         # N12: 사건일 최소 수
+MIN_EVENT_DOCS = 3      # N12: 사건일은 그날 문서 3건 이상(소수 문서 잡음 제외, PM 결정 11/2)
+MENTION_LIMIT = "블로그·카페 문서 기반 결과에는 기업명을 부수적으로 언급한 글이 섞일 수 있음(종목 태그 매핑 미적용)"
 SENT_EVENT_Z = 1.0      # 사건일: 그날 평균 감성이 직전 평균에서 이 표준편차 이상 벗어난 날
 UNCERTAIN = ("불확실", "우려", "가능성", "전망", "변동성", "관망", "예상", "논란", "리스크", "위험", "불안", "지연", "차질")
 
@@ -226,7 +228,7 @@ def n11(b: dict, as_of: str) -> NodeResult:
     # ① 기존 에이전트 3 와 같은 심리 지표(논조·검색 관심): 같은 코드, 같은 입력 → 같은 값
     legacy = a3.compute({"docs": [dict(r) for r in b.get("grouped") or []], "docs_agg": b.get("docs_agg"), "search": b.get("search"),
                          "flows": [], "price": b.get("price"), "kospi": b.get("kospi")}, co, as_of)["facts"]
-    arts: dict = {"limits": [DATE_LIMIT, "감성은 키워드 사전 기준선이며 사람 라벨 평가 전(SENT_MODEL_UNVALIDATED)"]}
+    arts: dict = {"limits": [DATE_LIMIT, MENTION_LIMIT, "감성은 키워드 사전 기준선이며 사람 라벨 평가 전(SENT_MODEL_UNVALIDATED)"]}
     finds: list[Finding] = []
     missing: list[str] = []
     # ② 문서 단위: 대상 기업 분리, 근거 문장 없는 점수 제외
@@ -295,8 +297,9 @@ def n11(b: dict, as_of: str) -> NodeResult:
             or v["label"].startswith("검색 관심도")}
     arts["agent3_sentiment_facts"] = keep            # 에이전트 3 와 같은 라벨·같은 값(보관 집계 포함)
     for k, v in keep.items():
-        f.items[f"T_{k}"] = {**v, "group": "논조"}
-        finds.append(_find("number", f"{v['label']} {v['text']}", "Computation", [f"T_{k}"]))
+        nk = f"T{len(f.items) + 1}"          # 장부 키 규칙(대문자+숫자)에 맞는 새 키. 값·라벨은 에이전트 3 와 같음
+        f.items[nk] = {**v, "group": "논조"}
+        finds.append(_find("number", f"{v['label']} {v['text']}", "Computation", [nk]))
     f.gaps += [g for g in legacy.gaps if g["label"].endswith("감성(최근 7일)") or "감성 변화" in g["label"] or g["label"].startswith("검색") or g["label"] == "문서 감성"]
     if not events:
         missing.append("근거 문장이 있는 대상 기업 기사")
@@ -312,13 +315,13 @@ def n11(b: dict, as_of: str) -> NodeResult:
 # ---------------------------------------------------------------- N12 후속 시장 반응 검증
 
 def event_days(days: list[tuple[str, float, int]]) -> list[tuple[str, float]]:
-    """사건일: 그날 평균 감성이 직전 20개 관측일 평균에서 SENT_EVENT_Z 표준편차 넘게 벗어난 날 → (날짜, 부호 있는 표준점수)."""
+    """사건일: 그날 문서가 MIN_EVENT_DOCS건 이상이고 평균 감성이 직전 20개 관측일 평균에서 SENT_EVENT_Z 표준편차 넘게 벗어난 날(직전 관측일 20개 미만이면 없음) → (날짜, 부호 있는 표준점수)."""
     out = []
     for i in range(20, len(days)):
         prev = [s for _, s, _ in days[i - 20:i]]
         mu = mean(prev)
         sd = (sum((x - mu) ** 2 for x in prev) / (len(prev) - 1)) ** 0.5
-        if sd and abs(days[i][1] - mu) / sd >= SENT_EVENT_Z:
+        if sd and days[i][2] >= MIN_EVENT_DOCS and abs(days[i][1] - mu) / sd >= SENT_EVENT_Z:
             out.append((days[i][0], (days[i][1] - mu) / sd))
     return out
 
@@ -391,8 +394,8 @@ def n12(b: dict, as_of: str, validated: bool = False) -> NodeResult:
     ar = abnormal_returns(series_points(b.get("price")), series_points(b.get("kospi")))
     ev = event_days(days)
     finds: list[Finding] = []
-    arts: dict = {"limits": [DATE_LIMIT], "n_days": len(days), "n_events": len(ev),
-                  "definitions": {"사건일": f"그날 평균 감성이 직전 20개 관측일 평균에서 {SENT_EVENT_Z:g} 표준편차 이상 벗어난 날",
+    arts: dict = {"limits": [DATE_LIMIT, MENTION_LIMIT], "n_days": len(days), "n_events": len(ev),
+                  "definitions": {"사건일": f"그날 평균 감성이 직전 20개 관측일 평균에서 {SENT_EVENT_Z:g} 표준편차 이상 벗어난 날이며 그날 문서가 {MIN_EVENT_DOCS}건 이상(직전 관측일이 20개 미만이면 사건일 없음)",
                                   "CAR": "사건일 다음 거래일부터 h 거래일 동안의 (종목 일 수익률 − 코스피 일 수익률) 합, %",
                                   "추가 예측력": "전일 초과수익만 쓴 모형 대비 전일 감성 변화를 더한 모형의 걷기 검증 평균제곱오차(MSE)"}}
     rows = []

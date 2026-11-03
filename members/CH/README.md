@@ -160,6 +160,14 @@ prompt_block = docs_for_prompt(docs)                # 프롬프트에 붙일 D1,
 - N12: 사건일 다음 거래일부터 t+1·t+3·t+5 누적 초과수익(CAR) 표와, 감성 없는 모형 대비 걷기 검증 오차 비교. 감성 모델 미검증(`SENT_MODEL_UNVALIDATED`)·표본 부족·유의하지 않음이면 감성 기반 추론을 만들지 않고 `prediction_skipped_reason`에 이유를 남김.
 - 한계: 게시 시각이 날짜 단위라 장중·장후를 구분하지 못함. 원문은 보관 기한이 지나면 삭제되어 일별 감성 이력이 짧을 수 있음(짧으면 N12는 입력 요건 미충족으로 건너뜀).
 
+## 노드 기반 에이전트 3·4·6 통합 (#25, `node_agents.py`·`llm.run_node_agent`)
+
+- `run_node_agent(3|4|6, ticker, extension=False, scenario=None)` — 노드(N05·N06 / N07·N08 / N11·N12)를 돌린 뒤 기존 서술·검증 경로로 이어 r4-1.3 계약 JSON과 마크다운을 냄. 확장 노드는 `extension=True` 이고 입력 요건이 맞을 때만 실행하며, 건너뛴 이유는 계약 `nodes[]`·`predictionSkippedReason`과 렌더러 '범위' 구역에 표시됨.
+- 노드 장부(ledger)를 하나의 `Facts`로 합침(노드별 키 접두어가 달라 겹치지 않음). 노드 진술은 숫자 표기를 장부 키 `{K}`로 바꿔 '코드 판정'으로 넘기므로 LLM은 숫자를 옮겨 쓸 수 없고, 기존 Verifier·문장 검사·청크 규칙·투자 권유 금지를 그대로 통과해야 함. 재시도는 `MAX_REPAIR_ATTEMPTS`.
+- 번호 3은 옛 3(투자심리·수급)과 새 3(거시)이 겹침: 이름이 아니라 `AgentData.extra["node_agent"]`/`AgentData.spec`으로 구분(`agents.family`·`spec_of`). 옛 `run_agent(1|3)`은 분리 전 p01·p03 출력을 그대로 내고, 변환표(1→3, 3→4·6)로 새 에이전트를 부르려면 `run_legacy_via_nodes`.
+- runner 등록은 `node_registry.ensure_registered()` 한곳(노드 실행 틀이 시작할 때 호출). 수급 누적·연속 일수 계산은 `flow_core.py` 공용(옛 에이전트 3과 N08).
+- 성적표: `evaluate.node_scorecard()` — 결과는 새 파일(`eval_results_nodes_<기준일>.json`)이고 분리 전 `eval_results.json`은 덮어쓰지 않음(요약을 `before_split`에 나란히).
+
 ## 기초기획서 R4 대응 (에이전트 1·3)
 
 | 기획서 요구 | 구현 |

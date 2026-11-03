@@ -19,12 +19,12 @@ from .profile import Level, Stance, UserProfile
 RENDER_VERSION = "1.0"
 
 # 공통 구역: 모든 프로필에 같은 항목이 같은 문장으로 들어감 (순서·꾸밈만 다름)
-COMMON = ("summary", "scope", "caveats", "signals", "exposure", "claims", "upside", "counter", "risks", "unverified",
-          "nextChecks", "disclaimer")
+COMMON = ("summary", "scope", "caveats", "signals", "exposure", "claims", "upside", "counter", "conflicts", "risks",
+          "unverified", "nextChecks", "disclaimer")
 ORDER = {
-    Stance.DEFENSIVE: ("summary", "caveats", "scope", "risks", "counter", "unverified", "claims", "upside", "exposure",
+    Stance.DEFENSIVE: ("summary", "caveats", "scope", "risks", "counter", "conflicts", "unverified", "claims", "upside", "exposure",
                        "signals", "nextChecks"),
-    Stance.AGGRESSIVE: ("summary", "caveats", "scope", "signals", "exposure", "claims", "upside", "counter", "risks",
+    Stance.AGGRESSIVE: ("summary", "caveats", "scope", "signals", "exposure", "claims", "upside", "counter", "conflicts", "risks",
                         "unverified", "nextChecks"),
 }
 TAIL = ("glossary", "method", "evidence", "disclaimer")
@@ -39,6 +39,7 @@ TITLES = {
     "upside": ("좋게 볼 수 있는 점", "긍정 요인", "긍정 요인"),
     "counter": ("반대로 볼 수 있는 점", "반대 근거", "반대 근거"),
     "risks": ("나빠질 수 있는 점", "하방 위험", "하방 위험"),
+    "conflicts": ("서로 엇갈리는 신호", "관점별 충돌 (평균 내지 않음)", "관점별 충돌 (평균·합의 없이 대조)"),
     "unverified": ("아직 확인하지 못한 것", "미확인 항목", "미확인 (무자료·미확인 전제·판단 보류)"),
     "nextChecks": ("앞으로 볼 일정·점검", "다음 점검·일정", "다음 점검·일정"),
     "glossary": ("용어 풀이", "용어 풀이", "용어 풀이"),
@@ -99,6 +100,21 @@ def _sections(c: dict) -> dict[str, list[dict]]:
                                                                      for t in (px.get("tasks") or {}).values())]
         if other:
             s["scope"].append(_item("T:자료", "자료 상태: " + "; ".join(reasons.get(c, c) for c in other), codes=other))
+    for n in c.get("nodes") or []:   # 노드 기반 에이전트(r4-1.3): 실행/건너뜀과 이유를 숨기지 않음
+        kind = "기본" if n.get("kind") == "base" else "확장"
+        if n.get("state") == "skipped":
+            why = n.get("reason") or "사유 없음"
+            miss = f" (부족한 입력: {', '.join(n['missingInputs'])})" if n.get("missingInputs") else ""
+            s["scope"].append(_item(f"NODE:{n['nodeId']}", f"{n['nodeId']} {n['name']}({kind}): 건너뜀 — {why}{miss}"))
+        else:
+            s["scope"].append(_item(f"NODE:{n['nodeId']}", f"{n['nodeId']} {n['name']}({kind}): 실행, 상태 {n.get('status')}"
+                                    + (f" — {n['reason']}" if n.get("reason") else "")))
+    if c.get("predictionSkippedReason"):
+        s["scope"].append(_item("NODE:predictionSkipped", f"예측·추론 생략 사유: {c['predictionSkippedReason']}"))
+    for i, cf in enumerate(c.get("conflicts") or [], 1):
+        views = " ↔ ".join(f"({v.get('tag')}) {v['text']}" for v in cf["views"])
+        ev = [e for v in cf["views"] for e in v.get("evidenceLinks") or []]
+        s["conflicts"].append(_item(f"C{i:02d}", f"{cf['topic']}: {views}", ev))
     if str(c.get("status", "")).startswith("규칙 기반 대체"):
         s["caveats"].append(_item("status", f"LLM 문장 없이 코드 규칙으로 만든 요약입니다. 상태: {c['status']}"))
     for i, f in enumerate(c.get("codeFindings") or [], 1):

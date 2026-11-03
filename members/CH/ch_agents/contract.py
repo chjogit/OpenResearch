@@ -32,6 +32,7 @@ SCHEMA_VERSION = "r4-1.3"   # r4-1.1: unverified[].availability, r4-1.2: evidenc
 SCHEMA_PATH = Path(__file__).resolve().parent / "schema" / "agent_output.schema.json"
 KST = timezone(timedelta(hours=9))
 MODULES = {1: "agent1_macro", 3: "agent3_sentiment_flow"}
+NODE_MODULES = {3: "agent3_macro_nodes", 4: "agent4_flow_nodes", 6: "agent6_sentiment_nodes"}   # 스키마 module 패턴 ^agent\d_   # 노드 기반 에이전트 (#25)
 TYPE_EN = {"사실": "fact", "해석": "interpretation", "예측": "forecast"}
 KEY = re.compile(r"\{([A-Z]\d+)\}")
 DISCLAIMER = "투자 검토 참고치 및 리스크 요약입니다. 매수·매도 추천이나 목표주가가 아닙니다."
@@ -183,8 +184,18 @@ def upgrade_legacy(out: dict) -> dict:
     return out
 
 
+def _agent_block(data) -> dict:
+    """agent 블록. 노드 기반(3·4·6)은 자기 번호가 곧 agentNos, 옛 1·3 은 변환표로 새 번호를 단다."""
+    if data.extra.get("node_agent"):
+        return {"id": data.agent_id, "module": NODE_MODULES[data.agent_id], "name": data.name, "agentNos": [data.agent_id]}
+    nos = legacy_agent_nos(data.agent_id)
+    return {"id": data.agent_id, "module": MODULES.get(data.agent_id, f"agent{data.agent_id}"), "name": data.name,
+            **({"agentNos": nos} if nos else {})}
+
+
 def build(run: dict, data, mode: str = "expert") -> dict:
     """run_agent 결과(dict)와 AgentData 로 계약 JSON 을 만듭니다."""
+    fam = "node" if data.extra.get("node_agent") else {1: "p01", 3: "p03"}.get(data.agent_id, "other")
     res = run["result"]
     emap = evidence_map(data)
     vlog = {v.get("claimId"): v for v in run.get("verification") or [] if v.get("claimId")}
@@ -244,8 +255,7 @@ def build(run: dict, data, mode: str = "expert") -> dict:
     out = {
         "schemaVersion": SCHEMA_VERSION,
         "reportId": None,
-        "agent": {"id": data.agent_id, "module": MODULES.get(data.agent_id, f"agent{data.agent_id}"),
-                  "name": data.name, **({"agentNos": legacy_agent_nos(data.agent_id)} if legacy_agent_nos(data.agent_id) else {})},
+        "agent": _agent_block(data),
         "target": {"ticker": data.company.get("ticker"), "name": data.company.get("name"),
                    "market": data.company.get("market")},
         "mode": mode,
@@ -275,7 +285,7 @@ def build(run: dict, data, mode: str = "expert") -> dict:
         "selfScore": res.get("자체점수"),
         "disclaimer": DISCLAIMER,
     }
-    if data.agent_id == 1:
+    if fam == "p01":
         out["exposure"] = [{"variable": r["var"], "level": r["level"], "basis": plain(", ".join(r["reasons"]), data),
                             "companySpecific": bool(r.get("company")), "path": r["path"], "focus": bool(r["focus"]),
                             "evidenceIds": evidence_ids(r["keys"], emap)} for r in data.extra.get("exposure") or []]
@@ -292,7 +302,7 @@ def build(run: dict, data, mode: str = "expert") -> dict:
                           "summary": {k: plain(v, data) for k, v in (px.get("summary") or {}).items()},
                           "vintage": {k: v for k, v in (px.get("vintage") or {}).items() if k != "dropped"},
                           "tiers": px.get("tiers")}
-    if data.agent_id == 3:
+    if fam == "p03":
         out["anomalies"] = [{"text": plain(t, data), "evidenceIds": evidence_ids(_keys_in(t), emap)}
                             for t in data.extra.get("anomalies") or []]
         out["baseline"] = [{"signal": b["signal"], "method": b["method"], "rule": b["rule"], "status": b["status"],
