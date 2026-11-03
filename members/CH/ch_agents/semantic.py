@@ -86,10 +86,38 @@ def flag_directions(f: Facts) -> dict[str, set[str]]:
     return out
 
 
+# 절 경계: 쉼표·세미콜론, 연결어미 '며/으며/이며/지만/으나/고'(뒤에 공백)
+CLAUSE_CUT = re.compile(r"[,;]|(?<=[가-힣])(?:으며|이며|며|지만|으나|고)(?=\s)")
+COORD_START = re.compile(r"(?:과|와|·|및|이고|이며|으며|며|이나|지만|으나)")
+SIGN_WORDS = set(POS_WORDS) | set(NEG_WORDS)
+
+
 def _after(text: str, end: int) -> str:
-    rest = text[end:end + WINDOW]
+    """키 뒤 서술어 창. 뒤따르는 다른 키의 이름표('… 순매수 {S2}')는 이 키의 서술이 아니므로 뺍니다."""
+    scan = text[end:end + WINDOW + 2]      # 다음 키가 창 바로 밖에서 시작해도 이름표로 알아보도록 조금 더 봄
+    rest = scan[:WINDOW]
+    if COORD_START.match(rest):          # '{A}과 기관 순매수 {B}': 이어지는 말은 다음 항목 이야기
+        return ""
+    nxt = scan.find("{")
+    if nxt >= 0:
+        seg = scan[:nxt]
+        toks = seg.split()
+        if toks and toks[-1] in SIGN_WORDS:   # 키 바로 앞의 방향어는 그 키를 꾸미는 이름표
+            seg = seg[:seg.rindex(toks[-1])]
+        rest = seg
     cut = re.search(r"[{,.;]|이나|지만|으며|이며", rest)
     return rest[:cut.start()] if cut else rest
+
+
+def _clause_plain(text: str, key: str) -> str | None:
+    """키가 문장 안에 있으면 그 키가 속한 절(들)의 글, 없으면 None(근거 키로만 달린 경우는 문장 전체)."""
+    cuts = [m for m in CLAUSE_CUT.finditer(text)]
+    found = []
+    for m in re.finditer(r"\{" + key + r"\}", text):
+        start = max([c.end() for c in cuts if c.end() <= m.start()], default=0)
+        end = min([c.start() for c in cuts if c.start() >= m.end()], default=len(text))
+        found.append(KEY_RE.sub("", text[start:end]))
+    return " ".join(found) if found else None
 
 
 def direction_problems(text: str, f: Facts, refs: list[str] | None = None,
@@ -101,15 +129,17 @@ def direction_problems(text: str, f: Facts, refs: list[str] | None = None,
     keys = set(KEY_RE.findall(text)) | set(refs or [])
     by_name = {n: (own, opp) for n, own, opp in DIRECTIONS}
     for k in sorted(keys):
+        scope = _clause_plain(text, k)
+        scope = plain if scope is None else scope      # 같은 절에서만 반대 표현을 점검 (다른 절의 반대 표현은 무관)
         for name in dirs.get(k, ()):
             own, opp = by_name[name]
-            if any(w in plain for w in opp) and not any(w in plain for w in own):
+            if any(w in scope for w in opp) and not any(w in scope for w in own):
                 probs.append(f"판정 방향 불일치: {k} 는 '{name}' 판정인데 반대 표현 사용")
     for k in sorted(keys):
         label = (f.items.get(k) or {}).get("label", "")
         for need, words in MISNAMED:
             if all(w in label for w in need):
-                used = [w for w in words if w in plain and not re.search(re.escape(w) + r"\S{0,3}\s*(아님|아니|이 아)", plain)]
+                used = [w for w in words if w in plain and not re.search(re.escape(w) + r"\S{0,3}\s*(아님|아니|[이가] 아)", plain)]
                 if used:
                     probs.append(f"개념 오용: {k}({label})를 '{used[0]}'로 표현")
     for m in KEY_RE.finditer(text):
@@ -168,7 +198,15 @@ def ref_sign_problems(plain: str, f: Facts, refs: list[str]) -> list[str]:
     for k, it, d, subj in cands:
         if subjects.count(subj) > 1 or plain.count(subj) != 1:  # 같은 주어가 여럿(5일·20일 등)이면 어느 값인지 모름
             continue
-        after = _after(plain, plain.index(subj) + len(subj))
+        pos = plain.index(subj) + len(subj)
+        tail = it["label"][len(subj):].strip()                  # 항목 이름의 나머지('20일 순매수 수량')
+        rest = plain[pos:].lstrip()
+        win_t, win_r = re.match(r"\d+일", tail), re.match(r"\d+일", rest)
+        if win_t and win_r and win_t.group() != win_r.group():  # 다른 기간(60일 vs 20일)의 값 이야기
+            continue
+        if tail and rest.startswith(tail):                     # 항목 이름 자체('순매수 수량')는 서술이 아님
+            pos = plain.index(subj) + len(subj) + (len(plain[plain.index(subj) + len(subj):]) - len(rest)) + len(tail)
+        after = _after(plain, pos)
         up = any(w in after for w in POS_WORDS) or (it["unit"] == "배" and any(w in after for w in HIGH_WORDS))
         down = any(w in after for w in NEG_WORDS) or (it["unit"] == "배" and any(w in after for w in LOW_WORDS))
         if d > 0 and down and not up or d < 0 and up and not down:
