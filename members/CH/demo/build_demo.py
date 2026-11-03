@@ -114,6 +114,73 @@ def collect_runs(as_of: str, workers: int = 4, cache: Path = CACHE, runner=run_o
             cache.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
     return data
 
+OPINION_SOURCES = ("naver_blog", "naver_cafe")
+HIDDEN = "블로그·카페 글 (내용 비공개)"
+
+
+def doc_sources(ids: list[int]) -> dict[int, str]:
+    """충돌 구역 인용이 가리키는 문서(doc_id)의 출처를 메인·kic-opinion 에서 읽기 전용으로 찾음. 못 찾으면 키가 없음."""
+    import psycopg
+    from dotenv import load_dotenv
+
+    load_dotenv()
+    out: dict[int, str] = {}
+    for env in ("DATABASE_URL", "OPINION_DATABASE_URL"):
+        url = os.getenv(env, "")
+        if not url or not ids:
+            continue
+        with psycopg.connect(url, autocommit=True) as conn:
+            conn.execute("SET default_transaction_read_only = on")
+            out.update({int(i): s for i, s in conn.execute("SELECT doc_id, source FROM rag.document WHERE doc_id = ANY(%s)", [list(ids)]).fetchall()})
+    return out
+
+
+def conflict_doc_ids(runs: dict) -> list[int]:
+    ids = set()
+    for r in runs["runs"].values():
+        for cf in r["contract"].get("conflicts") or []:
+            for v in cf.get("views") or []:
+                ids.update(int(x.split(":")[1]) for x in v.get("evidenceLinks") or [] if str(x).startswith("doc:") and x.split(":")[1].isdigit())
+    return sorted(ids)
+
+
+def _stem(label: str) -> str:
+    return (label or "").rstrip(".… ").strip()
+
+
+def mask_opinion(runs: dict, source_of: dict[int, str]) -> tuple[dict, list[str]]:
+    """블로그·카페 글 내용·링크를 가림(사용자 결정 11/3). 출처·발행일·근거 ID 는 남겨 근거 연결은 보이게 함.
+    충돌 구역 문장은 인용 문서가 블로그·카페이거나 출처를 못 찾으면 가림(뉴스·유튜브는 그대로). 가린 글 조각 목록(누출 검사용)을 함께 돌려줌."""
+    out = json.loads(json.dumps(runs))
+    snippets: list[str] = []
+    for r in out["runs"].values():
+        c = r["contract"]
+        for e in c.get("evidence") or []:
+            if e.get("source") in OPINION_SOURCES:
+                if _stem(e.get("label")) and _stem(e["label"]) != HIDDEN:
+                    snippets.append(_stem(e["label"]))
+                e["label"], e["url"], e["note"] = HIDDEN, None, None
+        for cf in c.get("conflicts") or []:
+            for v in cf.get("views") or []:
+                links = [int(x.split(":")[1]) for x in v.get("evidenceLinks") or [] if str(x).startswith("doc:") and x.split(":")[1].isdigit()]
+                if any(source_of.get(i) in OPINION_SOURCES or i not in source_of for i in links):
+                    head, sep, body = v["text"].partition(": ")
+                    if sep and body.strip() and body.strip() != HIDDEN:
+                        snippets.append(body.strip().rstrip(".… "))
+                    v["text"] = f"{head}{sep}{HIDDEN}" if sep else HIDDEN
+    text = json.dumps(out, ensure_ascii=False)
+    uniq = sorted({sn for sn in snippets if len(sn) >= 12}, key=len, reverse=True)
+    for sn in uniq:                       # 다른 문장 안에 같은 조각이 남아 있으면 그것도 가림
+        text = text.replace(sn, HIDDEN)
+    return json.loads(text), uniq
+
+
+def opinion_leaks(html: str, snippets: list[str]) -> list[str]:
+    """저장 전 검사: 블로그·카페 주소와 가린 글 조각이 HTML 에 남아 있으면 그 목록."""
+    hits = [h for h in ("blog.naver.com", "cafe.naver.com") if h in html]
+    hits += [f"글 조각: {sn[:20]}…" for sn in snippets if sn in html]
+    return hits
+
 
 STATUS_SQL = {
     "docs": "SELECT source, count(*) AS n, min(published_at)::date AS first, max(published_at)::date AS last FROM rag.document GROUP BY source ORDER BY n DESC",
@@ -215,13 +282,14 @@ def main(argv: list[str]) -> int:
         if runs.get("as_of") != as_of or len(runs["runs"]) < len(TICKERS) * len(AGENTS) * 2:
             print("캐시가 기준일과 다르거나 덜 찼습니다. run 먼저 실행하세요.")
             return 1
+        runs, snippets = mask_opinion(runs, doc_sources(conflict_doc_ids(runs)))
         html = build_html(build_payload(runs, collect_status()))
-        bad = forbidden_hits(html, env_secrets())
+        bad = forbidden_hits(html, env_secrets()) + opinion_leaks(html, snippets)
         if bad:
             print("금지 패턴 발견, 저장하지 않음:", bad)
             return 1
         OUT.write_text(html, encoding="utf-8")
-        print(f"저장: {OUT} ({len(html) // 1024} KB)")
+        print(f"저장: {OUT} ({len(html) // 1024} KB), 가린 블로그·카페 글 조각 {len(snippets)}개")
     return 0
 
 

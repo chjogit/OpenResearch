@@ -83,3 +83,41 @@ def test_template_has_four_sections_and_level_switch():
     t = (Path(bd.HERE) / "template.html").read_text(encoding="utf-8")
     for token in ("1 개요", "2 에이전트 시연", "3 데이터 현황", "4 검증 기록", "L1 입문", "L2 일반", "L3 전문", "확장 노드", "overflow-x:auto"):
         assert token in t
+
+
+def _opinion_runs():
+    r = _run("005930", 6, True)
+    r["contract"] = {"claims": [], "nodes": [], "evidence": [
+        {"evidenceId": "E1", "kind": "document", "label": "카페 글 본문 조각이 여기 들어 있습니다...", "source": "naver_cafe", "url": "https://cafe.naver.com/x/1", "note": "메모"},
+        {"evidenceId": "E2", "kind": "document", "label": "뉴스 기사 제목은 그대로 둡니다", "source": "naver_news", "url": "https://n.news.naver.com/1", "note": None}],
+        "conflicts": [{"nodeId": "N11", "topic": "사건 E1 논조", "views": [
+            {"text": "긍정 분류: 블로그 글 조각을 인용한 문장입니다 정말로", "tag": "Interpretation", "evidenceLinks": ["doc:11"]},
+            {"text": "부정 분류: 뉴스 제목 인용은 그대로 둡니다 뉴스", "tag": "Interpretation", "evidenceLinks": ["doc:22"]},
+            {"text": "부정 분류: 출처를 못 찾은 문서의 조각 문장입니다 글", "tag": "Interpretation", "evidenceLinks": ["doc:33"]}]}]}
+    return {"as_of": "2026-10-30", "runs": {"005930|6|1": r}}
+
+
+def test_mask_opinion_hides_blog_cafe_but_keeps_news_and_ids():
+    runs = _opinion_runs()
+    out, snippets = bd.mask_opinion(runs, {11: "naver_blog", 22: "naver_news"})
+    c = out["runs"]["005930|6|1"]["contract"]
+    e1, e2 = c["evidence"]
+    assert e1["label"] == bd.HIDDEN and e1["url"] is None and e1["note"] is None and e1["source"] == "naver_cafe" and e1["evidenceId"] == "E1"
+    assert e2["label"].startswith("뉴스 기사") and e2["url"]                          # 뉴스는 그대로
+    v = c["conflicts"][0]["views"]
+    assert v[0]["text"] == "긍정 분류: " + bd.HIDDEN and v[0]["evidenceLinks"] == ["doc:11"]
+    assert v[1]["text"].endswith("그대로 둡니다 뉴스")                                  # 뉴스 인용 유지
+    assert v[2]["text"] == "부정 분류: " + bd.HIDDEN                                   # 출처 못 찾으면 보수적으로 가림
+    assert "cafe.naver.com" in json.dumps(runs) and "cafe.naver.com" not in json.dumps(out, ensure_ascii=False)
+    html = json.dumps(out, ensure_ascii=False)
+    assert bd.opinion_leaks(html, snippets) == []
+
+
+def test_opinion_leaks_detects_remaining_snippet_or_domain():
+    assert bd.opinion_leaks("ok https://blog.naver.com/a", [])
+    assert bd.opinion_leaks("본문 카페 글 본문 조각이 여기", ["카페 글 본문 조각이 여기"])
+    assert bd.opinion_leaks("깨끗", ["카페 글 본문 조각이 여기"]) == []
+
+
+def test_conflict_doc_ids_collects_doc_links():
+    assert bd.conflict_doc_ids(_opinion_runs()) == [11, 22, 33]
