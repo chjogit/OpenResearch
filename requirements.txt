@@ -6,3 +6,4 @@ psycopg[binary]>=3.2         # Neon Postgres (binary: Windows 에서 libpq 별�
 python-dotenv>=1.0
 pydantic>=2.7
 pandas>=2.0
+openpyxl>=3.1             # 감성 평가셋 라벨 시트(xlsx, members/CH/scripts/sentiment_eval.py)
