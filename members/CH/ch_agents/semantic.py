@@ -54,7 +54,8 @@ FLAG_MARKERS = {
 
 # 항목의 뜻과 다른 개념으로 부르는 표현 (항목 이름에 든 단어들 → 쓰면 안 되는 표현)
 # '… 인과를 뜻하지 않는다' 같은 부정 서술은 개념을 잘못 부른 것이 아니라 바로잡는 말이므로 허용 (#32)
-CONCEPT_NEG = (r"아님|아니|아닙|[이가] 아|[을를]\s*(뜻|의미|시사|주장|말)\w{0,2}\s*(하지\s*)?(않|못)|"
+CONCEPT_NEG = (r"아님|아니|아닙|[이가] 아|[으]?로\s*(해석|판단|단정|보|간주)\w{0,2}\s*(하지\s*)?(않|못)|"
+               r"[으]?로\s*(해석|판단|단정|볼)\s*(할\s*)?수\s*없|[을를]\s*(뜻|의미|시사|주장|말)\w{0,2}\s*(하지\s*)?(않|못)|"
                r"[을를]\s*(뜻|의미)\w*\s*(할\s*)?수\s*없")
 MISNAMED = [
     (("외국인", "평균 가격"), ("매입 단가", "매수 단가", "평균 단가", "평단")),   # 순매수일 종가 가중 평균일 뿐
@@ -93,6 +94,9 @@ def flag_directions(f: Facts) -> dict[str, set[str]]:
 CLAUSE_CUT = re.compile(r"[,;]|(?<=[가-힣])(?:으며|이며|며|지만|으나|고)(?=\s)")
 COORD_START = re.compile(r"(?:과|와|·|및|이고|이며|으며|며|이나|지만|으나)")
 SIGN_WORDS = set(POS_WORDS) | set(NEG_WORDS)
+# 이유·조건 연결어('…음수여서 환율 상승 시 …', '…하면'): 그 뒤 서술은 다른 대상 이야기라 키의 서술로 읽지 않음 (#33)
+COND_CUT = (r"(?<=[가-힣])(?:이어서|여서|이라서|라서|으면|이면|하면|되면|라면|다면|이므로|므로|해서|니까|때문에|할 때|일 때|인 경우)"
+            r"|(?<=[가-힣])시(?=\s)")
 
 
 def _after(text: str, end: int) -> str:
@@ -108,7 +112,7 @@ def _after(text: str, end: int) -> str:
         if toks and toks[-1] in SIGN_WORDS:   # 키 바로 앞의 방향어는 그 키를 꾸미는 이름표
             seg = seg[:seg.rindex(toks[-1])]
         rest = seg
-    cut = re.search(r"[{,.;]|이나|지만|으며|이며", rest)
+    cut = re.search(r"[{,.;]|이나|지만|으며|이며|" + COND_CUT, rest)
     return rest[:cut.start()] if cut else rest
 
 
