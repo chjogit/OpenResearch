@@ -53,6 +53,9 @@ FLAG_MARKERS = {
 }
 
 # 항목의 뜻과 다른 개념으로 부르는 표현 (항목 이름에 든 단어들 → 쓰면 안 되는 표현)
+# '… 인과를 뜻하지 않는다' 같은 부정 서술은 개념을 잘못 부른 것이 아니라 바로잡는 말이므로 허용 (#32)
+CONCEPT_NEG = (r"아님|아니|아닙|[이가] 아|[을를]\s*(뜻|의미|시사|주장|말)\w{0,2}\s*(하지\s*)?(않|못)|"
+               r"[을를]\s*(뜻|의미)\w*\s*(할\s*)?수\s*없")
 MISNAMED = [
     (("외국인", "평균 가격"), ("매입 단가", "매수 단가", "평균 단가", "평단")),   # 순매수일 종가 가중 평균일 뿐
     (("상관",), ("인과", "때문에", "덕분에")),                                    # 통계적 동조성
@@ -139,7 +142,7 @@ def direction_problems(text: str, f: Facts, refs: list[str] | None = None,
         label = (f.items.get(k) or {}).get("label", "")
         for need, words in MISNAMED:
             if all(w in label for w in need):
-                used = [w for w in words if w in plain and not re.search(re.escape(w) + r"\S{0,3}\s*(아님|아니|[이가] 아)", plain)]
+                used = [w for w in words if w in plain and not re.search(re.escape(w) + r"\S{0,3}\s*(" + CONCEPT_NEG + ")", plain)]
                 if used:
                     probs.append(f"개념 오용: {k}({label})를 '{used[0]}'로 표현")
     for m in KEY_RE.finditer(text):
