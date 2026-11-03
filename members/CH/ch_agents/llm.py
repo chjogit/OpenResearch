@@ -82,13 +82,31 @@ KEY = re.compile(r"^[A-Z]\d+$")
 # 숫자와 단위가 붙어 있을 때만 '숫자'로 봄 ('2025 주주환원' 같은 띄어쓴 표현은 제외)
 LOOSE_NUMBER = re.compile(r"[-+]?\d[\d,]*(?:\.\d+)?(?:%p|%|원|배|조|억|달러|bp|주|백분위)")
 BANNED = ("매수 추천", "매도 추천", "목표주가", "목표 주가", "목표가", "비중 확대", "비중 축소")
+# '목표가'는 증권사 목표주가의 줄임말일 때만 금지. '판매·수익성 목표가 하향'처럼 회사 사업 목표 + 조사 '가'는 허용 (#32).
+# 목표주가·목표 주가·TP 는 어느 문맥이든 금지.
+TARGET_OK_CTX = re.compile(r"(판매|수익|매출|실적|이익|성장|생산|출하|사업|연간|분기|감축|달성|비용|투자|인력|배출|점유율|가이던스)\S{0,4}\s*$")
+TP_RE = re.compile(r"(?<![A-Za-z])TP(?![A-Za-z])")
+
+
+def banned_terms(text: str) -> list[str]:
+    out = [w for w in BANNED if w in text and w != "목표가"]
+    for m in re.finditer("목표가", text):
+        if TARGET_OK_CTX.search(text[max(0, m.start() - 14):m.start()]):
+            continue
+        out.append("목표가")
+        break
+    out += [m.group(0) for m in BANNED_RE.finditer(text)] + TP_RE.findall(text)
+    return out
+
+
 # 투자 권유 문형만 금지 ('순매도하고' 같은 서술은 허용)
 BANNED_RE = re.compile(r"(?<!순)(매수|매도)\s*(하세요|하십시오|하시길|를\s*권|를\s*추천|할\s*것을\s*권|가\s*바람직)")
 COMMON_TERMS = {"52주"}  # 숫자가 들어 있지만 값이 아닌 용어
 VALID_KINDS = {"사실", "해석", "예측"}
 # 수급만으로 의도·정보 보유를 추정하는 표현 (R4 에이전트 3 제약). 바로 뒤에 부정('추정할 수 없다')이 오면 허용
 INTENT_RE = re.compile(r"(매수|매도|매집)\s*의도|세력|작전|내부\s*정보|미리\s*알고|정보를\s*(알고|쥐고|가지고)|매집")
-INTENT_NEG = re.compile(r"^[^.]{0,45}(추정(할|하지|해서는|은)|단정(할|하지)|알\s*수\s*없|확인(할|되지)|아님|아니|"
+INTENT_NEG = re.compile(r"^[^.]{0,45}((뜻|의미|시사|암시|추정|단정|해석|판단|주장|입증|증명)[^.]{0,6}(하지\s*)?(않|못)|"
+                        r"(할|볼|있을)\s*수\s*없|아닙|[이가]\s*아|추정(할|하지|해서는|은)|단정(할|하지)|알\s*수\s*없|확인(할|되지)|아님|아니|"
                         r"판단(은|을)?[^.]{0,15}(내리지|하지)\s*않)")
 # 중복 신호를 독립 근거처럼 세는 표현 (R4 에이전트 3 제약)
 INDEP_RE = re.compile(r"(두|세|2|3|여러|복수)\s*(가지|개)?\s*(의\s*)?(신호|근거|지표)[^.]{0,15}(뒷받침|확인|입증|강화)"
@@ -248,12 +266,19 @@ def node_lines(report: dict) -> list[str]:
     return out
 
 
+# 노드 번호(N05~N12)는 실행 단위 이름일 뿐 근거 키가 아님 (#30: 근거 키 자리에 N07·N11 을 달아 문장이 지워졌음)
+NODE_KEY_RULE = ("※ '근거' 칸에는 위 [숫자 장부]의 키(S1·T3 …), 참고 문서 D키, chunk_id 만 씁니다. 노드 번호(N05·N07·N11 등)는 "
+                 "근거 키가 아니므로 쓰지 마십시오. 근거 키를 달 수 없는 문장은 '미확인'에 쓰십시오.")
+NODE_KEY = re.compile(r"^N\d{2}$")
+
+
 def _node_section(data: AgentData) -> list[str]:
     rep = data.extra.get("node_report")
     if not rep:
         return []
     return ["", "[노드 실행 현황] (건너뛴 노드와 예측 생략 사유는 숫자 없이 미확인에 그대로 전달. 건너뛴 노드의 내용을 추측해 쓰지 말 것)",
-            *[f"- {x}" for x in node_lines(rep)]]
+            *[f"- {x}" for x in node_lines(rep)],
+            NODE_KEY_RULE]
 
 
 def _extra_sections(data: AgentData) -> str:
@@ -376,7 +401,7 @@ def sentence_problems(text: str, valid: set[str], allowed: set[str] | None = Non
     loose = [x for x in LOOSE_NUMBER.findall(PLACEHOLDER.sub("", text)) if x not in (allowed or COMMON_TERMS)]
     if loose:
         probs.append(f"키 밖 숫자 {loose}")
-    banned = [w for w in BANNED if w in text] + [m.group(0) for m in BANNED_RE.finditer(text)]
+    banned = banned_terms(text)
     if banned:
         probs.append(f"금지 표현 {banned}")
     intent = [m.group(0) for m in INTENT_RE.finditer(text) if not INTENT_NEG.search(text[m.end():m.end() + 60])]
@@ -537,7 +562,8 @@ def check_output(result: dict, data: AgentData) -> dict[str, list[str]]:
         refs = [str(k) for k in (c.get("근거") or [])]
         bad = [k for k in refs if not KEY.match(k) or k not in valid]
         if bad:
-            checks["근거"].append(f"근거 키 오류 {bad}: {str(c.get('문장'))[:40]}")
+            hint = " (노드 번호는 근거 키가 아님: 장부 키·D키·chunk_id 만 사용)" if any(NODE_KEY.match(k) for k in bad) else ""
+            checks["근거"].append(f"근거 키 오류 {bad}{hint}: {str(c.get('문장'))[:40]}")
         if c.get("구분") in ("사실", "해석") and not [k for k in refs if k in valid]:
             checks["근거"].append(f"근거 없는 {c.get('구분')}: {str(c.get('문장'))[:40]}")
         elif c.get("구분") == "사실" and refs and set(refs) <= opinion:
