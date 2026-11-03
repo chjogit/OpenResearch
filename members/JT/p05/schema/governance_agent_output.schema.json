@@ -1,0 +1,198 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "경영진·대주주 관점 에이전트 출력 (팀 데이터 계약 맞춤 초안)",
+  "description": "초안 0.1 (2026-10-28). AgentMemo를 팀 데이터 계약(reportId·claimId·evidenceId, 사실·해석·예측, 반대 근거, 미확인 상태, 기준일·공개시각, 출처 태그)에 맞춘 형식. '팀 확인' 표시 항목은 합의 전 가정이다. 초안 0.2 (2026-11-03): 핵심 산출물 표 3개(promiseExecution·capitalAllocation·issues)를 선택 필드로 추가. 0.1 출력도 그대로 통과한다.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "reportId", "agentId", "perspective", "subject", "asOf", "generatedAt",
+               "completeness", "claims", "evidence", "unresolved", "assumptions", "handoff", "disclaimer"],
+  "properties": {
+    "schemaVersion": {"enum": ["0.1-draft", "0.2-draft"]},
+    "reportId": {"type": "string", "minLength": 1, "description": "보고서 ID. 발급 주체는 Orchestrator로 가정(팀 확인)."},
+    "agentId": {"type": "string", "description": "모듈명. 팀 규칙(agent1_macro 형식)에 맞춘 이름, 번호는 팀 확인."},
+    "perspective": {"const": "경영진·대주주"},
+    "subject": {
+      "type": "object", "additionalProperties": false,
+      "required": ["companyName", "stockCode", "corpCode"],
+      "properties": {
+        "companyName": {"type": "string"},
+        "stockCode": {"type": "string", "pattern": "^[0-9A-Z]{6}$"},
+        "corpCode": {"type": "string", "pattern": "^[0-9]{8}$", "description": "DART 고유번호"}
+      }
+    },
+    "asOf": {"type": "string", "format": "date", "description": "자료 기준일. 이 날 이후 공개된 근거는 쓰지 않는다."},
+    "generatedAt": {"type": "string", "format": "date-time", "description": "출력 생성 시각(ISO 8601, KST +09:00)."},
+    "dataMode": {"type": "string", "description": "예: DART_PARTIAL, NEWS_ONLY"},
+    "completeness": {"enum": ["complete", "partial"]},
+    "claims": {"type": "array", "items": {"$ref": "#/$defs/claim"}},
+    "evidence": {"type": "array", "items": {"$ref": "#/$defs/evidence"}},
+    "unresolved": {"type": "array", "items": {"$ref": "#/$defs/unresolved"}},
+    "assumptions": {"type": "array", "items": {"$ref": "#/$defs/assumption"}},
+    "handoff": {"type": "array", "items": {"$ref": "#/$defs/handoff"}},
+    "qualityFlags": {"type": "array", "items": {"type": "string"}},
+    "disclaimer": {"type": "string", "minLength": 1},
+    "promiseExecution": {"type": "array", "items": {"$ref": "#/$defs/promiseRow"},
+                         "description": "약속–실행 대조표(0.2). scripts/promise_execution.py"},
+    "capitalAllocation": {"type": "array", "items": {"$ref": "#/$defs/capitalRow"},
+                          "description": "자본배분 연표(0.2). scripts/capital_allocation_timeline.py"},
+    "issues": {"type": "array", "items": {"$ref": "#/$defs/issueRow"},
+               "description": "쟁점과 해명(0.2). scripts/issue_response.py. 보도 묶음은 기사 제목을 담지 않는다"}
+  },
+  "$defs": {
+    "promiseRow": {
+      "type": "object", "additionalProperties": false,
+      "required": ["promiseType", "promise", "verdict", "evidenceIds"],
+      "properties": {
+        "promiseType": {"type": "string"}, "promiseDate": {"type": ["string", "null"]},
+        "promise": {"type": "string"}, "execution": {"type": ["string", "null"]},
+        "followup": {"type": ["string", "null"]}, "rate": {"type": ["number", "null"]},
+        "verdict": {"enum": ["이행", "부분 이행", "미달", "진행 중", "결과 미확인", "판정 보류", "검증 전", "자료 없음"]},
+        "claimId": {"type": "string"}, "evidenceIds": {"type": "array", "items": {"type": "string"}},
+        "note": {"type": "string"}
+      }
+    },
+    "capitalRow": {
+      "type": "object", "additionalProperties": false,
+      "required": ["date", "event", "category", "evidenceIds"],
+      "properties": {
+        "date": {"type": "string"}, "event": {"type": "string"}, "category": {"type": "string"},
+        "amount": {"type": ["number", "null"]}, "shares": {"type": ["number", "null"]},
+        "detail": {"type": "string"}, "correctionRceptNos": {"type": ["string", "null"]},
+        "evidenceIds": {"type": "array", "minItems": 1, "items": {"type": "string"}}
+      }
+    },
+    "issueRow": {
+      "type": "object", "additionalProperties": false,
+      "required": ["source", "topic", "status", "evidenceIds"],
+      "properties": {
+        "source": {"enum": ["공시", "보도"]}, "date": {"type": ["string", "null"]},
+        "period": {"type": ["string", "null"]}, "kind": {"type": ["string", "null"]},
+        "topic": {"type": "string"}, "issue": {"type": ["string", "null"]}, "answer": {"type": ["string", "null"]},
+        "status": {"type": "string", "description": "공시는 답의 성격, 보도는 해명 보도 여부"},
+        "targets": {"type": ["string", "null"]}, "nArticles": {"type": ["integer", "null"]},
+        "nConflictArticles": {"type": ["integer", "null"]}, "nResponseArticles": {"type": ["integer", "null"]},
+        "docIds": {"type": "array", "items": {"type": "integer"}, "description": "rag.document doc_id(제목·본문은 담지 않음)"},
+        "followupEvidenceIds": {"type": "array", "items": {"type": "string"}},
+        "claimId": {"type": "string"}, "evidenceIds": {"type": "array", "minItems": 1, "items": {"type": "string"}}
+      }
+    },
+    "claim": {
+      "type": "object", "additionalProperties": false,
+      "required": ["claimId", "claimType", "kind", "area", "statement", "evidenceIds", "reportStatus"],
+      "properties": {
+        "claimId": {"type": "string", "pattern": "^[FGPS][0-9]{2}$",
+                    "description": "보고서 안에서 고유. F=사실, G=규칙 판정(해석), P=예측, S=대상 감성(해석). 전역 키는 reportId+claimId."},
+        "claimType": {"enum": ["fact", "interpretation", "forecast"], "description": "사실·해석·예측 구분"},
+        "kind": {"enum": ["disclosed_fact", "governance_rule", "scheduled_event", "person_event_sentiment"]},
+        "area": {"enum": ["A", "B", "C", "D", "E"], "description": "A 소유·지배구조, B 경영진 역량, C 이해상충·주주환원, D 이사회 감시, E 법적·평판"},
+        "statement": {"type": "string", "description": "숫자는 evidence 값에서만 가져온다(숫자 생성 금지)."},
+        "evidenceIds": {"type": "array", "minItems": 1, "items": {"type": "string"}},
+        "basedOnClaimIds": {"type": "array", "items": {"type": "string"}, "description": "해석·예측이 기대는 사실 주장"},
+        "signal": {"enum": ["긍정", "중립", "주의", "자료 없음"], "description": "해석(규칙 판정)에만 쓴다. 합계 점수는 만들지 않는다."},
+        "rule": {
+          "type": "object", "additionalProperties": false, "required": ["ruleId", "criterion", "thresholdStatus"],
+          "properties": {
+            "ruleId": {"type": "string"},
+            "criterion": {"type": "string"},
+            "thresholdStatus": {"enum": ["draft", "team_agreed"]}
+          }
+        },
+        "sentiment": {"$ref": "#/$defs/sentiment"},
+        "counterEvidence": {
+          "type": "array", "description": "반대 근거·하방 위험. 조건이 바뀌면 판정이 어떻게 바뀌는지 적는다.",
+          "items": {
+            "type": "object", "additionalProperties": false, "required": ["statement"],
+            "properties": {
+              "statement": {"type": "string"},
+              "evidenceIds": {"type": "array", "items": {"type": "string"}},
+              "effect": {"type": "string"}
+            }
+          }
+        },
+        "reportStatus": {"enum": ["confirmed_fact", "conditional_interpretation", "hold"],
+                         "description": "사용자 보고서 분류: 확인 사실·조건부 해석·보류"},
+        "holdReason": {"type": "string"},
+        "note": {"type": "string"}
+      },
+      "allOf": [
+        {"if": {"properties": {"claimType": {"const": "fact"}}},
+         "then": {"not": {"anyOf": [{"required": ["signal"]}, {"required": ["sentiment"]}]}}},
+        {"if": {"properties": {"kind": {"const": "governance_rule"}}},
+         "then": {"required": ["signal", "rule"], "properties": {"claimType": {"const": "interpretation"}}}},
+        {"if": {"properties": {"kind": {"const": "person_event_sentiment"}}},
+         "then": {"required": ["sentiment"], "properties": {"claimType": {"const": "interpretation"}}}},
+        {"if": {"properties": {"reportStatus": {"const": "hold"}}}, "then": {"required": ["holdReason"]}}
+      ]
+    },
+    "sentiment": {
+      "type": "object", "additionalProperties": false,
+      "required": ["target", "label", "method", "validationStatus"],
+      "description": "대주주·CEO 대상 사건의 주주 영향. 인물 평판이 아니다. 규칙 판정(signal)을 바꾸지 않는다.",
+      "properties": {
+        "target": {
+          "type": "object", "additionalProperties": false, "required": ["personId", "name", "role"],
+          "properties": {
+            "personId": {"type": "string"},
+            "name": {"type": "string"},
+            "role": {"type": "string"},
+            "rosterEvidenceId": {"type": "string", "description": "대상 지위를 확인한 DART 근거"}
+          }
+        },
+        "label": {"enum": ["positive", "neutral", "negative", "HOLD"]},
+        "probabilities": {
+          "type": "object", "additionalProperties": false,
+          "properties": {"negative": {"type": "number"}, "neutral": {"type": "number"}, "positive": {"type": "number"}}
+        },
+        "method": {"type": "string"},
+        "validationStatus": {"enum": ["UNVALIDATED", "VALIDATED_ON_LOCKED_SET"],
+                             "description": "잠금 점검 세트 평가 전에는 UNVALIDATED"}
+      }
+    },
+    "evidence": {
+      "type": "object", "additionalProperties": false,
+      "required": ["evidenceId", "sourceType", "verificationStatus", "sourceTag", "item", "dataDate", "publishedAt"],
+      "properties": {
+        "evidenceId": {"type": "string", "pattern": "^(E[0-9]{2}|N[0-9]{3}|R[0-9]{3})$",
+                       "description": "E=규칙 근거, N=기사, R=DART 명부(대상자 확인)"},
+        "sourceType": {"enum": ["DART_DISCLOSURE", "NEWS", "COMPANY_RELEASE", "DERIVED"]},
+        "verificationStatus": {"enum": ["공시", "보도", "보도 상충", "미확인"]},
+        "sourceTag": {"type": "string", "pattern": "^\\[(공시 [0-9]{14}|보도|보도 상충|미확인)\\]$",
+                      "description": "Verifier가 문장 끝에 붙이는 출처 태그"},
+        "item": {"type": "string"},
+        "value": {"type": ["number", "string", "null"]},
+        "unit": {"type": "string"},
+        "altValue": {
+          "type": "object", "additionalProperties": false, "required": ["value", "url"],
+          "properties": {"value": {"type": ["number", "string"]}, "url": {"type": "string"}}
+        },
+        "quote": {"type": "string", "description": "원문 근거(기사 제목 등 짧은 인용)"},
+        "dataDate": {"type": ["string", "null"], "description": "값이 가리키는 시점(YYYY-MM-DD 또는 YYYY-MM)"},
+        "publishedAt": {"type": ["string", "null"], "description": "공개시각. 공시는 접수일, 기사는 게시일. 모르면 null"},
+        "publishedAtSource": {"enum": ["RCEPT_NO", "URL", "PAGE", "UNKNOWN"]},
+        "rceptNo": {"type": "string", "pattern": "^[0-9]{14}$"},
+        "url": {"type": "string"}
+      },
+      "allOf": [
+        {"if": {"properties": {"sourceType": {"const": "DART_DISCLOSURE"}}}, "then": {"required": ["rceptNo"]}},
+        {"if": {"properties": {"verificationStatus": {"const": "보도 상충"}}}, "then": {"required": ["altValue"]}}
+      ]
+    },
+    "unresolved": {
+      "type": "object", "additionalProperties": false, "required": ["item", "reason", "affectsClaimIds"],
+      "properties": {
+        "evidenceId": {"type": "string"},
+        "item": {"type": "string"},
+        "reason": {"enum": ["NO_DATA", "CONFLICT", "DATE_UNKNOWN", "LINK_UNVERIFIED", "UNVALIDATED_MODEL"]},
+        "affectsClaimIds": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "assumption": {
+      "type": "object", "additionalProperties": false, "required": ["statement", "affectsClaimIds"],
+      "properties": {"statement": {"type": "string"}, "affectsClaimIds": {"type": "array", "items": {"type": "string"}}}
+    },
+    "handoff": {
+      "type": "object", "additionalProperties": false, "required": ["toAgentId", "item"],
+      "properties": {"toAgentId": {"type": "string"}, "item": {"type": "string"}, "claimIds": {"type": "array", "items": {"type": "string"}}}
+    }
+  }
+}

@@ -1,0 +1,2374 @@
+{
+  "schemaVersion": "0.2-draft",
+  "reportId": "RPT-P05-20261027-005930",
+  "agentId": "agent5_governance",
+  "perspective": "경영진·대주주",
+  "subject": {
+    "companyName": "삼성전자",
+    "stockCode": "005930",
+    "corpCode": "00126380"
+  },
+  "asOf": "2026-10-27",
+  "generatedAt": "2026-11-03T14:58:11+09:00",
+  "dataMode": "DART 공시 목록·원문 + 기사 제목 규칙(제목 미복사) + 노트북 규칙 판정(DART 일부 반영 (공시 6/20건))",
+  "completeness": "partial",
+  "claims": [
+    {
+      "claimId": "F01",
+      "claimType": "fact",
+      "kind": "disclosed_fact",
+      "area": "D",
+      "statement": "이사회 의장은 사외(독립)이사다.",
+      "evidenceIds": [
+        "E14"
+      ],
+      "reportStatus": "confirmed_fact"
+    },
+    {
+      "claimId": "F02",
+      "claimType": "fact",
+      "kind": "disclosed_fact",
+      "area": "D",
+      "statement": "실질 지배자인 이재용 회장은 등기임원 명단에 없다.",
+      "evidenceIds": [
+        "E15"
+      ],
+      "reportStatus": "confirmed_fact"
+    },
+    {
+      "claimId": "G01",
+      "claimType": "interpretation",
+      "kind": "governance_rule",
+      "area": "A",
+      "statement": "'오너 지분 시장 매도' 점검의 규칙 판정은 '긍정'이다.",
+      "evidenceIds": [
+        "E04"
+      ],
+      "signal": "긍정",
+      "rule": {
+        "ruleId": "G01",
+        "criterion": "가족 간 이전이면 긍정, 시장 매도면 주의",
+        "thresholdStatus": "draft"
+      },
+      "reportStatus": "conditional_interpretation"
+    },
+    {
+      "claimId": "G02",
+      "claimType": "interpretation",
+      "kind": "governance_rule",
+      "area": "A",
+      "statement": "'상속세 부담 해소' 점검의 규칙 판정은 '긍정'이다.",
+      "evidenceIds": [
+        "E05"
+      ],
+      "signal": "긍정",
+      "rule": {
+        "ruleId": "G02",
+        "criterion": "분납 종료면 긍정",
+        "thresholdStatus": "draft"
+      },
+      "reportStatus": "conditional_interpretation"
+    },
+    {
+      "claimId": "G03",
+      "claimType": "interpretation",
+      "kind": "governance_rule",
+      "area": "A",
+      "statement": "'보험업법 개정 위험' 점검의 규칙 판정은 '자료 없음'이다.",
+      "evidenceIds": [
+        "E06"
+      ],
+      "signal": "자료 없음",
+      "rule": {
+        "ruleId": "G03",
+        "criterion": "통과 시 지배 경로 약화",
+        "thresholdStatus": "draft"
+      },
+      "reportStatus": "conditional_interpretation"
+    },
+    {
+      "claimId": "G04",
+      "claimType": "interpretation",
+      "kind": "governance_rule",
+      "area": "B",
+      "statement": "'실적 기대 충족' 점검의 규칙 판정은 '긍정'이다.",
+      "evidenceIds": [
+        "E07",
+        "E08"
+      ],
+      "signal": "긍정",
+      "rule": {
+        "ruleId": "G04",
+        "criterion": "컨센서스 97% 이상이면 긍정",
+        "thresholdStatus": "draft"
+      },
+      "reportStatus": "conditional_interpretation"
+    },
+    {
+      "claimId": "G05",
+      "claimType": "interpretation",
+      "kind": "governance_rule",
+      "area": "B",
+      "statement": "'사업부 성과 편차' 점검의 규칙 판정은 '주의'이다.",
+      "evidenceIds": [
+        "E09"
+      ],
+      "signal": "주의",
+      "rule": {
+        "ruleId": "G05",
+        "criterion": "적자 부문이 있으면 주의",
+        "thresholdStatus": "draft"
+      },
+      "reportStatus": "conditional_interpretation"
+    },
+    {
+      "claimId": "G06",
+      "claimType": "interpretation",
+      "kind": "governance_rule",
+      "area": "B",
+      "statement": "'대표 체제 안정성' 점검의 규칙 판정은 '긍정'이다.",
+      "evidenceIds": [
+        "E10"
+      ],
+      "signal": "긍정",
+      "rule": {
+        "ruleId": "G06",
+        "criterion": "3년 내 2회 이상 교체면 주의",
+        "thresholdStatus": "draft"
+      },
+      "reportStatus": "conditional_interpretation"
+    },
+    {
+      "claimId": "G07",
+      "claimType": "interpretation",
+      "kind": "governance_rule",
+      "area": "C",
+      "statement": "'보상용 자사주의 소각 상쇄' 점검의 규칙 판정은 '주의'이다.",
+      "evidenceIds": [
+        "E12",
+        "E13"
+      ],
+      "signal": "주의",
+      "rule": {
+        "ruleId": "G07",
+        "criterion": "보상용 매입이 소각의 50% 이상이면 주의",
+        "thresholdStatus": "draft"
+      },
+      "reportStatus": "conditional_interpretation",
+      "note": "상충 값 모두 같은 신호(E12)",
+      "counterEvidence": [
+        {
+          "statement": "보상용 자사주 중 상당량이 소각으로 전환되면 판정이 바뀐다.",
+          "effect": "G07: 주의 → 중립"
+        }
+      ]
+    },
+    {
+      "claimId": "G08",
+      "claimType": "interpretation",
+      "kind": "governance_rule",
+      "area": "D",
+      "statement": "의장과 대표가 분리되어 이사회의 경영진 견제 장치가 갖춰져 있다.",
+      "evidenceIds": [
+        "E14"
+      ],
+      "signal": "긍정",
+      "rule": {
+        "ruleId": "G08",
+        "criterion": "의장이 사외이사면 긍정",
+        "thresholdStatus": "draft"
+      },
+      "reportStatus": "conditional_interpretation",
+      "basedOnClaimIds": [
+        "F01"
+      ]
+    },
+    {
+      "claimId": "G09",
+      "claimType": "interpretation",
+      "kind": "governance_rule",
+      "area": "D",
+      "statement": "최종 의사결정자가 이사회 밖에 있어 결정 권한과 법적 책임이 어긋난다.",
+      "evidenceIds": [
+        "E15"
+      ],
+      "signal": "주의",
+      "rule": {
+        "ruleId": "G09",
+        "criterion": "미등기면 책임 소재 주의",
+        "thresholdStatus": "draft"
+      },
+      "reportStatus": "conditional_interpretation",
+      "counterEvidence": [
+        {
+          "statement": "등기이사 복귀 안건이 주총에 오르면 판정이 바뀐다.",
+          "effect": "G09: 주의 → 중립"
+        }
+      ],
+      "basedOnClaimIds": [
+        "F02"
+      ]
+    },
+    {
+      "claimId": "G10",
+      "claimType": "interpretation",
+      "kind": "governance_rule",
+      "area": "D",
+      "statement": "'사외이사 과반' 점검의 규칙 판정은 '긍정'이다.",
+      "evidenceIds": [
+        "E16"
+      ],
+      "signal": "긍정",
+      "rule": {
+        "ruleId": "G10",
+        "criterion": "과반이면 긍정",
+        "thresholdStatus": "draft"
+      },
+      "reportStatus": "conditional_interpretation"
+    },
+    {
+      "claimId": "G11",
+      "claimType": "interpretation",
+      "kind": "governance_rule",
+      "area": "E",
+      "statement": "'경영진 재판 리스크' 점검의 규칙 판정은 '긍정'이다.",
+      "evidenceIds": [
+        "E17"
+      ],
+      "signal": "긍정",
+      "rule": {
+        "ruleId": "G11",
+        "criterion": "진행 중이면 주의",
+        "thresholdStatus": "draft"
+      },
+      "reportStatus": "conditional_interpretation"
+    },
+    {
+      "claimId": "G12",
+      "claimType": "interpretation",
+      "kind": "governance_rule",
+      "area": "E",
+      "statement": "'노사 분쟁' 점검의 규칙 판정은 '주의'이다.",
+      "evidenceIds": [
+        "E18"
+      ],
+      "signal": "주의",
+      "rule": {
+        "ruleId": "G12",
+        "criterion": "최근 1년 파업 선언이면 주의",
+        "thresholdStatus": "draft"
+      },
+      "reportStatus": "conditional_interpretation"
+    },
+    {
+      "claimId": "G13",
+      "claimType": "interpretation",
+      "kind": "governance_rule",
+      "area": "C",
+      "statement": "'자사주 소각 계획 이행률' 점검의 규칙 판정은 '긍정'이다.",
+      "evidenceIds": [
+        "E20",
+        "E19"
+      ],
+      "signal": "긍정",
+      "rule": {
+        "ruleId": "G13",
+        "criterion": "계획 대비 소각 95% 이상이면 긍정(초안)",
+        "thresholdStatus": "draft"
+      },
+      "reportStatus": "conditional_interpretation"
+    },
+    {
+      "claimId": "P01",
+      "claimType": "forecast",
+      "kind": "scheduled_event",
+      "area": "A",
+      "statement": "예정된 증여가 끝나면 이재용 회장 지분율은 1.75%가 된다는 보도가 있다.",
+      "evidenceIds": [
+        "E03"
+      ],
+      "reportStatus": "conditional_interpretation"
+    },
+    {
+      "claimId": "S01",
+      "claimType": "interpretation",
+      "kind": "person_event_sentiment",
+      "area": "A",
+      "statement": "기사 속 이재용 관련 사건의 주주 영향은 판정을 보류한다.",
+      "evidenceIds": [
+        "N003",
+        "R004"
+      ],
+      "sentiment": {
+        "target": {
+          "personId": "P004",
+          "name": "이재용",
+          "role": "주요주주(특수관계인)",
+          "rosterEvidenceId": "R004"
+        },
+        "label": "HOLD",
+        "probabilities": {
+          "negative": 0.0249,
+          "neutral": 0.646,
+          "positive": 0.3291
+        },
+        "method": "KR-FinBert-SC, 대상 표식 입력(marked), HOLD 임계값 미정",
+        "validationStatus": "UNVALIDATED"
+      },
+      "reportStatus": "hold",
+      "holdReason": "감성 모델 검증 전(잠금 점검 세트 평가 전)"
+    },
+    {
+      "claimId": "S02",
+      "claimType": "interpretation",
+      "kind": "person_event_sentiment",
+      "area": "A",
+      "statement": "기사 속 이재용 관련 사건의 주주 영향은 판정을 보류한다.",
+      "evidenceIds": [
+        "N004",
+        "R004"
+      ],
+      "sentiment": {
+        "target": {
+          "personId": "P004",
+          "name": "이재용",
+          "role": "주요주주(특수관계인)",
+          "rosterEvidenceId": "R004"
+        },
+        "label": "HOLD",
+        "probabilities": {
+          "negative": 0.0038,
+          "neutral": 0.9953,
+          "positive": 0.0009
+        },
+        "method": "KR-FinBert-SC, 대상 표식 입력(marked), HOLD 임계값 미정",
+        "validationStatus": "UNVALIDATED"
+      },
+      "reportStatus": "hold",
+      "holdReason": "감성 모델 검증 전(잠금 점검 세트 평가 전)"
+    },
+    {
+      "claimId": "S03",
+      "claimType": "interpretation",
+      "kind": "person_event_sentiment",
+      "area": "A",
+      "statement": "기사 속 이재용 관련 사건의 주주 영향은 판정을 보류한다.",
+      "evidenceIds": [
+        "N121",
+        "R004"
+      ],
+      "sentiment": {
+        "target": {
+          "personId": "P004",
+          "name": "이재용",
+          "role": "주요주주(특수관계인)",
+          "rosterEvidenceId": "R004"
+        },
+        "label": "HOLD",
+        "probabilities": {
+          "negative": 0.0087,
+          "neutral": 0.9843,
+          "positive": 0.007
+        },
+        "method": "KR-FinBert-SC, 대상 표식 입력(marked), HOLD 임계값 미정",
+        "validationStatus": "UNVALIDATED"
+      },
+      "reportStatus": "hold",
+      "holdReason": "감성 모델 검증 전(잠금 점검 세트 평가 전)"
+    },
+    {
+      "claimId": "S04",
+      "claimType": "interpretation",
+      "kind": "person_event_sentiment",
+      "area": "A",
+      "statement": "기사 속 이재용 관련 사건의 주주 영향은 판정을 보류한다.",
+      "evidenceIds": [
+        "N122",
+        "R004"
+      ],
+      "sentiment": {
+        "target": {
+          "personId": "P004",
+          "name": "이재용",
+          "role": "주요주주(특수관계인)",
+          "rosterEvidenceId": "R004"
+        },
+        "label": "HOLD",
+        "probabilities": {
+          "negative": 0.0065,
+          "neutral": 0.9882,
+          "positive": 0.0053
+        },
+        "method": "KR-FinBert-SC, 대상 표식 입력(marked), HOLD 임계값 미정",
+        "validationStatus": "UNVALIDATED"
+      },
+      "reportStatus": "hold",
+      "holdReason": "감성 모델 검증 전(잠금 점검 세트 평가 전)"
+    },
+    {
+      "claimId": "S05",
+      "claimType": "interpretation",
+      "kind": "person_event_sentiment",
+      "area": "A",
+      "statement": "기사 속 홍라희 관련 사건의 주주 영향은 판정을 보류한다.",
+      "evidenceIds": [
+        "N123",
+        "R003"
+      ],
+      "sentiment": {
+        "target": {
+          "personId": "P003",
+          "name": "홍라희",
+          "role": "주요주주(특수관계인)",
+          "rosterEvidenceId": "R003"
+        },
+        "label": "HOLD",
+        "probabilities": {
+          "negative": 0.0003,
+          "neutral": 0.9994,
+          "positive": 0.0004
+        },
+        "method": "KR-FinBert-SC, 대상 표식 입력(marked), HOLD 임계값 미정",
+        "validationStatus": "UNVALIDATED"
+      },
+      "reportStatus": "hold",
+      "holdReason": "감성 모델 검증 전(잠금 점검 세트 평가 전)"
+    },
+    {
+      "claimId": "S06",
+      "claimType": "interpretation",
+      "kind": "person_event_sentiment",
+      "area": "A",
+      "statement": "기사 속 이재용 관련 사건의 주주 영향은 판정을 보류한다.",
+      "evidenceIds": [
+        "N123",
+        "R004"
+      ],
+      "sentiment": {
+        "target": {
+          "personId": "P004",
+          "name": "이재용",
+          "role": "주요주주(특수관계인)",
+          "rosterEvidenceId": "R004"
+        },
+        "label": "HOLD",
+        "probabilities": {
+          "negative": 0.0006,
+          "neutral": 0.9987,
+          "positive": 0.0007
+        },
+        "method": "KR-FinBert-SC, 대상 표식 입력(marked), HOLD 임계값 미정",
+        "validationStatus": "UNVALIDATED"
+      },
+      "reportStatus": "hold",
+      "holdReason": "감성 모델 검증 전(잠금 점검 세트 평가 전)"
+    },
+    {
+      "claimId": "S07",
+      "claimType": "interpretation",
+      "kind": "person_event_sentiment",
+      "area": "A",
+      "statement": "기사 속 홍라희 관련 사건의 주주 영향은 판정을 보류한다.",
+      "evidenceIds": [
+        "N124",
+        "R003"
+      ],
+      "sentiment": {
+        "target": {
+          "personId": "P003",
+          "name": "홍라희",
+          "role": "주요주주(특수관계인)",
+          "rosterEvidenceId": "R003"
+        },
+        "label": "HOLD",
+        "probabilities": {
+          "negative": 0.0002,
+          "neutral": 0.9993,
+          "positive": 0.0005
+        },
+        "method": "KR-FinBert-SC, 대상 표식 입력(marked), HOLD 임계값 미정",
+        "validationStatus": "UNVALIDATED"
+      },
+      "reportStatus": "hold",
+      "holdReason": "감성 모델 검증 전(잠금 점검 세트 평가 전)"
+    },
+    {
+      "claimId": "S08",
+      "claimType": "interpretation",
+      "kind": "person_event_sentiment",
+      "area": "A",
+      "statement": "기사 속 이재용 관련 사건의 주주 영향은 판정을 보류한다.",
+      "evidenceIds": [
+        "N124",
+        "R004"
+      ],
+      "sentiment": {
+        "target": {
+          "personId": "P004",
+          "name": "이재용",
+          "role": "주요주주(특수관계인)",
+          "rosterEvidenceId": "R004"
+        },
+        "label": "HOLD",
+        "probabilities": {
+          "negative": 0.0005,
+          "neutral": 0.9987,
+          "positive": 0.0008
+        },
+        "method": "KR-FinBert-SC, 대상 표식 입력(marked), HOLD 임계값 미정",
+        "validationStatus": "UNVALIDATED"
+      },
+      "reportStatus": "hold",
+      "holdReason": "감성 모델 검증 전(잠금 점검 세트 평가 전)"
+    },
+    {
+      "claimId": "S09",
+      "claimType": "interpretation",
+      "kind": "person_event_sentiment",
+      "area": "A",
+      "statement": "기사 속 홍라희 관련 사건의 주주 영향은 판정을 보류한다.",
+      "evidenceIds": [
+        "N125",
+        "R003"
+      ],
+      "sentiment": {
+        "target": {
+          "personId": "P003",
+          "name": "홍라희",
+          "role": "주요주주(특수관계인)",
+          "rosterEvidenceId": "R003"
+        },
+        "label": "HOLD",
+        "probabilities": {
+          "negative": 0.0002,
+          "neutral": 0.9997,
+          "positive": 0.0001
+        },
+        "method": "KR-FinBert-SC, 대상 표식 입력(marked), HOLD 임계값 미정",
+        "validationStatus": "UNVALIDATED"
+      },
+      "reportStatus": "hold",
+      "holdReason": "감성 모델 검증 전(잠금 점검 세트 평가 전)"
+    },
+    {
+      "claimId": "S10",
+      "claimType": "interpretation",
+      "kind": "person_event_sentiment",
+      "area": "A",
+      "statement": "기사 속 홍라희 관련 사건의 주주 영향은 판정을 보류한다.",
+      "evidenceIds": [
+        "N126",
+        "R003"
+      ],
+      "sentiment": {
+        "target": {
+          "personId": "P003",
+          "name": "홍라희",
+          "role": "주요주주(특수관계인)",
+          "rosterEvidenceId": "R003"
+        },
+        "label": "HOLD",
+        "probabilities": {
+          "negative": 0.0109,
+          "neutral": 0.9875,
+          "positive": 0.0016
+        },
+        "method": "KR-FinBert-SC, 대상 표식 입력(marked), HOLD 임계값 미정",
+        "validationStatus": "UNVALIDATED"
+      },
+      "reportStatus": "hold",
+      "holdReason": "감성 모델 검증 전(잠금 점검 세트 평가 전)"
+    },
+    {
+      "claimId": "S11",
+      "claimType": "interpretation",
+      "kind": "person_event_sentiment",
+      "area": "A",
+      "statement": "기사 속 홍라희 관련 사건의 주주 영향은 판정을 보류한다.",
+      "evidenceIds": [
+        "N127",
+        "R003"
+      ],
+      "sentiment": {
+        "target": {
+          "personId": "P003",
+          "name": "홍라희",
+          "role": "주요주주(특수관계인)",
+          "rosterEvidenceId": "R003"
+        },
+        "label": "HOLD",
+        "probabilities": {
+          "negative": 0.9909,
+          "neutral": 0.0085,
+          "positive": 0.0005
+        },
+        "method": "KR-FinBert-SC, 대상 표식 입력(marked), HOLD 임계값 미정",
+        "validationStatus": "UNVALIDATED"
+      },
+      "reportStatus": "hold",
+      "holdReason": "감성 모델 검증 전(잠금 점검 세트 평가 전)"
+    },
+    {
+      "claimId": "S12",
+      "claimType": "interpretation",
+      "kind": "person_event_sentiment",
+      "area": "A",
+      "statement": "기사 속 홍라희 관련 사건의 주주 영향은 판정을 보류한다.",
+      "evidenceIds": [
+        "N128",
+        "R003"
+      ],
+      "sentiment": {
+        "target": {
+          "personId": "P003",
+          "name": "홍라희",
+          "role": "주요주주(특수관계인)",
+          "rosterEvidenceId": "R003"
+        },
+        "label": "HOLD",
+        "probabilities": {
+          "negative": 0.0003,
+          "neutral": 0.9993,
+          "positive": 0.0004
+        },
+        "method": "KR-FinBert-SC, 대상 표식 입력(marked), HOLD 임계값 미정",
+        "validationStatus": "UNVALIDATED"
+      },
+      "reportStatus": "hold",
+      "holdReason": "감성 모델 검증 전(잠금 점검 세트 평가 전)"
+    },
+    {
+      "claimId": "S13",
+      "claimType": "interpretation",
+      "kind": "person_event_sentiment",
+      "area": "B",
+      "statement": "기사 속 전영현 관련 사건의 주주 영향은 판정을 보류한다.",
+      "evidenceIds": [
+        "N156",
+        "R001"
+      ],
+      "sentiment": {
+        "target": {
+          "personId": "P001",
+          "name": "전영현",
+          "role": "CEO/대표이사",
+          "rosterEvidenceId": "R001"
+        },
+        "label": "HOLD",
+        "probabilities": {
+          "negative": 0.0003,
+          "neutral": 0.9997,
+          "positive": 0.0001
+        },
+        "method": "KR-FinBert-SC, 대상 표식 입력(marked), HOLD 임계값 미정",
+        "validationStatus": "UNVALIDATED"
+      },
+      "reportStatus": "hold",
+      "holdReason": "감성 모델 검증 전(잠금 점검 세트 평가 전)"
+    },
+    {
+      "claimId": "S14",
+      "claimType": "interpretation",
+      "kind": "person_event_sentiment",
+      "area": "B",
+      "statement": "기사 속 전영현 관련 사건의 주주 영향은 판정을 보류한다.",
+      "evidenceIds": [
+        "N157",
+        "R001"
+      ],
+      "sentiment": {
+        "target": {
+          "personId": "P001",
+          "name": "전영현",
+          "role": "CEO/대표이사",
+          "rosterEvidenceId": "R001"
+        },
+        "label": "HOLD",
+        "probabilities": {
+          "negative": 0.0,
+          "neutral": 0.9998,
+          "positive": 0.0001
+        },
+        "method": "KR-FinBert-SC, 대상 표식 입력(marked), HOLD 임계값 미정",
+        "validationStatus": "UNVALIDATED"
+      },
+      "reportStatus": "hold",
+      "holdReason": "감성 모델 검증 전(잠금 점검 세트 평가 전)"
+    },
+    {
+      "claimId": "S15",
+      "claimType": "interpretation",
+      "kind": "person_event_sentiment",
+      "area": "A",
+      "statement": "기사 속 이재용 관련 사건의 주주 영향은 판정을 보류한다.",
+      "evidenceIds": [
+        "N171",
+        "R004"
+      ],
+      "sentiment": {
+        "target": {
+          "personId": "P004",
+          "name": "이재용",
+          "role": "주요주주(특수관계인)",
+          "rosterEvidenceId": "R004"
+        },
+        "label": "HOLD",
+        "probabilities": {
+          "negative": 0.0024,
+          "neutral": 0.9945,
+          "positive": 0.0031
+        },
+        "method": "KR-FinBert-SC, 대상 표식 입력(marked), HOLD 임계값 미정",
+        "validationStatus": "UNVALIDATED"
+      },
+      "reportStatus": "hold",
+      "holdReason": "감성 모델 검증 전(잠금 점검 세트 평가 전)"
+    },
+    {
+      "claimId": "S16",
+      "claimType": "interpretation",
+      "kind": "person_event_sentiment",
+      "area": "A",
+      "statement": "기사 속 이재용 관련 사건의 주주 영향은 판정을 보류한다.",
+      "evidenceIds": [
+        "N172",
+        "R004"
+      ],
+      "sentiment": {
+        "target": {
+          "personId": "P004",
+          "name": "이재용",
+          "role": "주요주주(특수관계인)",
+          "rosterEvidenceId": "R004"
+        },
+        "label": "HOLD",
+        "probabilities": {
+          "negative": 0.0008,
+          "neutral": 0.998,
+          "positive": 0.0012
+        },
+        "method": "KR-FinBert-SC, 대상 표식 입력(marked), HOLD 임계값 미정",
+        "validationStatus": "UNVALIDATED"
+      },
+      "reportStatus": "hold",
+      "holdReason": "감성 모델 검증 전(잠금 점검 세트 평가 전)"
+    },
+    {
+      "claimId": "S17",
+      "claimType": "interpretation",
+      "kind": "person_event_sentiment",
+      "area": "A",
+      "statement": "기사 속 이재용 관련 사건의 주주 영향은 판정을 보류한다.",
+      "evidenceIds": [
+        "N173",
+        "R004"
+      ],
+      "sentiment": {
+        "target": {
+          "personId": "P004",
+          "name": "이재용",
+          "role": "주요주주(특수관계인)",
+          "rosterEvidenceId": "R004"
+        },
+        "label": "HOLD",
+        "probabilities": {
+          "negative": 0.0011,
+          "neutral": 0.998,
+          "positive": 0.0009
+        },
+        "method": "KR-FinBert-SC, 대상 표식 입력(marked), HOLD 임계값 미정",
+        "validationStatus": "UNVALIDATED"
+      },
+      "reportStatus": "hold",
+      "holdReason": "감성 모델 검증 전(잠금 점검 세트 평가 전)"
+    },
+    {
+      "claimId": "S18",
+      "claimType": "interpretation",
+      "kind": "person_event_sentiment",
+      "area": "A",
+      "statement": "기사 속 이재용 관련 사건의 주주 영향은 판정을 보류한다.",
+      "evidenceIds": [
+        "N187",
+        "R004"
+      ],
+      "sentiment": {
+        "target": {
+          "personId": "P004",
+          "name": "이재용",
+          "role": "주요주주(특수관계인)",
+          "rosterEvidenceId": "R004"
+        },
+        "label": "HOLD",
+        "probabilities": {
+          "negative": 0.0034,
+          "neutral": 0.9937,
+          "positive": 0.0029
+        },
+        "method": "KR-FinBert-SC, 대상 표식 입력(marked), HOLD 임계값 미정",
+        "validationStatus": "UNVALIDATED"
+      },
+      "reportStatus": "hold",
+      "holdReason": "감성 모델 검증 전(잠금 점검 세트 평가 전)"
+    },
+    {
+      "claimId": "S19",
+      "claimType": "interpretation",
+      "kind": "person_event_sentiment",
+      "area": "A",
+      "statement": "기사 속 이재용 관련 사건의 주주 영향은 판정을 보류한다.",
+      "evidenceIds": [
+        "N188",
+        "R004"
+      ],
+      "sentiment": {
+        "target": {
+          "personId": "P004",
+          "name": "이재용",
+          "role": "주요주주(특수관계인)",
+          "rosterEvidenceId": "R004"
+        },
+        "label": "HOLD",
+        "probabilities": {
+          "negative": 0.0161,
+          "neutral": 0.8659,
+          "positive": 0.118
+        },
+        "method": "KR-FinBert-SC, 대상 표식 입력(marked), HOLD 임계값 미정",
+        "validationStatus": "UNVALIDATED"
+      },
+      "reportStatus": "hold",
+      "holdReason": "감성 모델 검증 전(잠금 점검 세트 평가 전)"
+    },
+    {
+      "claimType": "interpretation",
+      "kind": "governance_rule",
+      "area": "C",
+      "statement": "2026-01-07 자사주 취득 결정은 실행 공시 기준 '이행'으로 판정했다.",
+      "evidenceIds": [
+        "E21",
+        "E23"
+      ],
+      "signal": "긍정",
+      "rule": {
+        "ruleId": "PE01",
+        "thresholdStatus": "draft",
+        "criterion": "실행 공시 값이 약속 값의 95% 이상이면 이행(긍정), 50% 이상이면 부분 이행(중립), 그 아래는 미달(주의)"
+      },
+      "reportStatus": "conditional_interpretation",
+      "claimId": "G14"
+    },
+    {
+      "claimType": "interpretation",
+      "kind": "governance_rule",
+      "area": "C",
+      "statement": "2026-01-29 자사주 취득 결정은 실행 공시 기준 '이행'으로 판정했다.",
+      "evidenceIds": [
+        "E24",
+        "E27"
+      ],
+      "signal": "긍정",
+      "rule": {
+        "ruleId": "PE01",
+        "thresholdStatus": "draft",
+        "criterion": "실행 공시 값이 약속 값의 95% 이상이면 이행(긍정), 50% 이상이면 부분 이행(중립), 그 아래는 미달(주의)"
+      },
+      "reportStatus": "conditional_interpretation",
+      "claimId": "G15"
+    },
+    {
+      "claimType": "interpretation",
+      "kind": "governance_rule",
+      "area": "C",
+      "statement": "2026-03-18 자사주 취득 결정은 실행 공시 기준 '이행'으로 판정했다.",
+      "evidenceIds": [
+        "E28",
+        "E32"
+      ],
+      "signal": "긍정",
+      "rule": {
+        "ruleId": "PE01",
+        "thresholdStatus": "draft",
+        "criterion": "실행 공시 값이 약속 값의 95% 이상이면 이행(긍정), 50% 이상이면 부분 이행(중립), 그 아래는 미달(주의)"
+      },
+      "reportStatus": "conditional_interpretation",
+      "claimId": "G16"
+    },
+    {
+      "claimType": "interpretation",
+      "kind": "governance_rule",
+      "area": "C",
+      "statement": "2026-08-21 자사주 취득 결정은 실행 공시 기준 '이행'으로 판정했다.",
+      "evidenceIds": [
+        "E37",
+        "E38"
+      ],
+      "signal": "긍정",
+      "rule": {
+        "ruleId": "PE01",
+        "thresholdStatus": "draft",
+        "criterion": "실행 공시 값이 약속 값의 95% 이상이면 이행(긍정), 50% 이상이면 부분 이행(중립), 그 아래는 미달(주의)"
+      },
+      "reportStatus": "conditional_interpretation",
+      "claimId": "G17"
+    }
+  ],
+  "evidence": [
+    {
+      "evidenceId": "E01",
+      "item": "이재용 보통주 지분율(반기보고서 기말)",
+      "verificationStatus": "공시",
+      "dataDate": "2026-06-30",
+      "value": 1.67,
+      "unit": "%",
+      "sourceType": "DART_DISCLOSURE",
+      "sourceTag": "[공시 20260814003699]",
+      "rceptNo": "20260814003699",
+      "url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260814003699",
+      "publishedAt": "2026-08-14",
+      "publishedAtSource": "RCEPT_NO",
+      "quote": "보통주 기준. 이전 보도 값 1.47와 다름"
+    },
+    {
+      "evidenceId": "E02",
+      "item": "이재용 지분율(기준일 전 마지막 임원·주요주주 소유보고)",
+      "verificationStatus": "공시",
+      "dataDate": "2026-10-16",
+      "value": 1.58,
+      "unit": "%",
+      "sourceType": "DART_DISCLOSURE",
+      "sourceTag": "[공시 20261016000492]",
+      "rceptNo": "20261016000492",
+      "url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261016000492",
+      "publishedAt": "2026-10-16",
+      "publishedAtSource": "RCEPT_NO",
+      "quote": "보통주+우선주 합산 기준. 보고 수량 105,219,053주, 증감 7,667,100주"
+    },
+    {
+      "evidenceId": "E03",
+      "item": "홍라희 지분 증여 완료 후 예정 지분율",
+      "verificationStatus": "보도",
+      "dataDate": "2026-11-12",
+      "value": 1.75,
+      "unit": "%",
+      "sourceType": "NEWS",
+      "sourceTag": "[보도]",
+      "publishedAt": "2026-10-13",
+      "publishedAtSource": "URL",
+      "url": "https://khan.co.kr/article/202610131720001"
+    },
+    {
+      "evidenceId": "E04",
+      "item": "오너 일가 지분 이동 방식(1=가족 간 이전, 0=시장 매도)",
+      "verificationStatus": "보도",
+      "dataDate": "2026-10-13",
+      "value": 1.0,
+      "unit": "여부",
+      "sourceType": "NEWS",
+      "sourceTag": "[보도]",
+      "publishedAt": "2026-10-13",
+      "publishedAtSource": "URL",
+      "url": "https://khan.co.kr/article/202610131720001"
+    },
+    {
+      "evidenceId": "E05",
+      "item": "상속세 5년 분할납부 종료(1=종료)",
+      "verificationStatus": "보도",
+      "dataDate": "2026-04-30",
+      "value": 1.0,
+      "unit": "여부",
+      "sourceType": "NEWS",
+      "sourceTag": "[보도]",
+      "publishedAt": "2026-04-03",
+      "publishedAtSource": "URL",
+      "url": "https://m.ceoscoredaily.com/page/view/2026040312575408571"
+    },
+    {
+      "evidenceId": "E06",
+      "item": "보험업법 개정(삼성생명법) 국회 통과 여부",
+      "verificationStatus": "미확인",
+      "dataDate": "2026-10-27",
+      "value": null,
+      "unit": "여부",
+      "sourceType": "NEWS",
+      "sourceTag": "[미확인]",
+      "publishedAt": null,
+      "publishedAtSource": "UNKNOWN",
+      "url": "https://www.mt.co.kr/mtreport/598"
+    },
+    {
+      "evidenceId": "E07",
+      "item": "2026년 3분기 잠정 영업이익",
+      "verificationStatus": "보도",
+      "dataDate": "2026-10-08",
+      "value": 107.4,
+      "unit": "조원",
+      "sourceType": "NEWS",
+      "sourceTag": "[보도]",
+      "publishedAt": "2026-10-07",
+      "publishedAtSource": "URL",
+      "url": "https://www.heraldk.com/article/2026100719361447549"
+    },
+    {
+      "evidenceId": "E08",
+      "item": "2026년 3분기 영업이익 컨센서스(에프앤가이드)",
+      "verificationStatus": "보도",
+      "dataDate": "2026-10-08",
+      "value": 108.13,
+      "unit": "조원",
+      "sourceType": "NEWS",
+      "sourceTag": "[보도]",
+      "publishedAt": "2026-10-07",
+      "publishedAtSource": "URL",
+      "url": "https://www.heraldk.com/article/2026100719361447549"
+    },
+    {
+      "evidenceId": "E09",
+      "item": "비메모리 부문 추정 영업손익",
+      "verificationStatus": "보도",
+      "dataDate": "2026-10-08",
+      "value": -4.0,
+      "unit": "조원",
+      "sourceType": "NEWS",
+      "sourceTag": "[보도]",
+      "publishedAt": "2026-10-07",
+      "publishedAtSource": "URL",
+      "url": "https://www.heraldk.com/article/2026100719361447549"
+    },
+    {
+      "evidenceId": "E10",
+      "item": "최근 3년 대표이사 체제 변경 횟수(2025.11 투톱 확정 포함)",
+      "verificationStatus": "보도",
+      "dataDate": "2025-11-21",
+      "value": 1.0,
+      "unit": "회",
+      "sourceType": "NEWS",
+      "sourceTag": "[보도]",
+      "publishedAt": "2025-11-20",
+      "publishedAtSource": "URL",
+      "url": "https://www.heraldk.com/article/2025112018214045037"
+    },
+    {
+      "evidenceId": "E11",
+      "item": "2026년 주주환원 의결 규모(하단)",
+      "verificationStatus": "보도",
+      "dataDate": "2026-08-21",
+      "value": 90.0,
+      "unit": "조원",
+      "sourceType": "NEWS",
+      "sourceTag": "[보도]",
+      "publishedAt": "2026-08-21",
+      "publishedAtSource": "URL",
+      "url": "https://www.ajunews.com/view/20260821172749578"
+    },
+    {
+      "evidenceId": "E12",
+      "item": "자사주 소각 공시 금액",
+      "verificationStatus": "보도 상충",
+      "dataDate": "2026-05",
+      "value": 14.58,
+      "unit": "조원",
+      "sourceType": "NEWS",
+      "sourceTag": "[보도 상충]",
+      "publishedAt": null,
+      "publishedAtSource": "UNKNOWN",
+      "url": "https://newstomato.com/ReadNews.aspx?no=1296174",
+      "altValue": {
+        "value": 16.0,
+        "url": "https://mobile.newsis.com/view/NISX20260311_0003544131"
+      }
+    },
+    {
+      "evidenceId": "E13",
+      "item": "임직원 보상용 자사주 매입 의결액",
+      "verificationStatus": "보도",
+      "dataDate": "2026-08-21",
+      "value": 15.0,
+      "unit": "조원",
+      "sourceType": "NEWS",
+      "sourceTag": "[보도]",
+      "publishedAt": "2026-08-26",
+      "publishedAtSource": "URL",
+      "url": "https://news.bizwatch.co.kr/article/industry/2026/08/26/0002"
+    },
+    {
+      "evidenceId": "E14",
+      "item": "이사회 의장이 사외이사인가(1=예)",
+      "verificationStatus": "공시",
+      "dataDate": "2026-06-30",
+      "value": 1.0,
+      "unit": "여부",
+      "sourceType": "DART_DISCLOSURE",
+      "sourceTag": "[공시 20260814003699]",
+      "rceptNo": "20260814003699",
+      "url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260814003699",
+      "publishedAt": "2026-08-14",
+      "publishedAtSource": "RCEPT_NO",
+      "quote": "의장: 신제윤(독립이사)"
+    },
+    {
+      "evidenceId": "E15",
+      "item": "실질 지배자(이재용) 등기이사 여부(1=등기)",
+      "verificationStatus": "공시",
+      "dataDate": "2026-06-30",
+      "value": 0.0,
+      "unit": "여부",
+      "sourceType": "DART_DISCLOSURE",
+      "sourceTag": "[공시 20260814003699]",
+      "rceptNo": "20260814003699",
+      "url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260814003699",
+      "publishedAt": "2026-08-14",
+      "publishedAtSource": "RCEPT_NO",
+      "quote": "등기임원 8명 명단 기준"
+    },
+    {
+      "evidenceId": "E16",
+      "item": "사외이사 비율",
+      "verificationStatus": "공시",
+      "dataDate": "2026-06-30",
+      "value": 62.5,
+      "unit": "%",
+      "sourceType": "DART_DISCLOSURE",
+      "sourceTag": "[공시 20260814003699]",
+      "rceptNo": "20260814003699",
+      "url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260814003699",
+      "publishedAt": "2026-08-14",
+      "publishedAtSource": "RCEPT_NO",
+      "quote": "등기임원 8명 중 사외(독립)이사 5명"
+    },
+    {
+      "evidenceId": "E17",
+      "item": "경영진 관련 재판 진행 중(1=진행 중)",
+      "verificationStatus": "보도",
+      "dataDate": "2025-07-17",
+      "value": 0.0,
+      "unit": "여부",
+      "sourceType": "NEWS",
+      "sourceTag": "[보도]",
+      "publishedAt": "2026-02-13",
+      "publishedAtSource": "URL",
+      "url": "https://www.mt.co.kr/industry/2026/02/13/2026021309394038545"
+    },
+    {
+      "evidenceId": "E18",
+      "item": "최근 1년 노조 총파업 선언(1=있음)",
+      "verificationStatus": "보도",
+      "dataDate": "2026-05",
+      "value": 1.0,
+      "unit": "여부",
+      "sourceType": "NEWS",
+      "sourceTag": "[보도]",
+      "publishedAt": null,
+      "publishedAtSource": "UNKNOWN",
+      "url": "https://www.smarttoday.co.kr/ko-kr/articles/107219"
+    },
+    {
+      "evidenceId": "E19",
+      "item": "상반기 자사주 소각 계획 수량(2025 사업보고서 인용 보도 \"8,700만 주\")",
+      "verificationStatus": "보도",
+      "dataDate": "2026-03-10",
+      "value": 87000000.0,
+      "unit": "주",
+      "sourceType": "NEWS",
+      "sourceTag": "[보도]",
+      "publishedAt": "2026-03-11",
+      "publishedAtSource": "URL",
+      "url": "https://mobile.newsis.com/view/NISX20260311_0003544131"
+    },
+    {
+      "evidenceId": "E20",
+      "item": "상반기 자사주 소각 수량(보통주+우선주)",
+      "verificationStatus": "공시",
+      "dataDate": "2026-06-30",
+      "value": 86962775.0,
+      "unit": "주",
+      "sourceType": "DART_DISCLOSURE",
+      "sourceTag": "[공시 20260814003699]",
+      "rceptNo": "20260814003699",
+      "url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260814003699",
+      "publishedAt": "2026-08-14",
+      "publishedAtSource": "RCEPT_NO",
+      "quote": "자기주식 취득·처분 현황 총계 행의 소각 수량(보통주+우선주) 합"
+    },
+    {
+      "evidenceId": "N003",
+      "sourceType": "NEWS",
+      "verificationStatus": "보도",
+      "sourceTag": "[보도]",
+      "item": "기사 제목",
+      "quote": "이재용, 상반기 배당 728억원 '개인 1위'...삼성전자 배당도 최대",
+      "value": null,
+      "dataDate": null,
+      "publishedAt": "2026-08-04",
+      "publishedAtSource": "URL",
+      "url": "https://news.mtn.co.kr/news-detail/2026080414172058414"
+    },
+    {
+      "evidenceId": "R004",
+      "sourceType": "DART_DISCLOSURE",
+      "verificationStatus": "공시",
+      "sourceTag": "[공시 20260814003699]",
+      "item": "이재용: 주요주주(특수관계인)",
+      "value": 1.67,
+      "unit": "%",
+      "dataDate": "2026-06-30",
+      "publishedAt": "2026-08-14",
+      "publishedAtSource": "RCEPT_NO",
+      "rceptNo": "20260814003699",
+      "url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260814003699"
+    },
+    {
+      "evidenceId": "N004",
+      "sourceType": "NEWS",
+      "verificationStatus": "보도",
+      "sourceTag": "[보도]",
+      "item": "기사 제목",
+      "quote": "“삼성가의 자존심이 있지” ‘15만 전자’ 목전, 이재용 회장 주식자산 30조원 육박",
+      "value": null,
+      "dataDate": null,
+      "publishedAt": "2026-01-15",
+      "publishedAtSource": "URL",
+      "url": "https://www.heraldk.com/article/2026011501300006597"
+    },
+    {
+      "evidenceId": "N121",
+      "sourceType": "NEWS",
+      "verificationStatus": "보도",
+      "sourceTag": "[보도]",
+      "item": "기사 제목",
+      "quote": "'34만전자' 주가 불 뿜더니…이재용 회장 주식 재산 '60조' 돌파",
+      "value": null,
+      "dataDate": null,
+      "publishedAt": "2026-06-01",
+      "publishedAtSource": "URL",
+      "url": "https://www.mt.co.kr/article/2026060119543242682"
+    },
+    {
+      "evidenceId": "N122",
+      "sourceType": "NEWS",
+      "verificationStatus": "보도",
+      "sourceTag": "[보도]",
+      "item": "기사 제목",
+      "quote": "삼성 이재용, 21만전자에 주식재산 '40조'…삼성전기 시총도 넘어섰다",
+      "value": null,
+      "dataDate": null,
+      "publishedAt": "2026-02-26",
+      "publishedAtSource": "URL",
+      "url": "https://www.mt.co.kr/article/2026022615035652566"
+    },
+    {
+      "evidenceId": "N123",
+      "sourceType": "NEWS",
+      "verificationStatus": "보도",
+      "sourceTag": "[보도]",
+      "item": "기사 제목",
+      "quote": "홍라희, 삼성전자 지분 1.9조원어치 이재용에 매각",
+      "value": null,
+      "dataDate": null,
+      "publishedAt": "2026-09-09",
+      "publishedAtSource": "URL",
+      "url": "https://news.mtn.co.kr/news-detail/2026090917543233050"
+    },
+    {
+      "evidenceId": "R003",
+      "sourceType": "DART_DISCLOSURE",
+      "verificationStatus": "공시",
+      "sourceTag": "[공시 20260814003699]",
+      "item": "홍라희: 주요주주(특수관계인)",
+      "value": 1.25,
+      "unit": "%",
+      "dataDate": "2026-06-30",
+      "publishedAt": "2026-08-14",
+      "publishedAtSource": "RCEPT_NO",
+      "rceptNo": "20260814003699",
+      "url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260814003699"
+    },
+    {
+      "evidenceId": "N124",
+      "sourceType": "NEWS",
+      "verificationStatus": "보도",
+      "sourceTag": "[보도]",
+      "item": "기사 제목",
+      "quote": "[속보] 홍라희, 이재용 회장에 2.6조 규모 주식 증여…지분율 1.75%로 상승",
+      "value": null,
+      "dataDate": null,
+      "publishedAt": "2026-10-13",
+      "publishedAtSource": "URL",
+      "url": "https://khan.co.kr/article/202610131720001"
+    },
+    {
+      "evidenceId": "N125",
+      "sourceType": "NEWS",
+      "verificationStatus": "보도",
+      "sourceTag": "[보도]",
+      "item": "기사 제목",
+      "quote": "홍라희 여사, 아들에게 4조5000억원 삼성 지분 넘긴 이유",
+      "value": null,
+      "dataDate": null,
+      "publishedAt": "2026-10-14",
+      "publishedAtSource": "URL",
+      "url": "https://kbmaeil.com/article/20261014500218"
+    },
+    {
+      "evidenceId": "N126",
+      "sourceType": "NEWS",
+      "verificationStatus": "보도",
+      "sourceTag": "[보도]",
+      "item": "기사 제목",
+      "quote": "홍라희 명예관장, 삼성전자 1500만주·3조원 어치 처분",
+      "value": null,
+      "dataDate": null,
+      "publishedAt": "2026-04-09",
+      "publishedAtSource": "URL",
+      "url": "https://www.twig24.com/news/finance/2026/04/09/20260409500021"
+    },
+    {
+      "evidenceId": "N127",
+      "sourceType": "NEWS",
+      "verificationStatus": "보도",
+      "sourceTag": "[보도]",
+      "item": "기사 제목",
+      "quote": "삼성전자, 홍라희 2조 주식 처분에 1%대 하락",
+      "value": null,
+      "dataDate": null,
+      "publishedAt": "2026-01-19",
+      "publishedAtSource": "URL",
+      "url": "https://mobile.newsis.com/view/NISX20260119_0003481164"
+    },
+    {
+      "evidenceId": "N128",
+      "sourceType": "NEWS",
+      "verificationStatus": "보도",
+      "sourceTag": "[보도]",
+      "item": "기사 제목",
+      "quote": "홍라희, 삼전 주식 2조원 처분…상속세 재원 확보",
+      "value": null,
+      "dataDate": null,
+      "publishedAt": "2026-01-19",
+      "publishedAtSource": "URL",
+      "url": "https://news.bizwatch.co.kr/article/industry/2026/01/19/0004"
+    },
+    {
+      "evidenceId": "N156",
+      "sourceType": "NEWS",
+      "verificationStatus": "보도",
+      "sourceTag": "[보도]",
+      "item": "기사 제목",
+      "quote": "전영현 삼성전자 부회장 \"다시는 메모리 경쟁력 우려 없도록 할 것\" [삼성 주총 2026]",
+      "value": null,
+      "dataDate": null,
+      "publishedAt": "2026-03-18",
+      "publishedAtSource": "URL",
+      "url": "https://news.mtn.co.kr/news-detail/2026031811431350495"
+    },
+    {
+      "evidenceId": "R001",
+      "sourceType": "DART_DISCLOSURE",
+      "verificationStatus": "공시",
+      "sourceTag": "[공시 20260814003699]",
+      "item": "전영현: CEO/대표이사",
+      "value": null,
+      "unit": "",
+      "dataDate": "2026-06-30",
+      "publishedAt": "2026-08-14",
+      "publishedAtSource": "RCEPT_NO",
+      "rceptNo": "20260814003699",
+      "url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260814003699"
+    },
+    {
+      "evidenceId": "N157",
+      "sourceType": "NEWS",
+      "verificationStatus": "보도",
+      "sourceTag": "[보도]",
+      "item": "기사 제목",
+      "quote": "\"독기 품은 전영현\"… 삼성 HBM4, '세계 최초'로 SK 물량장벽 정조준",
+      "value": null,
+      "dataDate": null,
+      "publishedAt": "2026-02-13",
+      "publishedAtSource": "URL",
+      "url": "https://www.ddaily.co.kr/page/view/2026021311471086518"
+    },
+    {
+      "evidenceId": "N171",
+      "sourceType": "NEWS",
+      "verificationStatus": "보도",
+      "sourceTag": "[보도]",
+      "item": "기사 제목",
+      "quote": "삼성家 12조원 상속세 납부 마무리…이재용 '뉴 삼성' 체제 가속",
+      "value": null,
+      "dataDate": null,
+      "publishedAt": "2026-05-03",
+      "publishedAtSource": "URL",
+      "url": "https://mobile.newsis.com/view/NISX20260503_0003615308"
+    },
+    {
+      "evidenceId": "N172",
+      "sourceType": "NEWS",
+      "verificationStatus": "보도",
+      "sourceTag": "[보도]",
+      "item": "기사 제목",
+      "quote": "[삼성, 상속세 완납]② 이재용, ‘물산·생명·전자’ 지배구조 혁신 ‘속도 내나’",
+      "value": null,
+      "dataDate": null,
+      "publishedAt": "2026-04-06",
+      "publishedAtSource": "URL",
+      "url": "https://m.ceoscoredaily.com/page/view/2026040613521342811"
+    },
+    {
+      "evidenceId": "N173",
+      "sourceType": "NEWS",
+      "verificationStatus": "보도",
+      "sourceTag": "[보도]",
+      "item": "기사 제목",
+      "quote": "이재용 회장, AX 강화 지시...AI 종합 IT기업 목표",
+      "value": null,
+      "dataDate": null,
+      "publishedAt": "2026-01-06",
+      "publishedAtSource": "URL",
+      "url": "https://www.fnnews.com/news/202601061009426712"
+    },
+    {
+      "evidenceId": "N187",
+      "sourceType": "NEWS",
+      "verificationStatus": "보도",
+      "sourceTag": "[보도]",
+      "item": "기사 제목",
+      "quote": "이재용 주식재산, 처음 40조원 넘어",
+      "value": null,
+      "dataDate": null,
+      "publishedAt": "2026-02-27",
+      "publishedAtSource": "URL",
+      "url": "https://mobile.newsis.com/view/NISX20260227_0003528769"
+    },
+    {
+      "evidenceId": "N188",
+      "sourceType": "NEWS",
+      "verificationStatus": "보도",
+      "sourceTag": "[보도]",
+      "item": "기사 제목",
+      "quote": "이재용 주식재산 50조 첫 돌파…삼성家 4명 합산 111조",
+      "value": null,
+      "dataDate": null,
+      "publishedAt": "2026-05-11",
+      "publishedAtSource": "URL",
+      "url": "https://v.daum.net/v/20260511174417275"
+    },
+    {
+      "evidenceId": "E21",
+      "sourceType": "DART_DISCLOSURE",
+      "verificationStatus": "공시",
+      "sourceTag": "[공시 20260107000715]",
+      "item": "주요사항보고서(자기주식취득결정)",
+      "dataDate": "2026-01-07",
+      "publishedAt": "2026-01-07",
+      "publishedAtSource": "RCEPT_NO",
+      "rceptNo": "20260107000715",
+      "url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260107000715",
+      "value": 2500200000000.0,
+      "unit": "원",
+      "quote": "목적 임직원 주식보상, 기간 2026-01-08~2026-04-07"
+    },
+    {
+      "evidenceId": "E22",
+      "sourceType": "DART_DISCLOSURE",
+      "verificationStatus": "공시",
+      "sourceTag": "[공시 20260126000001]",
+      "item": "주요사항보고서(자기주식처분결정)",
+      "dataDate": "2026-01-26",
+      "publishedAt": "2026-01-26",
+      "publishedAtSource": "RCEPT_NO",
+      "rceptNo": "20260126000001",
+      "url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260126000001",
+      "value": 175222546200.0,
+      "unit": "원",
+      "quote": "목적 임원 등 성과급의 자기주식 지급, 기간 2026-01-26~2026-01-26"
+    },
+    {
+      "evidenceId": "E23",
+      "sourceType": "DART_DISCLOSURE",
+      "verificationStatus": "공시",
+      "sourceTag": "[공시 20260127000392]",
+      "item": "자기주식취득결과보고서",
+      "dataDate": "2026-01-27",
+      "publishedAt": "2026-01-27",
+      "publishedAtSource": "RCEPT_NO",
+      "rceptNo": "20260127000392",
+      "url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260127000392",
+      "value": 2500199934000.0,
+      "unit": "원",
+      "quote": "취득 결정 2026-01-07 건의 결과"
+    },
+    {
+      "evidenceId": "E24",
+      "sourceType": "DART_DISCLOSURE",
+      "verificationStatus": "공시",
+      "sourceTag": "[공시 20260129000003]",
+      "item": "주요사항보고서(자기주식취득결정)",
+      "dataDate": "2026-01-29",
+      "publishedAt": "2026-01-29",
+      "publishedAtSource": "RCEPT_NO",
+      "rceptNo": "20260129000003",
+      "url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260129000003",
+      "value": 3572800000000.0,
+      "unit": "원",
+      "quote": "목적 임직원 주식보상, 기간 2026-01-30~2026-04-29"
+    },
+    {
+      "evidenceId": "E25",
+      "sourceType": "DART_DISCLOSURE",
+      "verificationStatus": "공시",
+      "sourceTag": "[공시 20260129000004]",
+      "item": "주요사항보고서(자기주식처분결정)",
+      "dataDate": "2026-01-29",
+      "publishedAt": "2026-01-29",
+      "publishedAtSource": "RCEPT_NO",
+      "rceptNo": "20260129000004",
+      "url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260129000004",
+      "value": 1092800805600.0,
+      "unit": "원",
+      "quote": "목적 임직원 성과급의 자기주식 지급, 기간 2026-01-30~2026-01-30"
+    },
+    {
+      "evidenceId": "E26",
+      "sourceType": "DART_DISCLOSURE",
+      "verificationStatus": "공시",
+      "sourceTag": "[공시 20260129800004]",
+      "item": "현금ㆍ현물배당결정              ",
+      "dataDate": "2026-01-29",
+      "publishedAt": "2026-01-29",
+      "publishedAtSource": "RCEPT_NO",
+      "rceptNo": "20260129800004",
+      "url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260129800004",
+      "value": 3753484329311.0,
+      "unit": "원",
+      "quote": "결산배당, 보통주 1주당 566원"
+    },
+    {
+      "evidenceId": "E27",
+      "sourceType": "DART_DISCLOSURE",
+      "verificationStatus": "공시",
+      "sourceTag": "[공시 20260312000961]",
+      "item": "자기주식취득결과보고서",
+      "dataDate": "2026-03-12",
+      "publishedAt": "2026-03-12",
+      "publishedAtSource": "RCEPT_NO",
+      "rceptNo": "20260312000961",
+      "url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260312000961",
+      "value": 3572799991850.0,
+      "unit": "원",
+      "quote": "취득 결정 2026-01-29 건의 결과"
+    },
+    {
+      "evidenceId": "E28",
+      "sourceType": "DART_DISCLOSURE",
+      "verificationStatus": "공시",
+      "sourceTag": "[공시 20260318001062]",
+      "item": "주요사항보고서(자기주식취득결정)",
+      "dataDate": "2026-03-18",
+      "publishedAt": "2026-03-18",
+      "publishedAtSource": "RCEPT_NO",
+      "rceptNo": "20260318001062",
+      "url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260318001062",
+      "value": 7174300000000.0,
+      "unit": "원",
+      "quote": "목적 임직원 주식보상, 기간 2026-03-19~2026-06-18"
+    },
+    {
+      "evidenceId": "E29",
+      "sourceType": "DART_DISCLOSURE",
+      "verificationStatus": "공시",
+      "sourceTag": "[공시 20260318001203]",
+      "item": "주요사항보고서(자기주식처분결정)",
+      "dataDate": "2026-03-18",
+      "publishedAt": "2026-03-18",
+      "publishedAtSource": "RCEPT_NO",
+      "rceptNo": "20260318001203",
+      "url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260318001203",
+      "value": 395391378900.0,
+      "unit": "원",
+      "quote": "목적 직원 대상 자기주식 지급, 기간 2026-03-20~2026-03-20"
+    },
+    {
+      "evidenceId": "E30",
+      "sourceType": "DART_DISCLOSURE",
+      "verificationStatus": "공시",
+      "sourceTag": "[공시 20260319801333]",
+      "item": "기업가치제고계획(자율공시)              ",
+      "dataDate": "2026-03-19",
+      "publishedAt": "2026-03-19",
+      "publishedAtSource": "RCEPT_NO",
+      "rceptNo": "20260319801333",
+      "url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260319801333"
+    },
+    {
+      "evidenceId": "E31",
+      "sourceType": "DART_DISCLOSURE",
+      "verificationStatus": "공시",
+      "sourceTag": "[공시 20260331800004]",
+      "item": "주식소각결정              ",
+      "dataDate": "2026-03-31",
+      "publishedAt": "2026-03-31",
+      "publishedAtSource": "RCEPT_NO",
+      "rceptNo": "20260331800004",
+      "url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260331800004",
+      "value": 5345538035503.0,
+      "unit": "원",
+      "quote": "소각 예정일 2026-04-02, 재원 기취득 자기주식"
+    },
+    {
+      "evidenceId": "E32",
+      "sourceType": "DART_DISCLOSURE",
+      "verificationStatus": "공시",
+      "sourceTag": "[공시 20260424000778]",
+      "item": "자기주식취득결과보고서",
+      "dataDate": "2026-04-24",
+      "publishedAt": "2026-04-24",
+      "publishedAtSource": "RCEPT_NO",
+      "rceptNo": "20260424000778",
+      "url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260424000778",
+      "value": 7174299854900.0,
+      "unit": "원",
+      "quote": "취득 결정 2026-03-18 건의 결과"
+    },
+    {
+      "evidenceId": "E33",
+      "sourceType": "DART_DISCLOSURE",
+      "verificationStatus": "공시",
+      "sourceTag": "[공시 20260430800106]",
+      "item": "현금ㆍ현물배당결정              ",
+      "dataDate": "2026-04-30",
+      "publishedAt": "2026-04-30",
+      "publishedAtSource": "RCEPT_NO",
+      "rceptNo": "20260430800106",
+      "url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260430800106",
+      "value": 2453315636604.0,
+      "unit": "원",
+      "quote": "분기배당, 보통주 1주당 372원"
+    },
+    {
+      "evidenceId": "E34",
+      "sourceType": "DART_DISCLOSURE",
+      "verificationStatus": "공시",
+      "sourceTag": "[공시 20260707000403]",
+      "item": "주요사항보고서(자기주식처분결정)",
+      "dataDate": "2026-07-07",
+      "publishedAt": "2026-07-07",
+      "publishedAtSource": "RCEPT_NO",
+      "rceptNo": "20260707000403",
+      "url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260707000403",
+      "value": 344532012000.0,
+      "unit": "원",
+      "quote": "목적 직원 주식보상, 기간 2026-07-08~2026-07-08"
+    },
+    {
+      "evidenceId": "E35",
+      "sourceType": "DART_DISCLOSURE",
+      "verificationStatus": "공시",
+      "sourceTag": "[공시 20260713000395]",
+      "item": "주요사항보고서(자기주식처분결정)",
+      "dataDate": "2026-07-13",
+      "publishedAt": "2026-07-13",
+      "publishedAtSource": "RCEPT_NO",
+      "rceptNo": "20260713000395",
+      "url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260713000395",
+      "value": 322755945000.0,
+      "unit": "원",
+      "quote": "목적 임원 등 성과급의 자기주식 지급, 기간 2026-07-13~2026-07-13"
+    },
+    {
+      "evidenceId": "E36",
+      "sourceType": "DART_DISCLOSURE",
+      "verificationStatus": "공시",
+      "sourceTag": "[공시 20260730800137]",
+      "item": "현금ㆍ현물배당결정              ",
+      "dataDate": "2026-07-30",
+      "publishedAt": "2026-07-30",
+      "publishedAtSource": "RCEPT_NO",
+      "rceptNo": "20260730800137",
+      "url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260730800137",
+      "value": 2455894601644.0,
+      "unit": "원",
+      "quote": "분기배당, 보통주 1주당 374원"
+    },
+    {
+      "evidenceId": "E37",
+      "sourceType": "DART_DISCLOSURE",
+      "verificationStatus": "공시",
+      "sourceTag": "[공시 20260821000616]",
+      "item": "주요사항보고서(자기주식취득결정)",
+      "dataDate": "2026-08-21",
+      "publishedAt": "2026-08-21",
+      "publishedAtSource": "RCEPT_NO",
+      "rceptNo": "20260821000616",
+      "url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260821000616",
+      "value": 14999999992000.0,
+      "unit": "원",
+      "quote": "목적 임직원 주식보상, 기간 2026-08-24~2026-11-21"
+    },
+    {
+      "evidenceId": "E38",
+      "sourceType": "DART_DISCLOSURE",
+      "verificationStatus": "공시",
+      "sourceTag": "[공시 20261012000421]",
+      "item": "자기주식취득결과보고서",
+      "dataDate": "2026-10-12",
+      "publishedAt": "2026-10-12",
+      "publishedAtSource": "RCEPT_NO",
+      "rceptNo": "20261012000421",
+      "url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261012000421",
+      "value": 14999999899750.0,
+      "unit": "원",
+      "quote": "취득 결정 2026-08-21 건의 결과"
+    },
+    {
+      "evidenceId": "E39",
+      "sourceType": "DART_DISCLOSURE",
+      "verificationStatus": "공시",
+      "sourceTag": "[공시 20260624801004]",
+      "item": "풍문또는보도에대한해명(미확정)              ",
+      "dataDate": "2026-06-24",
+      "publishedAt": "2026-06-24",
+      "publishedAtSource": "RCEPT_NO",
+      "rceptNo": "20260624801004",
+      "url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260624801004",
+      "quote": "삼전, 내달부터 자사주 90조 매입. 이사회 거쳐 3년 분할매입 추진"
+    },
+    {
+      "evidenceId": "E40",
+      "sourceType": "DART_DISCLOSURE",
+      "verificationStatus": "공시",
+      "sourceTag": "[공시 20260723800875]",
+      "item": "풍문또는보도에대한해명(미확정)              ",
+      "dataDate": "2026-07-23",
+      "publishedAt": "2026-07-23",
+      "publishedAtSource": "RCEPT_NO",
+      "rceptNo": "20260723800875",
+      "url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260723800875",
+      "quote": "삼전, 내달부터 자사주 90조 매입. 이사회 거쳐 3년 분할매입 추진"
+    },
+    {
+      "evidenceId": "N189",
+      "sourceType": "NEWS",
+      "verificationStatus": "보도",
+      "sourceTag": "[보도]",
+      "item": "보도 묶음 기사 수(주제 승계·지분, 제목 속 인물 홍라희, 이재용)",
+      "value": 391.0,
+      "unit": "건",
+      "dataDate": "2026-01~2026-10",
+      "publishedAt": "2026-10-27",
+      "publishedAtSource": "PAGE"
+    },
+    {
+      "evidenceId": "N190",
+      "sourceType": "NEWS",
+      "verificationStatus": "보도",
+      "sourceTag": "[보도]",
+      "item": "보도 묶음 기사 수(주제 노사 갈등, 제목 속 인물 이재용, 전영현, 홍라희)",
+      "value": 123.0,
+      "unit": "건",
+      "dataDate": "2026-01~2026-10",
+      "publishedAt": "2026-10-27",
+      "publishedAtSource": "PAGE"
+    },
+    {
+      "evidenceId": "N191",
+      "sourceType": "NEWS",
+      "verificationStatus": "보도",
+      "sourceTag": "[보도]",
+      "item": "보도 묶음 기사 수(주제 주주가치 논란, 제목 속 인물 홍라희, 이재용, 전영현)",
+      "value": 42.0,
+      "unit": "건",
+      "dataDate": "2026-01~2026-09",
+      "publishedAt": "2026-09-10",
+      "publishedAtSource": "PAGE"
+    },
+    {
+      "evidenceId": "N192",
+      "sourceType": "NEWS",
+      "verificationStatus": "보도",
+      "sourceTag": "[보도]",
+      "item": "보도 묶음 기사 수(주제 사법·수사, 제목 속 인물 이재용)",
+      "value": 30.0,
+      "unit": "건",
+      "dataDate": "2026-01~2026-10",
+      "publishedAt": "2026-10-19",
+      "publishedAtSource": "PAGE"
+    },
+    {
+      "evidenceId": "N193",
+      "sourceType": "NEWS",
+      "verificationStatus": "보도",
+      "sourceTag": "[보도]",
+      "item": "보도 묶음 기사 수(주제 경영권 분쟁, 제목 속 인물 이재용)",
+      "value": 1.0,
+      "unit": "건",
+      "dataDate": "2026-03~2026-03",
+      "publishedAt": "2026-03-06",
+      "publishedAtSource": "PAGE"
+    }
+  ],
+  "unresolved": [
+    {
+      "evidenceId": "E06",
+      "item": "보험업법 개정(삼성생명법) 국회 통과 여부",
+      "reason": "NO_DATA",
+      "affectsClaimIds": [
+        "G03"
+      ]
+    },
+    {
+      "evidenceId": "E12",
+      "item": "자사주 소각 공시 금액",
+      "reason": "CONFLICT",
+      "affectsClaimIds": [
+        "G07"
+      ]
+    },
+    {
+      "evidenceId": "E06",
+      "item": "보험업법 개정(삼성생명법) 국회 통과 여부 공개일 미상",
+      "reason": "DATE_UNKNOWN",
+      "affectsClaimIds": [
+        "G03"
+      ]
+    },
+    {
+      "evidenceId": "E12",
+      "item": "자사주 소각 공시 금액 공개일 미상",
+      "reason": "DATE_UNKNOWN",
+      "affectsClaimIds": [
+        "G07"
+      ]
+    },
+    {
+      "evidenceId": "E18",
+      "item": "최근 1년 노조 총파업 선언(1=있음) 공개일 미상",
+      "reason": "DATE_UNKNOWN",
+      "affectsClaimIds": [
+        "G12"
+      ]
+    },
+    {
+      "item": "대주주·CEO 대상 감성 모델(잠금 점검 세트 평가 전)",
+      "reason": "UNVALIDATED_MODEL",
+      "affectsClaimIds": [
+        "S01",
+        "S02",
+        "S03",
+        "S04",
+        "S05",
+        "S06",
+        "S07",
+        "S08",
+        "S09",
+        "S10",
+        "S11",
+        "S12",
+        "S13",
+        "S14",
+        "S15",
+        "S16",
+        "S17",
+        "S18",
+        "S19"
+      ]
+    },
+    {
+      "evidenceId": "E30",
+      "reason": "NO_DATA",
+      "affectsClaimIds": [],
+      "item": "기업가치제고계획 숫자 목표 3개는 실적 자료가 없어 판정 보류"
+    },
+    {
+      "reason": "LINK_UNVERIFIED",
+      "affectsClaimIds": [],
+      "item": "보도 쟁점 묶음은 제목 규칙 결과라 주장으로 올리지 않았다(제목 속 인물이 당사자인지 미확인)"
+    }
+  ],
+  "assumptions": [
+    {
+      "statement": "보험업법 개정안이 기준일까지 통과되지 않았다",
+      "affectsClaimIds": [
+        "G03"
+      ]
+    },
+    {
+      "statement": "증여가 예정일(2026-11-12)에 완료된다.",
+      "affectsClaimIds": [
+        "P01"
+      ]
+    }
+  ],
+  "handoff": [
+    {
+      "toAgentId": "agent4(수급)",
+      "item": "오너 일가 지분 이동은 장외·증여로 시장 매도 물량이 아님",
+      "claimIds": [
+        "G01",
+        "P01"
+      ]
+    },
+    {
+      "toAgentId": "2번 사업모델(새 번호 미확인)",
+      "item": "비메모리 적자와 이익 연동 성과급의 비용 영향",
+      "claimIds": []
+    },
+    {
+      "toAgentId": "agent3(거시경제·정책)",
+      "item": "보험업법 개정 진행 단계 추적",
+      "claimIds": []
+    },
+    {
+      "toAgentId": "가치·위험(번호 미확인)",
+      "item": "자본배분 연표의 배당·자사주·투자 금액은 공시 원문 값이다. 주당가치·밸류에이션 영향은 가치·위험 관점이 계산한다."
+    },
+    {
+      "toAgentId": "agent6(투자심리·뉴스)",
+      "item": "보도 쟁점 묶음은 제목 속 경영진·대주주 기준이다. 종목 전체 분위기·언급량은 에이전트 6이 본다."
+    }
+  ],
+  "qualityFlags": [
+    "THRESHOLDS_DRAFT",
+    "RULE_BASED_EXTRACTION",
+    "NEWS_TITLE_RULES_UNREVIEWED",
+    "SAME_TOPIC_DIFFERENT_BASIS",
+    "SENTIMENT_UNVALIDATED",
+    "PERSON_SENTIMENT_ONLY"
+  ],
+  "disclaimer": "투자 권유가 아니다. 판정은 공시끼리 맞댄 규칙 결과이며 기준값은 팀 합의 전 초안이다.",
+  "promiseExecution": [
+    {
+      "promiseType": "자사주 취득",
+      "promiseDate": "2026-01-07",
+      "promise": "2026-01-08~2026-04-07 자사주 18,000,000주, 25,002억 원 취득 (목적: 임직원 주식보상)",
+      "execution": "17,297,034주, 25,002억 원 취득",
+      "followup": null,
+      "rate": 0.9999999736021118,
+      "verdict": "이행",
+      "evidenceIds": [
+        "E21",
+        "E23"
+      ],
+      "note": "",
+      "claimId": "G14"
+    },
+    {
+      "promiseType": "자사주 취득",
+      "promiseDate": "2026-01-29",
+      "promise": "2026-01-30~2026-04-29 자사주 22,000,000주, 35,728억 원 취득 (목적: 임직원 주식보상)",
+      "execution": "19,496,637주, 35,728억 원 취득",
+      "followup": null,
+      "rate": 0.999999997718876,
+      "verdict": "이행",
+      "evidenceIds": [
+        "E24",
+        "E27"
+      ],
+      "note": "",
+      "claimId": "G15"
+    },
+    {
+      "promiseType": "자사주 취득",
+      "promiseDate": "2026-03-18",
+      "promise": "2026-03-19~2026-06-18 자사주 37,000,000주, 71,743억 원 취득 (목적: 임직원 주식보상)",
+      "execution": "36,671,401주, 71,743억 원 취득",
+      "followup": null,
+      "rate": 0.9999999797750304,
+      "verdict": "이행",
+      "evidenceIds": [
+        "E28",
+        "E32"
+      ],
+      "note": "",
+      "claimId": "G16"
+    },
+    {
+      "promiseType": "자사주 취득",
+      "promiseDate": "2026-08-21",
+      "promise": "2026-08-24~2026-11-21 자사주 53,285,968주, 150,000억 원 취득 (목적: 임직원 주식보상)",
+      "execution": "56,856,305주, 150,000억 원 취득",
+      "followup": null,
+      "rate": 0.99999999385,
+      "verdict": "이행",
+      "evidenceIds": [
+        "E37",
+        "E38"
+      ],
+      "note": "",
+      "claimId": "G17"
+    },
+    {
+      "promiseType": "기업가치제고계획 목표",
+      "promiseDate": "2026-03-19",
+      "promise": "AI 반도체 시대 주도권 확보를 위해 '26년에 총 110조원 이상의 시설 및 R&D 투자 집행 계획",
+      "execution": null,
+      "followup": null,
+      "rate": null,
+      "verdict": "판정 보류",
+      "evidenceIds": [
+        "E30"
+      ],
+      "note": "규칙으로 뽑은 항목이라 사람 확인 필요. 정량 대조에는 실적·환원 실적 자료가 필요하다"
+    },
+    {
+      "promiseType": "기업가치제고계획 목표",
+      "promiseDate": "2026-03-19",
+      "promise": "'24~'25년 : 현금배당 20.9조원(정규 19.6, 추가 1.3) 및 소각 목적 자사주 매입 8.4조원",
+      "execution": null,
+      "followup": null,
+      "rate": null,
+      "verdict": "판정 보류",
+      "evidenceIds": [
+        "E30"
+      ],
+      "note": "규칙으로 뽑은 항목이라 사람 확인 필요. 정량 대조에는 실적·환원 실적 자료가 필요하다"
+    },
+    {
+      "promiseType": "기업가치제고계획 목표",
+      "promiseDate": "2026-03-19",
+      "promise": "'26년 : 3년간 총 Free Cash Flow의 50% 중에서 '24~'25년 주주환원 및 '26년 정규배당(9.8조원) 이후에도 잔여재원 발생시 추가로 환원",
+      "execution": null,
+      "followup": null,
+      "rate": null,
+      "verdict": "판정 보류",
+      "evidenceIds": [
+        "E30"
+      ],
+      "note": "규칙으로 뽑은 항목이라 사람 확인 필요. 정량 대조에는 실적·환원 실적 자료가 필요하다"
+    }
+  ],
+  "capitalAllocation": [
+    {
+      "date": "2026-01-07",
+      "event": "자사주 취득 결정",
+      "category": "보상",
+      "amount": 2500200000000.0,
+      "shares": 18000000.0,
+      "detail": "목적 임직원 주식보상, 기간 2026-01-08~2026-04-07",
+      "correctionRceptNos": null,
+      "evidenceIds": [
+        "E21"
+      ]
+    },
+    {
+      "date": "2026-01-26",
+      "event": "자사주 처분 결정",
+      "category": "보상",
+      "amount": 175222546200.0,
+      "shares": 1152022.0,
+      "detail": "목적 임원 등 성과급의 자기주식 지급, 기간 2026-01-26~2026-01-26",
+      "correctionRceptNos": null,
+      "evidenceIds": [
+        "E22"
+      ]
+    },
+    {
+      "date": "2026-01-27",
+      "event": "자사주 취득 결과",
+      "category": "보상",
+      "amount": 2500199934000.0,
+      "shares": 17297034.0,
+      "detail": "취득 결정 2026-01-07 건의 결과",
+      "correctionRceptNos": null,
+      "evidenceIds": [
+        "E23"
+      ]
+    },
+    {
+      "date": "2026-01-29",
+      "event": "자사주 취득 결정",
+      "category": "보상",
+      "amount": 3572800000000.0,
+      "shares": 22000000.0,
+      "detail": "목적 임직원 주식보상, 기간 2026-01-30~2026-04-29",
+      "correctionRceptNos": null,
+      "evidenceIds": [
+        "E24"
+      ]
+    },
+    {
+      "date": "2026-01-29",
+      "event": "자사주 처분 결정",
+      "category": "보상",
+      "amount": 1092800805600.0,
+      "shares": 6729069.0,
+      "detail": "목적 임직원 성과급의 자기주식 지급, 기간 2026-01-30~2026-01-30",
+      "correctionRceptNos": null,
+      "evidenceIds": [
+        "E25"
+      ]
+    },
+    {
+      "date": "2026-01-29",
+      "event": "현금배당 결정",
+      "category": "주주환원",
+      "amount": 3753484329311.0,
+      "shares": null,
+      "detail": "결산배당, 보통주 1주당 566원",
+      "correctionRceptNos": null,
+      "evidenceIds": [
+        "E26"
+      ]
+    },
+    {
+      "date": "2026-03-12",
+      "event": "자사주 취득 결과",
+      "category": "보상",
+      "amount": 3572799991850.0,
+      "shares": 19496637.0,
+      "detail": "취득 결정 2026-01-29 건의 결과",
+      "correctionRceptNos": null,
+      "evidenceIds": [
+        "E27"
+      ]
+    },
+    {
+      "date": "2026-03-18",
+      "event": "자사주 취득 결정",
+      "category": "보상",
+      "amount": 7174300000000.0,
+      "shares": 37000000.0,
+      "detail": "목적 임직원 주식보상, 기간 2026-03-19~2026-06-18",
+      "correctionRceptNos": null,
+      "evidenceIds": [
+        "E28"
+      ]
+    },
+    {
+      "date": "2026-03-18",
+      "event": "자사주 처분 결정",
+      "category": "보상",
+      "amount": 395391378900.0,
+      "shares": 2039151.0,
+      "detail": "목적 직원 대상 자기주식 지급, 기간 2026-03-20~2026-03-20",
+      "correctionRceptNos": null,
+      "evidenceIds": [
+        "E29"
+      ]
+    },
+    {
+      "date": "2026-03-19",
+      "event": "기업가치제고계획 공시",
+      "category": "계획",
+      "amount": null,
+      "shares": null,
+      "detail": "",
+      "correctionRceptNos": null,
+      "evidenceIds": [
+        "E30"
+      ]
+    },
+    {
+      "date": "2026-03-31",
+      "event": "자사주 소각 결정",
+      "category": "주주환원",
+      "amount": 5345538035503.0,
+      "shares": 86962775.0,
+      "detail": "소각 예정일 2026-04-02, 재원 기취득 자기주식",
+      "correctionRceptNos": null,
+      "evidenceIds": [
+        "E31"
+      ]
+    },
+    {
+      "date": "2026-04-24",
+      "event": "자사주 취득 결과",
+      "category": "보상",
+      "amount": 7174299854900.0,
+      "shares": 36671401.0,
+      "detail": "취득 결정 2026-03-18 건의 결과",
+      "correctionRceptNos": null,
+      "evidenceIds": [
+        "E32"
+      ]
+    },
+    {
+      "date": "2026-04-30",
+      "event": "현금배당 결정",
+      "category": "주주환원",
+      "amount": 2453315636604.0,
+      "shares": null,
+      "detail": "분기배당, 보통주 1주당 372원",
+      "correctionRceptNos": null,
+      "evidenceIds": [
+        "E33"
+      ]
+    },
+    {
+      "date": "2026-07-07",
+      "event": "자사주 처분 결정",
+      "category": "보상",
+      "amount": 344532012000.0,
+      "shares": 1083434.0,
+      "detail": "목적 직원 주식보상, 기간 2026-07-08~2026-07-08",
+      "correctionRceptNos": null,
+      "evidenceIds": [
+        "E34"
+      ]
+    },
+    {
+      "date": "2026-07-13",
+      "event": "자사주 처분 결정",
+      "category": "보상",
+      "amount": 322755945000.0,
+      "shares": 1132477.0,
+      "detail": "목적 임원 등 성과급의 자기주식 지급, 기간 2026-07-13~2026-07-13",
+      "correctionRceptNos": null,
+      "evidenceIds": [
+        "E35"
+      ]
+    },
+    {
+      "date": "2026-07-30",
+      "event": "현금배당 결정",
+      "category": "주주환원",
+      "amount": 2455894601644.0,
+      "shares": null,
+      "detail": "분기배당, 보통주 1주당 374원",
+      "correctionRceptNos": null,
+      "evidenceIds": [
+        "E36"
+      ]
+    },
+    {
+      "date": "2026-08-21",
+      "event": "자사주 취득 결정",
+      "category": "보상",
+      "amount": 14999999992000.0,
+      "shares": 53285968.0,
+      "detail": "목적 임직원 주식보상, 기간 2026-08-24~2026-11-21",
+      "correctionRceptNos": null,
+      "evidenceIds": [
+        "E37"
+      ]
+    },
+    {
+      "date": "2026-10-12",
+      "event": "자사주 취득 결과",
+      "category": "보상",
+      "amount": 14999999899750.0,
+      "shares": 56856305.0,
+      "detail": "취득 결정 2026-08-21 건의 결과",
+      "correctionRceptNos": null,
+      "evidenceIds": [
+        "E38"
+      ]
+    }
+  ],
+  "issues": [
+    {
+      "source": "공시",
+      "date": "2026-06-24",
+      "kind": "풍문 해명",
+      "topic": "경영진·대주주 관련",
+      "issue": "삼전, 내달부터 자사주 90조 매입. 이사회 거쳐 3년 분할매입 추진",
+      "answer": "당사는 '26년 경영성과에 따른 주식보상 목적의 자사주 매입을 검토하고 있으나, 현재 구체적인 일정이나 규모 등 확정된 사항은 없습니다. 상기 사항은 현재 검토 중에 있으며, 관련 내용이 확정되는 시점 또는 1개월 이내에 재공시할 예정입니다. (공시책임자)IR팀장 다니엘 오",
+      "status": "미확정(검토 중)",
+      "evidenceIds": [
+        "E39"
+      ],
+      "followupEvidenceIds": [
+        "E40"
+      ]
+    },
+    {
+      "source": "공시",
+      "date": "2026-07-23",
+      "kind": "풍문 해명",
+      "topic": "경영진·대주주 관련",
+      "issue": "삼전, 내달부터 자사주 90조 매입. 이사회 거쳐 3년 분할매입 추진",
+      "answer": "당사는 '26년 경영성과에 따른 주식보상 목적의 자사주 매입을 검토하고 있으나, 현재 구체적인 일정이나 규모 등 확정된 사항은 없습니다. 상기 사항은 현재 검토 중에 있으며, 관련 내용이 확정되는 시점 또는 3개월 이내에 재공시할 예정입니다. (공시책임자)IR팀장 다니엘 오",
+      "status": "미확정(검토 중)",
+      "evidenceIds": [
+        "E40"
+      ]
+    },
+    {
+      "source": "보도",
+      "period": "2026-01-02~2026-10-27",
+      "topic": "승계·지분",
+      "status": "해명 보도 확인 안 됨",
+      "targets": "홍라희, 이재용",
+      "nArticles": 391,
+      "nConflictArticles": 1,
+      "nResponseArticles": 0,
+      "docIds": [
+        738978
+      ],
+      "evidenceIds": [
+        "N189"
+      ]
+    },
+    {
+      "source": "보도",
+      "period": "2026-01-26~2026-10-27",
+      "topic": "노사 갈등",
+      "status": "보도 속 해명 있음",
+      "targets": "이재용, 전영현, 홍라희",
+      "nArticles": 123,
+      "nConflictArticles": 35,
+      "nResponseArticles": 2,
+      "docIds": [
+        739100,
+        739733,
+        739736,
+        739725,
+        738984
+      ],
+      "evidenceIds": [
+        "N190"
+      ]
+    },
+    {
+      "source": "보도",
+      "period": "2026-01-19~2026-09-10",
+      "topic": "주주가치 논란",
+      "status": "보도 속 해명 있음",
+      "targets": "홍라희, 이재용, 전영현",
+      "nArticles": 42,
+      "nConflictArticles": 3,
+      "nResponseArticles": 1,
+      "docIds": [
+        738969,
+        738970,
+        738949
+      ],
+      "evidenceIds": [
+        "N191"
+      ]
+    },
+    {
+      "source": "보도",
+      "period": "2026-01-01~2026-10-19",
+      "topic": "사법·수사",
+      "status": "보도 속 해명 있음",
+      "targets": "이재용",
+      "nArticles": 30,
+      "nConflictArticles": 9,
+      "nResponseArticles": 1,
+      "docIds": [
+        739346,
+        739345,
+        739212,
+        739190
+      ],
+      "evidenceIds": [
+        "N192"
+      ]
+    },
+    {
+      "source": "보도",
+      "period": "2026-03-06~2026-03-06",
+      "topic": "경영권 분쟁",
+      "status": "사건 보도(논란 표현 없음)",
+      "targets": "이재용",
+      "nArticles": 1,
+      "nConflictArticles": 0,
+      "nResponseArticles": 0,
+      "docIds": [],
+      "evidenceIds": [
+        "N193"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,539 @@
+{
+  "schemaVersion": "r4-1.3",
+  "reportId": "RPT-5-051910-20261027-8386da05",
+  "agent": {
+    "id": 5,
+    "module": "agent5_governance",
+    "name": "에이전트 5 경영진·대주주 분석 (Governance)"
+  },
+  "target": {
+    "ticker": "051910",
+    "name": "LG화학",
+    "market": "KR",
+    "corpCode": "00356361"
+  },
+  "mode": "expert",
+  "asOf": "2026-10-27",
+  "observationPeriod": "DART 공시 목록·원문 + 기사 제목 규칙(제목 미복사)",
+  "generatedAt": "2026-11-03T14:58:11+09:00",
+  "status": "완료 (일부 자료만)",
+  "summary": {
+    "text": "'주주총회 의안상정 가처분 (신청인 팰리서캐피털마스터펀드리미티드(Palliser Capital Master Fund Ltd) 외 1명)' 사건은 법원 결정(취하)으로 공시됐다.",
+    "evidenceIds": [
+      "E05"
+    ]
+  },
+  "claims": [
+    {
+      "claimId": "C01",
+      "role": "main",
+      "text": "'주주총회 의안상정 가처분 (신청인 팰리서캐피털마스터펀드리미티드(Palliser Capital Master Fund Ltd) 외 1명)' 사건은 법원 결정(취하)으로 공시됐다.",
+      "type": "fact",
+      "typeLabel": "사실",
+      "tag": "Fact",
+      "evidenceIds": [
+        "E05"
+      ],
+      "sourceTags": [
+        "[출처: DART 공시 20260225801485, 2026-02-25]"
+      ],
+      "verification": {
+        "status": "passed",
+        "checkedBy": "p05 validate_output",
+        "unmatched": []
+      }
+    }
+  ],
+  "upsideFactors": [],
+  "downsideRisks": [],
+  "unverified": [
+    {
+      "item": "기업가치제고계획 숫자 목표 4개는 실적 자료가 없어 판정 보류",
+      "reason": "NO_DATA",
+      "category": "무자료",
+      "status": "미확인",
+      "evidenceIds": [
+        "E02"
+      ],
+      "availability": "unclassified"
+    },
+    {
+      "item": "보도 쟁점 묶음은 제목 규칙 결과라 주장으로 올리지 않았다(제목 속 인물이 당사자인지 미확인)",
+      "reason": "LINK_UNVERIFIED",
+      "category": "판단 보류",
+      "status": "미확인",
+      "evidenceIds": [],
+      "availability": "not_verified"
+    },
+    {
+      "item": "반대 근거·하방 위험",
+      "reason": "검증을 통과한 반대 근거·하방 위험이 없음",
+      "category": "판단 보류",
+      "status": "미확인",
+      "evidenceIds": []
+    }
+  ],
+  "nextChecks": [],
+  "evidence": [
+    {
+      "evidenceId": "E01",
+      "ledgerKey": "E1",
+      "kind": "number",
+      "label": "현금ㆍ현물배당결정              ",
+      "value": 156934337950.0,
+      "unit": "원",
+      "display": null,
+      "valueType": "회사 공시",
+      "dataDate": "2026-01-28",
+      "publishedAt": "2026-01-28",
+      "source": "DART_DISCLOSURE",
+      "sourceTag": "[출처: DART 공시 20260128800943, 2026-01-28]",
+      "url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260128800943",
+      "note": "결산배당, 보통주 1주당 2,000원",
+      "cited": false,
+      "tier": "core",
+      "resultType": "공시"
+    },
+    {
+      "evidenceId": "E02",
+      "ledgerKey": "E2",
+      "kind": "disclosure",
+      "label": "기업가치제고계획(자율공시)              (고배당기업 표시를 위한 재공시)",
+      "value": null,
+      "unit": null,
+      "display": null,
+      "valueType": "회사 공시",
+      "dataDate": "2026-04-01",
+      "publishedAt": "2026-04-01",
+      "source": "DART_DISCLOSURE",
+      "sourceTag": "[출처: DART 공시 20260401800638, 2026-04-01]",
+      "url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260401800638",
+      "note": null,
+      "cited": false,
+      "tier": "core",
+      "resultType": "공시"
+    },
+    {
+      "evidenceId": "E03",
+      "ledgerKey": "E3",
+      "kind": "number",
+      "label": "주식소각결정              ",
+      "value": 269442295.0,
+      "unit": "원",
+      "display": null,
+      "valueType": "회사 공시",
+      "dataDate": "2026-07-30",
+      "publishedAt": "2026-07-30",
+      "source": "DART_DISCLOSURE",
+      "sourceTag": "[출처: DART 공시 20260730800487, 2026-07-30]",
+      "url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260730800487",
+      "note": "소각 예정일 2026-08-28, 재원 기취득 자기주식",
+      "cited": false,
+      "tier": "core",
+      "resultType": "공시"
+    },
+    {
+      "evidenceId": "E04",
+      "ledgerKey": "E4",
+      "kind": "disclosure",
+      "label": "소송등의제기ㆍ신청(경영권분쟁소송)              ",
+      "value": null,
+      "unit": null,
+      "display": null,
+      "valueType": "회사 공시",
+      "dataDate": "2026-02-23",
+      "publishedAt": "2026-02-23",
+      "source": "DART_DISCLOSURE",
+      "sourceTag": "[출처: DART 공시 20260223801173, 2026-02-23]",
+      "url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260223801173",
+      "note": "주주총회 의안상정 가처분 (신청인 팰리서캐피털마스터펀드리미티드(Palliser Capital Master Fund Ltd) 외 1명)",
+      "cited": false,
+      "tier": "core",
+      "resultType": "공시"
+    },
+    {
+      "evidenceId": "E05",
+      "ledgerKey": "E5",
+      "kind": "disclosure",
+      "label": "소송등의판결ㆍ결정              ",
+      "value": null,
+      "unit": null,
+      "display": null,
+      "valueType": "회사 공시",
+      "dataDate": "2026-02-25",
+      "publishedAt": "2026-02-25",
+      "source": "DART_DISCLOSURE",
+      "sourceTag": "[출처: DART 공시 20260225801485, 2026-02-25]",
+      "url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260225801485",
+      "note": "주주총회 의안상정 가처분 (신청인 팰리서캐피털마스터펀드리미티드(Palliser Capital Master Fund Ltd) 외 1명)",
+      "cited": true,
+      "tier": "core",
+      "resultType": "공시"
+    },
+    {
+      "evidenceId": "E06",
+      "ledgerKey": "E6",
+      "kind": "disclosure",
+      "label": "풍문또는보도에대한해명(미확정)              ",
+      "value": null,
+      "unit": null,
+      "display": null,
+      "valueType": "회사 공시",
+      "dataDate": "2026-02-25",
+      "publishedAt": "2026-02-25",
+      "source": "DART_DISCLOSURE",
+      "sourceTag": "[출처: DART 공시 20260225801503, 2026-02-25]",
+      "url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260225801503",
+      "note": "LG화학, NCC도 물적분할 검토",
+      "cited": false,
+      "tier": "core",
+      "resultType": "공시"
+    },
+    {
+      "evidenceId": "E07",
+      "ledgerKey": "E7",
+      "kind": "disclosure",
+      "label": "조회공시요구(풍문또는보도)에대한답변(미확정)              ",
+      "value": null,
+      "unit": null,
+      "display": null,
+      "valueType": "회사 공시",
+      "dataDate": "2026-08-24",
+      "publishedAt": "2026-08-24",
+      "source": "DART_DISCLOSURE",
+      "sourceTag": "[출처: DART 공시 20260824800208, 2026-08-24]",
+      "url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260824800208",
+      "note": "(주)LG화학의 여수 NCC 2공장 매각 착수 보도에 대한 조회공시 답변(재공시)",
+      "cited": false,
+      "tier": "core",
+      "resultType": "공시"
+    },
+    {
+      "evidenceId": "E08",
+      "ledgerKey": "E8",
+      "kind": "disclosure",
+      "label": "조회공시요구(풍문또는보도)에대한답변(미확정)              ",
+      "value": null,
+      "unit": null,
+      "display": null,
+      "valueType": "회사 공시",
+      "dataDate": "2026-02-25",
+      "publishedAt": "2026-02-25",
+      "source": "DART_DISCLOSURE",
+      "sourceTag": "[출처: DART 공시 20260225801620, 2026-02-25]",
+      "url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260225801620",
+      "note": "(주)LG화학의 여수 NCC 2공장 매각 착수 보도에 대한 조회공시 답변(재공시)",
+      "cited": false,
+      "tier": "core",
+      "resultType": "공시"
+    },
+    {
+      "evidenceId": "E09",
+      "ledgerKey": "E9",
+      "kind": "disclosure",
+      "label": "풍문또는보도에대한해명(미확정)              ",
+      "value": null,
+      "unit": null,
+      "display": null,
+      "valueType": "회사 공시",
+      "dataDate": "2026-08-24",
+      "publishedAt": "2026-08-24",
+      "source": "DART_DISCLOSURE",
+      "sourceTag": "[출처: DART 공시 20260824800215, 2026-08-24]",
+      "url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260824800215",
+      "note": "LG화학, NCC도 물적분할 검토",
+      "cited": false,
+      "tier": "core",
+      "resultType": "공시"
+    },
+    {
+      "evidenceId": "E10",
+      "ledgerKey": "N1",
+      "kind": "number",
+      "label": "보도 묶음 기사 수(주제 주주가치 논란, 제목 속 인물 김동춘)",
+      "value": 6.0,
+      "unit": "건",
+      "display": null,
+      "valueType": "보도",
+      "dataDate": "2026-03~2026-03",
+      "publishedAt": "2026-03-31",
+      "source": "NEWS",
+      "sourceTag": "[출처: 보도 2026-03-31]",
+      "url": null,
+      "note": null,
+      "cited": false,
+      "tier": "reference",
+      "resultType": "보도"
+    },
+    {
+      "evidenceId": "E11",
+      "ledgerKey": "N2",
+      "kind": "number",
+      "label": "보도 묶음 기사 수(주제 사법·수사, 제목 속 인물 김동춘)",
+      "value": 1.0,
+      "unit": "건",
+      "display": null,
+      "valueType": "보도",
+      "dataDate": "2026-10~2026-10",
+      "publishedAt": "2026-10-02",
+      "source": "NEWS",
+      "sourceTag": "[출처: 보도 2026-10-02]",
+      "url": null,
+      "note": null,
+      "cited": false,
+      "tier": "reference",
+      "resultType": "보도"
+    }
+  ],
+  "verification": {
+    "checker": "p05 validate_output",
+    "checked": 1,
+    "passed": 1,
+    "removedSentences": 0,
+    "results": [
+      {
+        "claimId": "C01",
+        "ok": true
+      }
+    ]
+  },
+  "dataQuality": [
+    "THRESHOLDS_DRAFT",
+    "RULE_BASED_EXTRACTION",
+    "NEWS_TITLE_RULES_UNREVIEWED"
+  ],
+  "disclaimer": "투자 권유가 아니다. 판정은 공시끼리 맞댄 규칙 결과이며 기준값은 팀 합의 전 초안이다.",
+  "sentimentModel": null,
+  "governance": [
+    {
+      "claimId": "C01",
+      "p05ClaimId": "F01",
+      "kind": "disclosed_fact",
+      "area": "E",
+      "reportStatus": "confirmed_fact"
+    }
+  ],
+  "personSentiment": [],
+  "handoff": [
+    {
+      "toAgentId": "가치·위험(번호 미확인)",
+      "item": "자본배분 연표의 배당·자사주·투자 금액은 공시 원문 값이다. 주당가치·밸류에이션 영향은 가치·위험 관점이 계산한다.",
+      "claimIds": []
+    },
+    {
+      "toAgentId": "agent6(투자심리·뉴스)",
+      "item": "보도 쟁점 묶음은 제목 속 경영진·대주주 기준이다. 종목 전체 분위기·언급량은 에이전트 6이 본다.",
+      "claimIds": []
+    }
+  ],
+  "p05Source": {
+    "schemaVersion": "0.2-draft",
+    "reportId": "RPT-P05-20261027-051910"
+  },
+  "promiseExecution": [
+    {
+      "promiseType": "기업가치제고계획 목표",
+      "promiseDate": "2026-04-01",
+      "promise": "매출 '23년 26.6조 → '30년 50조 (LG에너지솔루션 제외 기준)",
+      "execution": null,
+      "followup": null,
+      "rate": null,
+      "verdict": "판정 보류",
+      "evidenceIds": [
+        "E02"
+      ],
+      "note": "규칙으로 뽑은 항목이라 사람 확인 필요. 정량 대조에는 실적·환원 실적 자료가 필요하다"
+    },
+    {
+      "promiseType": "기업가치제고계획 목표",
+      "promiseDate": "2026-04-01",
+      "promise": "3대 성장 동력 매출은 '23년 6.1조 → '30년 4배 이상 성장",
+      "execution": null,
+      "followup": null,
+      "rate": null,
+      "verdict": "판정 보류",
+      "evidenceIds": [
+        "E02"
+      ],
+      "note": "규칙으로 뽑은 항목이라 사람 확인 필요. 정량 대조에는 실적·환원 실적 자료가 필요하다"
+    },
+    {
+      "promiseType": "기업가치제고계획 목표",
+      "promiseDate": "2026-04-01",
+      "promise": "4대 성장동력 매출 '24년 5.8조 → '30년 3배 이상 성장",
+      "execution": null,
+      "followup": null,
+      "rate": null,
+      "verdict": "판정 보류",
+      "evidenceIds": [
+        "E02"
+      ],
+      "note": "규칙으로 뽑은 항목이라 사람 확인 필요. 정량 대조에는 실적·환원 실적 자료가 필요하다"
+    },
+    {
+      "promiseType": "기업가치제고계획 목표",
+      "promiseDate": "2026-04-01",
+      "promise": "사업 성과 기반으로 안정적이고 지속 가능한 주주환원 정책 추진 및 당사 미래 성장을 위해 중장기적으로 보유 LG에너지솔루션 주식 점진적 활용 (보유 지분율 약 70% 수준까지)",
+      "execution": null,
+      "followup": null,
+      "rate": null,
+      "verdict": "판정 보류",
+      "evidenceIds": [
+        "E02"
+      ],
+      "note": "규칙으로 뽑은 항목이라 사람 확인 필요. 정량 대조에는 실적·환원 실적 자료가 필요하다"
+    }
+  ],
+  "capitalAllocation": [
+    {
+      "date": "2026-01-28",
+      "event": "현금배당 결정",
+      "category": "주주환원",
+      "amount": 156934337950.0,
+      "shares": null,
+      "detail": "결산배당, 보통주 1주당 2,000원",
+      "correctionRceptNos": null,
+      "evidenceIds": [
+        "E01"
+      ]
+    },
+    {
+      "date": "2026-04-01",
+      "event": "기업가치제고계획 공시",
+      "category": "계획",
+      "amount": null,
+      "shares": null,
+      "detail": "",
+      "correctionRceptNos": null,
+      "evidenceIds": [
+        "E02"
+      ]
+    },
+    {
+      "date": "2026-07-30",
+      "event": "자사주 소각 결정",
+      "category": "주주환원",
+      "amount": 269442295.0,
+      "shares": 6043.0,
+      "detail": "소각 예정일 2026-08-28, 재원 기취득 자기주식",
+      "correctionRceptNos": null,
+      "evidenceIds": [
+        "E03"
+      ]
+    }
+  ],
+  "issues": [
+    {
+      "source": "공시",
+      "date": "2026-02-23",
+      "kind": "소송 제기",
+      "topic": "경영진·대주주 관련",
+      "issue": "주주총회 의안상정 가처분 (신청인 팰리서캐피털마스터펀드리미티드(Palliser Capital Master Fund Ltd) 외 1명)",
+      "answer": "당사는 법적 절차에 따라 대응할 예정입니다.",
+      "status": "대응 예정",
+      "evidenceIds": [
+        "E04"
+      ],
+      "followupEvidenceIds": [
+        "E05"
+      ]
+    },
+    {
+      "source": "공시",
+      "date": "2026-02-25",
+      "kind": "소송 결정",
+      "topic": "경영진·대주주 관련",
+      "issue": "주주총회 의안상정 가처분 (신청인 팰리서캐피털마스터펀드리미티드(Palliser Capital Master Fund Ltd) 외 1명)",
+      "answer": "의안상정 가처분 신청 취하",
+      "status": "법원 결정(취하)",
+      "evidenceIds": [
+        "E05"
+      ],
+      "claimId": "C01"
+    },
+    {
+      "source": "공시",
+      "date": "2026-02-25",
+      "kind": "풍문 해명",
+      "topic": "회사 사업",
+      "issue": "LG화학, NCC도 물적분할 검토",
+      "answer": "당사는 석유화학 사업의 경쟁력 강화와 사업가치 제고를 위해 다양한 방안을 검토 중이나, 아직 구체적으로 결정된 바는 없습니다. - 향후 본건과 관련하여 구체적으로 결정되는 사항이 있을 경우 또는 6개월 이내에 재공시하도록 하겠습니다. (공시책임자) IR담당 김경석",
+      "status": "미확정(검토 중)",
+      "evidenceIds": [
+        "E06"
+      ],
+      "followupEvidenceIds": [
+        "E07"
+      ]
+    },
+    {
+      "source": "공시",
+      "date": "2026-02-25",
+      "kind": "조회공시 답변",
+      "topic": "회사 사업",
+      "issue": "(주)LG화학의 여수 NCC 2공장 매각 착수 보도에 대한 조회공시 답변(재공시)",
+      "answer": "당사는 석유화학 사업의 경쟁력 강화와 사업가치 제고를 위해 다양한 방안을 검토 중이나, 아직 구체적으로 결정된 바는 없습니다. 향후 본건과 관련하여 구체적으로 결정되는 사항이 있을 경우 또는 6개월 이내에 재공시하도록 하겠습니다. (공시책임자) 김 경 석",
+      "status": "미확정(검토 중)",
+      "evidenceIds": [
+        "E08"
+      ],
+      "followupEvidenceIds": [
+        "E07"
+      ]
+    },
+    {
+      "source": "공시",
+      "date": "2026-08-24",
+      "kind": "조회공시 답변",
+      "topic": "회사 사업",
+      "issue": "(주)LG화학의 여수 NCC 2공장 매각 착수 보도에 대한 조회공시 답변(재공시)",
+      "answer": "당사는 석유화학 사업의 경쟁력 강화와 사업가치 제고를 위해 다양한 방안을 검토 중이나, 아직 구체적으로 결정된 바는 없습니다. 향후 본건과 관련하여 구체적으로 결정되는 사항이 있을 경우 또는 6개월 이내에 재공시하도록 하겠습니다. (공시책임자) 김 경 석",
+      "status": "미확정(검토 중)",
+      "evidenceIds": [
+        "E07"
+      ]
+    },
+    {
+      "source": "공시",
+      "date": "2026-08-24",
+      "kind": "풍문 해명",
+      "topic": "회사 사업",
+      "issue": "LG화학, NCC도 물적분할 검토",
+      "answer": "당사는 석유화학 사업의 경쟁력 강화와 사업가치 제고를 위해 다양한 방안을 검토 중이 나, 아직 구체적으로 결정된 바는 없습니다. - 향후 본건과 관련하여 구체적으로 결정되는 사항이 있을 경우 또는 6개월 이내에 재공시 하도록 하겠습니다. (공시책임자) IR담당 김경석",
+      "status": "미확정(검토 중)",
+      "evidenceIds": [
+        "E09"
+      ]
+    },
+    {
+      "source": "보도",
+      "period": "2026-03-30~2026-03-31",
+      "topic": "주주가치 논란",
+      "status": "사건 보도(논란 표현 없음)",
+      "targets": "김동춘",
+      "nArticles": 6,
+      "nConflictArticles": 0,
+      "nResponseArticles": 0,
+      "docIds": [],
+      "evidenceIds": [
+        "E10"
+      ]
+    },
+    {
+      "source": "보도",
+      "period": "2026-10-02~2026-10-02",
+      "topic": "사법·수사",
+      "status": "해명 보도 확인 안 됨",
+      "targets": "김동춘",
+      "nArticles": 1,
+      "nConflictArticles": 1,
+      "nResponseArticles": 0,
+      "docIds": [
+        743977
+      ],
+      "evidenceIds": [
+        "E11"
+      ]
+    }
+  ]
+}

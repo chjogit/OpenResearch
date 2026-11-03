@@ -1,0 +1,598 @@
+{
+  "schemaVersion": "0.2-draft",
+  "reportId": "RPT-P05-20261027-035720",
+  "agentId": "agent5_governance",
+  "perspective": "경영진·대주주",
+  "subject": {
+    "companyName": "카카오",
+    "stockCode": "035720",
+    "corpCode": "00258801"
+  },
+  "asOf": "2026-10-27",
+  "generatedAt": "2026-11-03T14:58:11+09:00",
+  "dataMode": "DART 공시 목록·원문 + 기사 제목 규칙(제목 미복사)",
+  "completeness": "partial",
+  "claims": [
+    {
+      "claimType": "fact",
+      "kind": "disclosed_fact",
+      "area": "A",
+      "statement": "(주)카카오, 종속회사 (주)카카오모빌리티의 10억 달러 규모 미국 IPO 추진 보도에 대한 조회공시 답변(재공시)에서 회사는 이사회 결의 내용을 밝혔다.",
+      "evidenceIds": [
+        "E11"
+      ],
+      "reportStatus": "confirmed_fact",
+      "claimId": "F01"
+    }
+  ],
+  "evidence": [
+    {
+      "evidenceId": "E01",
+      "sourceType": "DART_DISCLOSURE",
+      "verificationStatus": "공시",
+      "sourceTag": "[공시 20260211001067]",
+      "item": "주요사항보고서(감자결정)",
+      "dataDate": "2026-02-11",
+      "publishedAt": "2026-02-11",
+      "publishedAtSource": "RCEPT_NO",
+      "rceptNo": "20260211001067",
+      "url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260211001067",
+      "value": 1420723.0,
+      "unit": "주",
+      "quote": "방법 자기주식 소각"
+    },
+    {
+      "evidenceId": "E02",
+      "sourceType": "DART_DISCLOSURE",
+      "verificationStatus": "공시",
+      "sourceTag": "[공시 20260211001133]",
+      "item": "주요사항보고서(자기주식처분결정)",
+      "dataDate": "2026-02-11",
+      "publishedAt": "2026-02-11",
+      "publishedAtSource": "RCEPT_NO",
+      "rceptNo": "20260211001133",
+      "url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260211001133",
+      "value": 772999700.0,
+      "unit": "원",
+      "quote": "목적 2021년 부여 RSU 지급, 기간 2026-02-12~2026-05-11"
+    },
+    {
+      "evidenceId": "E03",
+      "sourceType": "DART_DISCLOSURE",
+      "verificationStatus": "공시",
+      "sourceTag": "[공시 20260211800957]",
+      "item": "현금ㆍ현물배당결정              ",
+      "dataDate": "2026-02-11",
+      "publishedAt": "2026-02-11",
+      "publishedAtSource": "RCEPT_NO",
+      "rceptNo": "20260211800957",
+      "url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260211800957",
+      "value": 33012370950.0,
+      "unit": "원",
+      "quote": "결산배당, 보통주 1주당 75원"
+    },
+    {
+      "evidenceId": "E04",
+      "sourceType": "DART_DISCLOSURE",
+      "verificationStatus": "공시",
+      "sourceTag": "[공시 20260416000444]",
+      "item": "주요사항보고서(자기주식처분결정)",
+      "dataDate": "2026-04-16",
+      "publishedAt": "2026-04-16",
+      "publishedAtSource": "RCEPT_NO",
+      "rceptNo": "20260416000444",
+      "url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260416000444",
+      "value": 23703840000.0,
+      "unit": "원",
+      "quote": "목적 2025년 부여 RSU 지급, 기간 2026-04-17~2026-05-16"
+    },
+    {
+      "evidenceId": "E05",
+      "sourceType": "DART_DISCLOSURE",
+      "verificationStatus": "공시",
+      "sourceTag": "[공시 20260821000047]",
+      "item": "주요사항보고서(회사분할결정)",
+      "dataDate": "2026-08-21",
+      "publishedAt": "2026-08-21",
+      "publishedAtSource": "RCEPT_NO",
+      "rceptNo": "20260821000047",
+      "url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260821000047",
+      "quote": "주식회사 카카오에이아이 (가칭) (KakaoAI Corp.) (가칭)"
+    },
+    {
+      "evidenceId": "E06",
+      "sourceType": "DART_DISCLOSURE",
+      "verificationStatus": "공시",
+      "sourceTag": "[공시 20260821000052]",
+      "item": "주요사항보고서(회사합병결정)",
+      "dataDate": "2026-08-21",
+      "publishedAt": "2026-08-21",
+      "publishedAtSource": "RCEPT_NO",
+      "rceptNo": "20260821000052",
+      "url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260821000052",
+      "quote": "주식회사 카카오인베스트먼트"
+    },
+    {
+      "evidenceId": "E07",
+      "sourceType": "DART_DISCLOSURE",
+      "verificationStatus": "공시",
+      "sourceTag": "[공시 20260821800122]",
+      "item": "기업가치제고계획(자율공시)              ",
+      "dataDate": "2026-08-21",
+      "publishedAt": "2026-08-21",
+      "publishedAtSource": "RCEPT_NO",
+      "rceptNo": "20260821800122",
+      "url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260821800122"
+    },
+    {
+      "evidenceId": "E08",
+      "sourceType": "DART_DISCLOSURE",
+      "verificationStatus": "공시",
+      "sourceTag": "[공시 20260820800119]",
+      "item": "조회공시요구(풍문또는보도)              ",
+      "dataDate": "2026-08-20",
+      "publishedAt": "2026-08-20",
+      "publishedAtSource": "RCEPT_NO",
+      "rceptNo": "20260820800119",
+      "url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260820800119",
+      "quote": "종속회사 (주)카카오모빌리티의 10억 달러 규모 미국 IPO 추진 관련 사실 여부 및 구체적인 내용"
+    },
+    {
+      "evidenceId": "E09",
+      "sourceType": "DART_DISCLOSURE",
+      "verificationStatus": "공시",
+      "sourceTag": "[공시 20260820800725]",
+      "item": "조회공시요구(풍문또는보도)에대한답변(미확정)              ",
+      "dataDate": "2026-08-20",
+      "publishedAt": "2026-08-20",
+      "publishedAtSource": "RCEPT_NO",
+      "rceptNo": "20260820800725",
+      "url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260820800725",
+      "quote": "(주)카카오, 종속회사 (주)카카오모빌리티의 10억 달러 규모 미국 IPO 추진 보도에 대한 조회공시 답변"
+    },
+    {
+      "evidenceId": "E10",
+      "sourceType": "DART_DISCLOSURE",
+      "verificationStatus": "공시",
+      "sourceTag": "[공시 20260918800403]",
+      "item": "조회공시요구(풍문또는보도)에대한답변(미확정)              ",
+      "dataDate": "2026-09-18",
+      "publishedAt": "2026-09-18",
+      "publishedAtSource": "RCEPT_NO",
+      "rceptNo": "20260918800403",
+      "url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260918800403",
+      "quote": "(주)카카오, 종속회사 (주)카카오모빌리티의 10억 달러 규모 미국 IPO 추진 보도에 대한 조회공시 답변(재공시)"
+    },
+    {
+      "evidenceId": "E11",
+      "sourceType": "DART_DISCLOSURE",
+      "verificationStatus": "공시",
+      "sourceTag": "[공시 20260922800610]",
+      "item": "조회공시요구(풍문또는보도)에대한답변(미확정)              ",
+      "dataDate": "2026-09-22",
+      "publishedAt": "2026-09-22",
+      "publishedAtSource": "RCEPT_NO",
+      "rceptNo": "20260922800610",
+      "url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260922800610",
+      "quote": "(주)카카오, 종속회사 (주)카카오모빌리티의 10억 달러 규모 미국 IPO 추진 보도에 대한 조회공시 답변(재공시)"
+    },
+    {
+      "evidenceId": "N001",
+      "sourceType": "NEWS",
+      "verificationStatus": "보도",
+      "sourceTag": "[보도]",
+      "item": "보도 묶음 기사 수(주제 사법·수사, 제목 속 인물 김범수, 정신아)",
+      "value": 286.0,
+      "unit": "건",
+      "dataDate": "2026-01~2026-10",
+      "publishedAt": "2026-10-26",
+      "publishedAtSource": "PAGE"
+    },
+    {
+      "evidenceId": "N002",
+      "sourceType": "NEWS",
+      "verificationStatus": "보도",
+      "sourceTag": "[보도]",
+      "item": "보도 묶음 기사 수(주제 노사 갈등, 제목 속 인물 정신아, 김범수)",
+      "value": 99.0,
+      "unit": "건",
+      "dataDate": "2026-04~2026-10",
+      "publishedAt": "2026-10-22",
+      "publishedAtSource": "PAGE"
+    },
+    {
+      "evidenceId": "N003",
+      "sourceType": "NEWS",
+      "verificationStatus": "보도",
+      "sourceTag": "[보도]",
+      "item": "보도 묶음 기사 수(주제 주주가치 논란, 제목 속 인물 정신아, 김범수)",
+      "value": 45.0,
+      "unit": "건",
+      "dataDate": "2026-04~2026-10",
+      "publishedAt": "2026-10-20",
+      "publishedAtSource": "PAGE"
+    },
+    {
+      "evidenceId": "N004",
+      "sourceType": "NEWS",
+      "verificationStatus": "보도",
+      "sourceTag": "[보도]",
+      "item": "보도 묶음 기사 수(주제 승계·지분, 제목 속 인물 정신아, 김범수)",
+      "value": 7.0,
+      "unit": "건",
+      "dataDate": "2026-03~2026-10",
+      "publishedAt": "2026-10-16",
+      "publishedAtSource": "PAGE"
+    },
+    {
+      "evidenceId": "N005",
+      "sourceType": "NEWS",
+      "verificationStatus": "보도",
+      "sourceTag": "[보도]",
+      "item": "보도 묶음 기사 수(주제 개인 의혹, 제목 속 인물 김범수, 정신아)",
+      "value": 2.0,
+      "unit": "건",
+      "dataDate": "2026-03~2026-04",
+      "publishedAt": "2026-04-07",
+      "publishedAtSource": "PAGE"
+    },
+    {
+      "evidenceId": "N006",
+      "sourceType": "NEWS",
+      "verificationStatus": "보도",
+      "sourceTag": "[보도]",
+      "item": "보도 묶음 기사 수(주제 경영권 분쟁, 제목 속 인물 김범수)",
+      "value": 1.0,
+      "unit": "건",
+      "dataDate": "2026-07~2026-07",
+      "publishedAt": "2026-07-22",
+      "publishedAtSource": "PAGE"
+    }
+  ],
+  "unresolved": [
+    {
+      "evidenceId": "E07",
+      "reason": "NO_DATA",
+      "affectsClaimIds": [],
+      "item": "기업가치제고계획 숫자 목표 5개는 실적 자료가 없어 판정 보류"
+    },
+    {
+      "reason": "LINK_UNVERIFIED",
+      "affectsClaimIds": [],
+      "item": "보도 쟁점 묶음은 제목 규칙 결과라 주장으로 올리지 않았다(제목 속 인물이 당사자인지 미확인)"
+    }
+  ],
+  "assumptions": [],
+  "handoff": [
+    {
+      "toAgentId": "가치·위험(번호 미확인)",
+      "item": "자본배분 연표의 배당·자사주·투자 금액은 공시 원문 값이다. 주당가치·밸류에이션 영향은 가치·위험 관점이 계산한다."
+    },
+    {
+      "toAgentId": "agent6(투자심리·뉴스)",
+      "item": "보도 쟁점 묶음은 제목 속 경영진·대주주 기준이다. 종목 전체 분위기·언급량은 에이전트 6이 본다."
+    }
+  ],
+  "qualityFlags": [
+    "THRESHOLDS_DRAFT",
+    "RULE_BASED_EXTRACTION",
+    "NEWS_TITLE_RULES_UNREVIEWED"
+  ],
+  "disclaimer": "투자 권유가 아니다. 판정은 공시끼리 맞댄 규칙 결과이며 기준값은 팀 합의 전 초안이다.",
+  "promiseExecution": [
+    {
+      "promiseType": "기업가치제고계획 목표",
+      "promiseDate": "2026-08-21",
+      "promise": "1) (주)카카오엑스(가칭) : 10조원 이상, FY25-30 CAGR 약 13% 사업영역별 혁신 성장 지원 및 성장동력 확보 추진",
+      "execution": null,
+      "followup": null,
+      "rate": null,
+      "verdict": "판정 보류",
+      "evidenceIds": [
+        "E07"
+      ],
+      "note": "규칙으로 뽑은 항목이라 사람 확인 필요. 정량 대조에는 실적·환원 실적 자료가 필요하다"
+    },
+    {
+      "promiseType": "기업가치제고계획 목표",
+      "promiseDate": "2026-08-21",
+      "promise": "2) (주)카카오에이아이(가칭) : 6조원 이상, FY25~30 CAGR 약 20% : EBITDA 2조원 이상 : 영업이익률 30% 이상 : ROE 25% 이상 AI 기술 경쟁력을 바탕으로 서비스 완결성 및 수익 모델 고도화 추진",
+      "execution": null,
+      "followup": null,
+      "rate": null,
+      "verdict": "판정 보류",
+      "evidenceIds": [
+        "E07"
+      ],
+      "note": "규칙으로 뽑은 항목이라 사람 확인 필요. 정량 대조에는 실적·환원 실적 자료가 필요하다"
+    },
+    {
+      "promiseType": "기업가치제고계획 목표",
+      "promiseDate": "2026-08-21",
+      "promise": "1) 자회사 수취 배당금(세후기준)의 30%를 현금배당 또는 자사주 매입/소각",
+      "execution": null,
+      "followup": null,
+      "rate": null,
+      "verdict": "판정 보류",
+      "evidenceIds": [
+        "E07"
+      ],
+      "note": "규칙으로 뽑은 항목이라 사람 확인 필요. 정량 대조에는 실적·환원 실적 자료가 필요하다"
+    },
+    {
+      "promiseType": "기업가치제고계획 목표",
+      "promiseDate": "2026-08-21",
+      "promise": "2) 투자차익(자본비용 및 세금 차감 후)의 최대 30%를 추가 주주환원 재원으로 활용",
+      "execution": null,
+      "followup": null,
+      "rate": null,
+      "verdict": "판정 보류",
+      "evidenceIds": [
+        "E07"
+      ],
+      "note": "규칙으로 뽑은 항목이라 사람 확인 필요. 정량 대조에는 실적·환원 실적 자료가 필요하다"
+    },
+    {
+      "promiseType": "기업가치제고계획 목표",
+      "promiseDate": "2026-08-21",
+      "promise": "3) 분할후 3년간 총 3,000억원 규모의 자사주 매입/소각",
+      "execution": null,
+      "followup": null,
+      "rate": null,
+      "verdict": "판정 보류",
+      "evidenceIds": [
+        "E07"
+      ],
+      "note": "규칙으로 뽑은 항목이라 사람 확인 필요. 정량 대조에는 실적·환원 실적 자료가 필요하다"
+    }
+  ],
+  "capitalAllocation": [
+    {
+      "date": "2026-02-11",
+      "event": "감자 결정",
+      "category": "주주환원",
+      "amount": null,
+      "shares": 1420723.0,
+      "detail": "방법 자기주식 소각",
+      "correctionRceptNos": null,
+      "evidenceIds": [
+        "E01"
+      ]
+    },
+    {
+      "date": "2026-02-11",
+      "event": "자사주 처분 결정",
+      "category": "보상",
+      "amount": 772999700.0,
+      "shares": 13259.0,
+      "detail": "목적 2021년 부여 RSU 지급, 기간 2026-02-12~2026-05-11",
+      "correctionRceptNos": null,
+      "evidenceIds": [
+        "E02"
+      ]
+    },
+    {
+      "date": "2026-02-11",
+      "event": "현금배당 결정",
+      "category": "주주환원",
+      "amount": 33012370950.0,
+      "shares": null,
+      "detail": "결산배당, 보통주 1주당 75원",
+      "correctionRceptNos": "20260326800754",
+      "evidenceIds": [
+        "E03"
+      ]
+    },
+    {
+      "date": "2026-04-16",
+      "event": "자사주 처분 결정",
+      "category": "보상",
+      "amount": 23703840000.0,
+      "shares": 477900.0,
+      "detail": "목적 2025년 부여 RSU 지급, 기간 2026-04-17~2026-05-16",
+      "correctionRceptNos": null,
+      "evidenceIds": [
+        "E04"
+      ]
+    },
+    {
+      "date": "2026-08-21",
+      "event": "분할 결정",
+      "category": "재편",
+      "amount": null,
+      "shares": null,
+      "detail": "주식회사 카카오에이아이 (가칭) (KakaoAI Corp.) (가칭)",
+      "correctionRceptNos": null,
+      "evidenceIds": [
+        "E05"
+      ]
+    },
+    {
+      "date": "2026-08-21",
+      "event": "합병 결정",
+      "category": "재편",
+      "amount": null,
+      "shares": null,
+      "detail": "주식회사 카카오인베스트먼트",
+      "correctionRceptNos": "20260824000219",
+      "evidenceIds": [
+        "E06"
+      ]
+    },
+    {
+      "date": "2026-08-21",
+      "event": "기업가치제고계획 공시",
+      "category": "계획",
+      "amount": null,
+      "shares": null,
+      "detail": "",
+      "correctionRceptNos": null,
+      "evidenceIds": [
+        "E07"
+      ]
+    }
+  ],
+  "issues": [
+    {
+      "source": "공시",
+      "date": "2026-08-20",
+      "kind": "조회공시 요구",
+      "topic": "회사 사업",
+      "issue": "종속회사 (주)카카오모빌리티의 10억 달러 규모 미국 IPO 추진 관련 사실 여부 및 구체적인 내용",
+      "answer": null,
+      "status": "답변 대기",
+      "evidenceIds": [
+        "E08"
+      ],
+      "followupEvidenceIds": [
+        "E09"
+      ]
+    },
+    {
+      "source": "공시",
+      "date": "2026-08-20",
+      "kind": "조회공시 답변",
+      "topic": "경영진·대주주 관련",
+      "issue": "(주)카카오, 종속회사 (주)카카오모빌리티의 10억 달러 규모 미국 IPO 추진 보도에 대한 조회공시 답변",
+      "answer": "당사의 종속회사인 카카오모빌리티는 2대주주인 TPG가 과반의 의석을 확보한 주주가치제고 위원회를 설치하였습니다. 동 위원회는 재무적 투자자의 투자 회수를 위한 여러 방안을 검토하고 있으며, TPG가 보유한 카카오모빌리티 지분만을 담보로 한 ADR도 검토 방안에 포함되어 있습니다. 여러 …",
+      "status": "미확정(검토 중)",
+      "evidenceIds": [
+        "E09"
+      ],
+      "followupEvidenceIds": [
+        "E10"
+      ]
+    },
+    {
+      "source": "공시",
+      "date": "2026-09-18",
+      "kind": "조회공시 답변",
+      "topic": "경영진·대주주 관련",
+      "issue": "(주)카카오, 종속회사 (주)카카오모빌리티의 10억 달러 규모 미국 IPO 추진 보도에 대한 조회공시 답변(재공시)",
+      "answer": "당사의 종속회사인 카카오모빌리티는 2대주주인 TPG가 과반의 의석을 확보한 주주가치제고 위원회를 설치하였습니다. 동 위원회는 재무적 투자자의 투자 회수를 위한 여러 방안을 검토하고 있으며, TPG가 보유한 카카오모빌리티 지분만을 담보로 한 ADR도 검토 방안에 포함되어 있습니다. 여러 …",
+      "status": "미확정(검토 중)",
+      "evidenceIds": [
+        "E10"
+      ]
+    },
+    {
+      "source": "공시",
+      "date": "2026-09-22",
+      "kind": "조회공시 답변",
+      "topic": "경영진·대주주 관련",
+      "issue": "(주)카카오, 종속회사 (주)카카오모빌리티의 10억 달러 규모 미국 IPO 추진 보도에 대한 조회공시 답변(재공시)",
+      "answer": "당사의 종속회사인 카카오모빌리티는 2대주주인 TPG가 과반의 의석을 확보한 주주 가치제고 위원회를 설치하였습니다. 동 위원회는 재무적 투자자의 투자 회수를 위한 여러 방안을 검토하고 있으며, 그 방안 중 하나로 TPG가 보유한 카카오모빌리티 지분만을 기초로 한 미국 주식예탁증서(ADR)…",
+      "status": "이사회 결의로 답",
+      "evidenceIds": [
+        "E11"
+      ],
+      "claimId": "F01"
+    },
+    {
+      "source": "보도",
+      "period": "2026-01-08~2026-10-26",
+      "topic": "사법·수사",
+      "status": "보도 속 해명 있음",
+      "targets": "김범수, 정신아",
+      "nArticles": 286,
+      "nConflictArticles": 125,
+      "nResponseArticles": 14,
+      "docIds": [
+        743399,
+        743271,
+        743257,
+        743229,
+        743231,
+        743236
+      ],
+      "evidenceIds": [
+        "N001"
+      ]
+    },
+    {
+      "source": "보도",
+      "period": "2026-04-03~2026-10-22",
+      "topic": "노사 갈등",
+      "status": "보도 속 해명 있음",
+      "targets": "정신아, 김범수",
+      "nArticles": 99,
+      "nConflictArticles": 79,
+      "nResponseArticles": 57,
+      "docIds": [
+        743728,
+        743723,
+        743194,
+        743671,
+        743675,
+        743677
+      ],
+      "evidenceIds": [
+        "N002"
+      ]
+    },
+    {
+      "source": "보도",
+      "period": "2026-04-30~2026-10-20",
+      "topic": "주주가치 논란",
+      "status": "보도 속 해명 있음",
+      "targets": "정신아, 김범수",
+      "nArticles": 45,
+      "nConflictArticles": 1,
+      "nResponseArticles": 1,
+      "docIds": [
+        742896,
+        742893
+      ],
+      "evidenceIds": [
+        "N003"
+      ]
+    },
+    {
+      "source": "보도",
+      "period": "2026-03-15~2026-10-16",
+      "topic": "승계·지분",
+      "status": "사건 보도(논란 표현 없음)",
+      "targets": "정신아, 김범수",
+      "nArticles": 7,
+      "nConflictArticles": 0,
+      "nResponseArticles": 0,
+      "docIds": [],
+      "evidenceIds": [
+        "N004"
+      ]
+    },
+    {
+      "source": "보도",
+      "period": "2026-03-04~2026-04-07",
+      "topic": "개인 의혹",
+      "status": "해명 보도 확인 안 됨",
+      "targets": "김범수, 정신아",
+      "nArticles": 2,
+      "nConflictArticles": 2,
+      "nResponseArticles": 0,
+      "docIds": [
+        743265,
+        743765
+      ],
+      "evidenceIds": [
+        "N005"
+      ]
+    },
+    {
+      "source": "보도",
+      "period": "2026-07-22~2026-07-22",
+      "topic": "경영권 분쟁",
+      "status": "보도 속 해명 있음",
+      "targets": "김범수",
+      "nArticles": 1,
+      "nConflictArticles": 1,
+      "nResponseArticles": 1,
+      "docIds": [
+        743105
+      ],
+      "evidenceIds": [
+        "N006"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,904 @@
+{
+  "schemaVersion": "0.2-draft",
+  "reportId": "RPT-P05-20261027-068270",
+  "agentId": "agent5_governance",
+  "perspective": "경영진·대주주",
+  "subject": {
+    "companyName": "셀트리온",
+    "stockCode": "068270",
+    "corpCode": "00413046"
+  },
+  "asOf": "2026-10-27",
+  "generatedAt": "2026-11-03T14:58:11+09:00",
+  "dataMode": "DART 공시 목록·원문 + 기사 제목 규칙(제목 미복사)",
+  "completeness": "partial",
+  "claims": [
+    {
+      "claimType": "interpretation",
+      "kind": "governance_rule",
+      "area": "C",
+      "statement": "2026-04-22 자사주 취득 결정은 실행 공시 기준 '이행'으로 판정했다.",
+      "evidenceIds": [
+        "E05",
+        "E07"
+      ],
+      "signal": "긍정",
+      "rule": {
+        "ruleId": "PE01",
+        "thresholdStatus": "draft",
+        "criterion": "실행 공시 값이 약속 값의 95% 이상이면 이행(긍정), 50% 이상이면 부분 이행(중립), 그 아래는 미달(주의)"
+      },
+      "reportStatus": "conditional_interpretation",
+      "claimId": "G01"
+    },
+    {
+      "claimType": "fact",
+      "kind": "disclosed_fact",
+      "area": "C",
+      "statement": "2026-04-22 결정으로 취득한 자사주와 수량이 같은 주식소각결정이 뒤따랐다.",
+      "evidenceIds": [
+        "E07",
+        "E06"
+      ],
+      "reportStatus": "confirmed_fact",
+      "claimId": "F01"
+    },
+    {
+      "claimType": "interpretation",
+      "kind": "governance_rule",
+      "area": "C",
+      "statement": "2026-05-21 자사주 취득 결정은 실행 공시 기준 '이행'으로 판정했다.",
+      "evidenceIds": [
+        "E08",
+        "E09"
+      ],
+      "signal": "긍정",
+      "rule": {
+        "ruleId": "PE01",
+        "thresholdStatus": "draft",
+        "criterion": "실행 공시 값이 약속 값의 95% 이상이면 이행(긍정), 50% 이상이면 부분 이행(중립), 그 아래는 미달(주의)"
+      },
+      "reportStatus": "conditional_interpretation",
+      "claimId": "G02"
+    },
+    {
+      "claimType": "interpretation",
+      "kind": "governance_rule",
+      "area": "C",
+      "statement": "2026-08-31 자사주 취득 결정은 실행 공시 기준 '이행'으로 판정했다.",
+      "evidenceIds": [
+        "E10",
+        "E11"
+      ],
+      "signal": "긍정",
+      "rule": {
+        "ruleId": "PE01",
+        "thresholdStatus": "draft",
+        "criterion": "실행 공시 값이 약속 값의 95% 이상이면 이행(긍정), 50% 이상이면 부분 이행(중립), 그 아래는 미달(주의)"
+      },
+      "reportStatus": "conditional_interpretation",
+      "claimId": "G03"
+    },
+    {
+      "claimType": "fact",
+      "kind": "disclosed_fact",
+      "area": "C",
+      "statement": "2026-08-31 결정으로 취득한 자사주와 수량이 같은 주식소각결정이 뒤따랐다.",
+      "evidenceIds": [
+        "E11",
+        "E12"
+      ],
+      "reportStatus": "confirmed_fact",
+      "claimId": "F02"
+    },
+    {
+      "claimType": "interpretation",
+      "kind": "governance_rule",
+      "area": "C",
+      "statement": "2026-09-29 자사주 취득 결정은 실행 공시 기준 '이행'으로 판정했다.",
+      "evidenceIds": [
+        "E13",
+        "E14"
+      ],
+      "signal": "긍정",
+      "rule": {
+        "ruleId": "PE01",
+        "thresholdStatus": "draft",
+        "criterion": "실행 공시 값이 약속 값의 95% 이상이면 이행(긍정), 50% 이상이면 부분 이행(중립), 그 아래는 미달(주의)"
+      },
+      "reportStatus": "conditional_interpretation",
+      "claimId": "G04"
+    },
+    {
+      "claimType": "interpretation",
+      "kind": "governance_rule",
+      "area": "B",
+      "statement": "2026-03-24 기업가치제고계획의 소각 수량 목표는 실행 공시 기준 '이행'으로 판정했다.",
+      "evidenceIds": [
+        "E04",
+        "E03"
+      ],
+      "signal": "긍정",
+      "rule": {
+        "ruleId": "PE01",
+        "thresholdStatus": "draft",
+        "criterion": "실행 공시 값이 약속 값의 95% 이상이면 이행(긍정), 50% 이상이면 부분 이행(중립), 그 아래는 미달(주의)"
+      },
+      "reportStatus": "conditional_interpretation",
+      "claimId": "G05"
+    },
+    {
+      "claimType": "fact",
+      "kind": "disclosed_fact",
+      "area": "E",
+      "statement": "'임시주주총회소집허가신청 (신청인 윤OO 외 1,230명)' 사건은 법원 결정(각하)으로 공시됐다.",
+      "evidenceIds": [
+        "E16"
+      ],
+      "reportStatus": "confirmed_fact",
+      "claimId": "F03"
+    }
+  ],
+  "evidence": [
+    {
+      "evidenceId": "E01",
+      "sourceType": "DART_DISCLOSURE",
+      "verificationStatus": "공시",
+      "sourceTag": "[공시 20260121000386]",
+      "item": "주요사항보고서(자기주식처분결정)",
+      "dataDate": "2026-01-21",
+      "publishedAt": "2026-01-21",
+      "publishedAtSource": "RCEPT_NO",
+      "rceptNo": "20260121000386",
+      "url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260121000386",
+      "value": 1648139691.0,
+      "unit": "원",
+      "quote": "목적 주식매수선택권 행사에 따른 자기주식 교부, 기간 2026-01-21~2026-01-21"
+    },
+    {
+      "evidenceId": "E02",
+      "sourceType": "DART_DISCLOSURE",
+      "verificationStatus": "공시",
+      "sourceTag": "[공시 20260324800030]",
+      "item": "신규시설투자등              ",
+      "dataDate": "2026-03-24",
+      "publishedAt": "2026-03-24",
+      "publishedAtSource": "RCEPT_NO",
+      "rceptNo": "20260324800030",
+      "url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260324800030",
+      "value": 1226500000000.0,
+      "unit": "원",
+      "quote": "송도 캠퍼스 내 제4, 5공장 신설"
+    },
+    {
+      "evidenceId": "E03",
+      "sourceType": "DART_DISCLOSURE",
+      "verificationStatus": "공시",
+      "sourceTag": "[공시 20260324800413]",
+      "item": "주식소각결정              ",
+      "dataDate": "2026-03-24",
+      "publishedAt": "2026-03-24",
+      "publishedAtSource": "RCEPT_NO",
+      "rceptNo": "20260324800413",
+      "url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260324800413",
+      "value": 1715413000000.0,
+      "unit": "원",
+      "quote": "소각 예정일 2026-04-01, 재원 기취득 자기주식"
+    },
+    {
+      "evidenceId": "E04",
+      "sourceType": "DART_DISCLOSURE",
+      "verificationStatus": "공시",
+      "sourceTag": "[공시 20260324800435]",
+      "item": "기업가치제고계획(자율공시)              ",
+      "dataDate": "2026-03-24",
+      "publishedAt": "2026-03-24",
+      "publishedAtSource": "RCEPT_NO",
+      "rceptNo": "20260324800435",
+      "url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260324800435"
+    },
+    {
+      "evidenceId": "E05",
+      "sourceType": "DART_DISCLOSURE",
+      "verificationStatus": "공시",
+      "sourceTag": "[공시 20260422000159]",
+      "item": "주요사항보고서(자기주식취득결정)",
+      "dataDate": "2026-04-22",
+      "publishedAt": "2026-04-22",
+      "publishedAtSource": "RCEPT_NO",
+      "rceptNo": "20260422000159",
+      "url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260422000159",
+      "value": 100000033000.0,
+      "unit": "원",
+      "quote": "목적 주가 안정 및 주주가치 제고, 기간 2026-04-23~2026-07-22"
+    },
+    {
+      "evidenceId": "E06",
+      "sourceType": "DART_DISCLOSURE",
+      "verificationStatus": "공시",
+      "sourceTag": "[공시 20260506800095]",
+      "item": "주식소각결정              ",
+      "dataDate": "2026-05-06",
+      "publishedAt": "2026-05-06",
+      "publishedAtSource": "RCEPT_NO",
+      "rceptNo": "20260506800095",
+      "url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260506800095",
+      "value": 100000033000.0,
+      "unit": "원",
+      "quote": "소각 예정일 2026-05-21, 재원 장내매수"
+    },
+    {
+      "evidenceId": "E07",
+      "sourceType": "DART_DISCLOSURE",
+      "verificationStatus": "공시",
+      "sourceTag": "[공시 20260508000081]",
+      "item": "자기주식취득결과보고서",
+      "dataDate": "2026-05-08",
+      "publishedAt": "2026-05-08",
+      "publishedAtSource": "RCEPT_NO",
+      "rceptNo": "20260508000081",
+      "url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260508000081",
+      "value": 99999873900.0,
+      "unit": "원",
+      "quote": "취득 결정 2026-04-22 건의 결과"
+    },
+    {
+      "evidenceId": "E08",
+      "sourceType": "DART_DISCLOSURE",
+      "verificationStatus": "공시",
+      "sourceTag": "[공시 20260521000061]",
+      "item": "주요사항보고서(자기주식취득결정)",
+      "dataDate": "2026-05-21",
+      "publishedAt": "2026-05-21",
+      "publishedAtSource": "RCEPT_NO",
+      "rceptNo": "20260521000061",
+      "url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260521000061",
+      "value": 100000071600.0,
+      "unit": "원",
+      "quote": "목적 주가 안정 및 주주가치 제고, 기간 2026-06-08~2026-08-21"
+    },
+    {
+      "evidenceId": "E09",
+      "sourceType": "DART_DISCLOSURE",
+      "verificationStatus": "공시",
+      "sourceTag": "[공시 20260630000787]",
+      "item": "자기주식취득결과보고서",
+      "dataDate": "2026-06-30",
+      "publishedAt": "2026-06-30",
+      "publishedAtSource": "RCEPT_NO",
+      "rceptNo": "20260630000787",
+      "url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260630000787",
+      "value": 99872808750.0,
+      "unit": "원",
+      "quote": "취득 결정 2026-05-21 건의 결과"
+    },
+    {
+      "evidenceId": "E10",
+      "sourceType": "DART_DISCLOSURE",
+      "verificationStatus": "공시",
+      "sourceTag": "[공시 20260831000538]",
+      "item": "주요사항보고서(자기주식취득결정)",
+      "dataDate": "2026-08-31",
+      "publishedAt": "2026-08-31",
+      "publishedAtSource": "RCEPT_NO",
+      "rceptNo": "20260831000538",
+      "url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260831000538",
+      "value": 100000028800.0,
+      "unit": "원",
+      "quote": "목적 주가 안정 및 주주가치 제고, 기간 2026-09-01~2026-11-30"
+    },
+    {
+      "evidenceId": "E11",
+      "sourceType": "DART_DISCLOSURE",
+      "verificationStatus": "공시",
+      "sourceTag": "[공시 20260916000002]",
+      "item": "자기주식취득결과보고서",
+      "dataDate": "2026-09-16",
+      "publishedAt": "2026-09-16",
+      "publishedAtSource": "RCEPT_NO",
+      "rceptNo": "20260916000002",
+      "url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260916000002",
+      "value": 99999898950.0,
+      "unit": "원",
+      "quote": "취득 결정 2026-08-31 건의 결과"
+    },
+    {
+      "evidenceId": "E12",
+      "sourceType": "DART_DISCLOSURE",
+      "verificationStatus": "공시",
+      "sourceTag": "[공시 20260916800015]",
+      "item": "주식소각결정              ",
+      "dataDate": "2026-09-16",
+      "publishedAt": "2026-09-16",
+      "publishedAtSource": "RCEPT_NO",
+      "rceptNo": "20260916800015",
+      "url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260916800015",
+      "value": 96235873293.0,
+      "unit": "원",
+      "quote": "소각 예정일 2026-09-30, 재원 기취득 자기주식"
+    },
+    {
+      "evidenceId": "E13",
+      "sourceType": "DART_DISCLOSURE",
+      "verificationStatus": "공시",
+      "sourceTag": "[공시 20260929000153]",
+      "item": "주요사항보고서(자기주식취득결정)",
+      "dataDate": "2026-09-29",
+      "publishedAt": "2026-09-29",
+      "publishedAtSource": "RCEPT_NO",
+      "rceptNo": "20260929000153",
+      "url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260929000153",
+      "value": 100000089900.0,
+      "unit": "원",
+      "quote": "목적 주가 안정 및 주주가치 제고, 기간 2026-09-30~2026-12-29"
+    },
+    {
+      "evidenceId": "E14",
+      "sourceType": "DART_DISCLOSURE",
+      "verificationStatus": "공시",
+      "sourceTag": "[공시 20261020000090]",
+      "item": "자기주식취득결과보고서",
+      "dataDate": "2026-10-20",
+      "publishedAt": "2026-10-20",
+      "publishedAtSource": "RCEPT_NO",
+      "rceptNo": "20261020000090",
+      "url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261020000090",
+      "value": 100000065700.0,
+      "unit": "원",
+      "quote": "취득 결정 2026-09-29 건의 결과"
+    },
+    {
+      "evidenceId": "E15",
+      "sourceType": "DART_DISCLOSURE",
+      "verificationStatus": "공시",
+      "sourceTag": "[공시 20261026000084]",
+      "item": "주요사항보고서(자기주식취득결정)",
+      "dataDate": "2026-10-26",
+      "publishedAt": "2026-10-26",
+      "publishedAtSource": "RCEPT_NO",
+      "rceptNo": "20261026000084",
+      "url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261026000084",
+      "value": 100000137600.0,
+      "unit": "원",
+      "quote": "목적 주가 안정 및 주주가치 제고, 기간 2026-10-27~2027-01-26"
+    },
+    {
+      "evidenceId": "E16",
+      "sourceType": "DART_DISCLOSURE",
+      "verificationStatus": "공시",
+      "sourceTag": "[공시 20260219800925]",
+      "item": "소송등의판결ㆍ결정              ",
+      "dataDate": "2026-02-19",
+      "publishedAt": "2026-02-19",
+      "publishedAtSource": "RCEPT_NO",
+      "rceptNo": "20260219800925",
+      "url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260219800925",
+      "quote": "임시주주총회소집허가신청 (신청인 윤OO 외 1,230명)"
+    },
+    {
+      "evidenceId": "E17",
+      "sourceType": "DART_DISCLOSURE",
+      "verificationStatus": "공시",
+      "sourceTag": "[공시 20260226800993]",
+      "item": "풍문또는보도에대한해명(미확정)              ",
+      "dataDate": "2026-02-26",
+      "publishedAt": "2026-02-26",
+      "publishedAtSource": "RCEPT_NO",
+      "rceptNo": "20260226800993",
+      "url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260226800993",
+      "quote": "셀트리온 충남공장 세운다 \"2028년까지 3000억 투자\" 관련 보도"
+    },
+    {
+      "evidenceId": "E18",
+      "sourceType": "DART_DISCLOSURE",
+      "verificationStatus": "공시",
+      "sourceTag": "[공시 20260825800463]",
+      "item": "풍문또는보도에대한해명(미확정)              ",
+      "dataDate": "2026-08-25",
+      "publishedAt": "2026-08-25",
+      "publishedAtSource": "RCEPT_NO",
+      "rceptNo": "20260825800463",
+      "url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260825800463",
+      "quote": "셀트리온 충남공장 세운다 \"2028년까지 3000억 투자\" 관련 보도"
+    },
+    {
+      "evidenceId": "N001",
+      "sourceType": "NEWS",
+      "verificationStatus": "보도",
+      "sourceTag": "[보도]",
+      "item": "보도 묶음 기사 수(주제 승계·지분, 제목 속 인물 서정진, 서진석)",
+      "value": 16.0,
+      "unit": "건",
+      "dataDate": "2026-01~2026-10",
+      "publishedAt": "2026-10-01",
+      "publishedAtSource": "PAGE"
+    },
+    {
+      "evidenceId": "N002",
+      "sourceType": "NEWS",
+      "verificationStatus": "보도",
+      "sourceTag": "[보도]",
+      "item": "보도 묶음 기사 수(주제 노사 갈등, 제목 속 인물 서정진)",
+      "value": 6.0,
+      "unit": "건",
+      "dataDate": "2026-06~2026-10",
+      "publishedAt": "2026-10-19",
+      "publishedAtSource": "PAGE"
+    },
+    {
+      "evidenceId": "N003",
+      "sourceType": "NEWS",
+      "verificationStatus": "보도",
+      "sourceTag": "[보도]",
+      "item": "보도 묶음 기사 수(주제 경영권 분쟁, 제목 속 인물 서정진)",
+      "value": 1.0,
+      "unit": "건",
+      "dataDate": "2026-02~2026-02",
+      "publishedAt": "2026-02-02",
+      "publishedAtSource": "PAGE"
+    },
+    {
+      "evidenceId": "N004",
+      "sourceType": "NEWS",
+      "verificationStatus": "보도",
+      "sourceTag": "[보도]",
+      "item": "보도 묶음 기사 수(주제 주주가치 논란, 제목 속 인물 서정진)",
+      "value": 1.0,
+      "unit": "건",
+      "dataDate": "2026-04~2026-04",
+      "publishedAt": "2026-04-01",
+      "publishedAtSource": "PAGE"
+    }
+  ],
+  "unresolved": [
+    {
+      "evidenceId": "E04",
+      "reason": "NO_DATA",
+      "affectsClaimIds": [],
+      "item": "기업가치제고계획 숫자 목표 3개는 실적 자료가 없어 판정 보류"
+    },
+    {
+      "evidenceId": "E15",
+      "reason": "NO_DATA",
+      "affectsClaimIds": [],
+      "item": "자사주 취득 결정 진행 중(결과 공시 전)"
+    },
+    {
+      "reason": "LINK_UNVERIFIED",
+      "affectsClaimIds": [],
+      "item": "보도 쟁점 묶음은 제목 규칙 결과라 주장으로 올리지 않았다(제목 속 인물이 당사자인지 미확인)"
+    }
+  ],
+  "assumptions": [],
+  "handoff": [
+    {
+      "toAgentId": "가치·위험(번호 미확인)",
+      "item": "자본배분 연표의 배당·자사주·투자 금액은 공시 원문 값이다. 주당가치·밸류에이션 영향은 가치·위험 관점이 계산한다."
+    },
+    {
+      "toAgentId": "agent6(투자심리·뉴스)",
+      "item": "보도 쟁점 묶음은 제목 속 경영진·대주주 기준이다. 종목 전체 분위기·언급량은 에이전트 6이 본다."
+    }
+  ],
+  "qualityFlags": [
+    "THRESHOLDS_DRAFT",
+    "RULE_BASED_EXTRACTION",
+    "NEWS_TITLE_RULES_UNREVIEWED"
+  ],
+  "disclaimer": "투자 권유가 아니다. 판정은 공시끼리 맞댄 규칙 결과이며 기준값은 팀 합의 전 초안이다.",
+  "promiseExecution": [
+    {
+      "promiseType": "자사주 취득",
+      "promiseDate": "2026-04-22",
+      "promise": "2026-04-23~2026-07-22 자사주 492,611주, 1,000억 원 취득 (목적: 주가 안정 및 주주가치 제고)",
+      "execution": "488,977주, 1,000억 원 취득",
+      "followup": "소각결정 488,983주 (2026-05-21 소각 예정)",
+      "rate": 0.9999984090005252,
+      "verdict": "이행",
+      "evidenceIds": [
+        "E05",
+        "E07",
+        "E06"
+      ],
+      "note": "",
+      "claimId": "G01"
+    },
+    {
+      "promiseType": "자사주 취득",
+      "promiseDate": "2026-05-21",
+      "promise": "2026-06-08~2026-08-21 자사주 557,414주, 1,000억 원 취득 (목적: 주가 안정 및 주주가치 제고)",
+      "execution": "586,927주, 999억 원 취득",
+      "followup": null,
+      "rate": 0.9987273724112014,
+      "verdict": "이행",
+      "evidenceIds": [
+        "E08",
+        "E09"
+      ],
+      "note": "",
+      "claimId": "G02"
+    },
+    {
+      "promiseType": "자사주 취득",
+      "promiseDate": "2026-08-31",
+      "promise": "2026-09-01~2026-11-30 자사주 524,384주, 1,000억 원 취득 (목적: 주가 안정 및 주주가치 제고)",
+      "execution": "544,299주, 1,000억 원 취득",
+      "followup": "소각결정 544,299주 (2026-09-30 소각 예정)",
+      "rate": 0.999998701500374,
+      "verdict": "이행",
+      "evidenceIds": [
+        "E10",
+        "E11",
+        "E12"
+      ],
+      "note": "",
+      "claimId": "G03"
+    },
+    {
+      "promiseType": "자사주 취득",
+      "promiseDate": "2026-09-29",
+      "promise": "2026-09-30~2026-12-29 자사주 560,853주, 1,000억 원 취득 (목적: 주가 안정 및 주주가치 제고)",
+      "execution": "548,479주, 1,000억 원 취득",
+      "followup": null,
+      "rate": 0.9999997580002176,
+      "verdict": "이행",
+      "evidenceIds": [
+        "E13",
+        "E14"
+      ],
+      "note": "",
+      "claimId": "G04"
+    },
+    {
+      "promiseType": "자사주 취득",
+      "promiseDate": "2026-10-26",
+      "promise": "2026-10-27~2027-01-26 자사주 514,404주, 1,000억 원 취득 (목적: 주가 안정 및 주주가치 제고)",
+      "execution": null,
+      "followup": null,
+      "rate": null,
+      "verdict": "진행 중",
+      "evidenceIds": [
+        "E15"
+      ],
+      "note": ""
+    },
+    {
+      "promiseType": "기업가치제고계획 목표",
+      "promiseDate": "2026-03-24",
+      "promise": "① 매출 성장: '25~'27년 연평균 30% 이상 성장 목표",
+      "execution": null,
+      "followup": null,
+      "rate": null,
+      "verdict": "판정 보류",
+      "evidenceIds": [
+        "E04"
+      ],
+      "note": "규칙으로 뽑은 항목이라 사람 확인 필요. 정량 대조에는 실적·환원 실적 자료가 필요하다"
+    },
+    {
+      "promiseType": "기업가치제고계획 목표",
+      "promiseDate": "2026-03-24",
+      "promise": "② 수익성 개선: '27년까지 ROE 7% 이상 달성 목표",
+      "execution": null,
+      "followup": null,
+      "rate": null,
+      "verdict": "판정 보류",
+      "evidenceIds": [
+        "E04"
+      ],
+      "note": "규칙으로 뽑은 항목이라 사람 확인 필요. 정량 대조에는 실적·환원 실적 자료가 필요하다"
+    },
+    {
+      "promiseType": "기업가치제고계획 목표",
+      "promiseDate": "2026-03-24",
+      "promise": "③ 주주환원: '25~'27년 3년 평균 주주환원율 40% 목표",
+      "execution": null,
+      "followup": null,
+      "rate": null,
+      "verdict": "판정 보류",
+      "evidenceIds": [
+        "E04"
+      ],
+      "note": "규칙으로 뽑은 항목이라 사람 확인 필요. 정량 대조에는 실적·환원 실적 자료가 필요하다"
+    },
+    {
+      "promiseType": "기업가치제고계획 목표",
+      "promiseDate": "2026-03-24",
+      "promise": "③ 주주환원: 911만주 자기주식 소각(1.7조원 규모), EBITDA-CAPEX 대비 30% 목표로 현금배당 점진적 증가",
+      "execution": "소각결정 9,110,000주 (2026-04-01 소각 예정)",
+      "followup": null,
+      "rate": 1.0,
+      "verdict": "이행",
+      "evidenceIds": [
+        "E04",
+        "E03"
+      ],
+      "note": "규칙으로 뽑은 항목이라 사람 확인 필요. 소각 수량만 공시끼리 대조했다",
+      "claimId": "G05"
+    }
+  ],
+  "capitalAllocation": [
+    {
+      "date": "2026-01-21",
+      "event": "자사주 처분 결정",
+      "category": "보상",
+      "amount": 1648139691.0,
+      "shares": 11379.0,
+      "detail": "목적 주식매수선택권 행사에 따른 자기주식 교부, 기간 2026-01-21~2026-01-21",
+      "correctionRceptNos": null,
+      "evidenceIds": [
+        "E01"
+      ]
+    },
+    {
+      "date": "2026-03-24",
+      "event": "시설투자 결정",
+      "category": "투자",
+      "amount": 1226500000000.0,
+      "shares": null,
+      "detail": "송도 캠퍼스 내 제4, 5공장 신설",
+      "correctionRceptNos": null,
+      "evidenceIds": [
+        "E02"
+      ]
+    },
+    {
+      "date": "2026-03-24",
+      "event": "자사주 소각 결정",
+      "category": "주주환원",
+      "amount": 1715413000000.0,
+      "shares": 9110000.0,
+      "detail": "소각 예정일 2026-04-01, 재원 기취득 자기주식",
+      "correctionRceptNos": null,
+      "evidenceIds": [
+        "E03"
+      ]
+    },
+    {
+      "date": "2026-03-24",
+      "event": "기업가치제고계획 공시",
+      "category": "계획",
+      "amount": null,
+      "shares": null,
+      "detail": "",
+      "correctionRceptNos": null,
+      "evidenceIds": [
+        "E04"
+      ]
+    },
+    {
+      "date": "2026-04-22",
+      "event": "자사주 취득 결정",
+      "category": "주주환원",
+      "amount": 100000033000.0,
+      "shares": 492611.0,
+      "detail": "목적 주가 안정 및 주주가치 제고, 기간 2026-04-23~2026-07-22",
+      "correctionRceptNos": null,
+      "evidenceIds": [
+        "E05"
+      ]
+    },
+    {
+      "date": "2026-05-06",
+      "event": "자사주 소각 결정",
+      "category": "주주환원",
+      "amount": 100000033000.0,
+      "shares": 488983.0,
+      "detail": "소각 예정일 2026-05-21, 재원 장내매수",
+      "correctionRceptNos": "20260506800779",
+      "evidenceIds": [
+        "E06"
+      ]
+    },
+    {
+      "date": "2026-05-08",
+      "event": "자사주 취득 결과",
+      "category": "주주환원",
+      "amount": 99999873900.0,
+      "shares": 488977.0,
+      "detail": "취득 결정 2026-04-22 건의 결과",
+      "correctionRceptNos": null,
+      "evidenceIds": [
+        "E07"
+      ]
+    },
+    {
+      "date": "2026-05-21",
+      "event": "자사주 취득 결정",
+      "category": "주주환원",
+      "amount": 100000071600.0,
+      "shares": 557414.0,
+      "detail": "목적 주가 안정 및 주주가치 제고, 기간 2026-06-08~2026-08-21",
+      "correctionRceptNos": null,
+      "evidenceIds": [
+        "E08"
+      ]
+    },
+    {
+      "date": "2026-06-30",
+      "event": "자사주 취득 결과",
+      "category": "주주환원",
+      "amount": 99872808750.0,
+      "shares": 586927.0,
+      "detail": "취득 결정 2026-05-21 건의 결과",
+      "correctionRceptNos": null,
+      "evidenceIds": [
+        "E09"
+      ]
+    },
+    {
+      "date": "2026-08-31",
+      "event": "자사주 취득 결정",
+      "category": "주주환원",
+      "amount": 100000028800.0,
+      "shares": 524384.0,
+      "detail": "목적 주가 안정 및 주주가치 제고, 기간 2026-09-01~2026-11-30",
+      "correctionRceptNos": null,
+      "evidenceIds": [
+        "E10"
+      ]
+    },
+    {
+      "date": "2026-09-16",
+      "event": "자사주 취득 결과",
+      "category": "주주환원",
+      "amount": 99999898950.0,
+      "shares": 544299.0,
+      "detail": "취득 결정 2026-08-31 건의 결과",
+      "correctionRceptNos": null,
+      "evidenceIds": [
+        "E11"
+      ]
+    },
+    {
+      "date": "2026-09-16",
+      "event": "자사주 소각 결정",
+      "category": "주주환원",
+      "amount": 96235873293.0,
+      "shares": 544299.0,
+      "detail": "소각 예정일 2026-09-30, 재원 기취득 자기주식",
+      "correctionRceptNos": null,
+      "evidenceIds": [
+        "E12"
+      ]
+    },
+    {
+      "date": "2026-09-29",
+      "event": "자사주 취득 결정",
+      "category": "주주환원",
+      "amount": 100000089900.0,
+      "shares": 560853.0,
+      "detail": "목적 주가 안정 및 주주가치 제고, 기간 2026-09-30~2026-12-29",
+      "correctionRceptNos": null,
+      "evidenceIds": [
+        "E13"
+      ]
+    },
+    {
+      "date": "2026-10-20",
+      "event": "자사주 취득 결과",
+      "category": "주주환원",
+      "amount": 100000065700.0,
+      "shares": 548479.0,
+      "detail": "취득 결정 2026-09-29 건의 결과",
+      "correctionRceptNos": null,
+      "evidenceIds": [
+        "E14"
+      ]
+    },
+    {
+      "date": "2026-10-26",
+      "event": "자사주 취득 결정",
+      "category": "주주환원",
+      "amount": 100000137600.0,
+      "shares": 514404.0,
+      "detail": "목적 주가 안정 및 주주가치 제고, 기간 2026-10-27~2027-01-26",
+      "correctionRceptNos": null,
+      "evidenceIds": [
+        "E15"
+      ]
+    }
+  ],
+  "issues": [
+    {
+      "source": "공시",
+      "date": "2026-02-19",
+      "kind": "소송 결정",
+      "topic": "경영진·대주주 관련",
+      "issue": "임시주주총회소집허가신청 (신청인 윤OO 외 1,230명)",
+      "answer": "1. 신청인들의 신청을 모두 각하한다. 2. 신청비용은 신청인들이 부담한다.",
+      "status": "법원 결정(각하)",
+      "evidenceIds": [
+        "E16"
+      ],
+      "claimId": "F03"
+    },
+    {
+      "source": "공시",
+      "date": "2026-02-26",
+      "kind": "풍문 해명",
+      "topic": "회사 사업",
+      "issue": "셀트리온 충남공장 세운다 \"2028년까지 3000억 투자\" 관련 보도",
+      "answer": "2023년 11월 30일, 셀트리온은 충청남도 예산군과 2028년 12월까지 3,000억원 규모의 바이오의약품 및 관련부자재 공장 신설 투자협약(MOU)를 체결하였습니다. 2025년 2월 27일, 셀트리온은 충청남도, 예산군, 충남개발공사와 3,000억원 규모의 완제(DP) 공장 신설에…",
+      "status": "미확정(검토 중)",
+      "evidenceIds": [
+        "E17"
+      ],
+      "followupEvidenceIds": [
+        "E18"
+      ]
+    },
+    {
+      "source": "공시",
+      "date": "2026-08-25",
+      "kind": "풍문 해명",
+      "topic": "회사 사업",
+      "issue": "셀트리온 충남공장 세운다 \"2028년까지 3000억 투자\" 관련 보도",
+      "answer": "2023년 11월 30일, 셀트리온은 충청남도 예산군과 2028년 12월까지 3,000억원 규모의 바이오의약품 및 관련부자재 공장 신설 투자협약(MOU)를 체결하였습니다. 2025년 2월 27일, 셀트리온은 충청남도, 예산군, 충남개발공사와 3,000억원 규모의 완제(DP) 공장 신설에…",
+      "status": "미확정(검토 중)",
+      "evidenceIds": [
+        "E18"
+      ]
+    },
+    {
+      "source": "보도",
+      "period": "2026-01-06~2026-10-01",
+      "topic": "승계·지분",
+      "status": "보도 속 해명 있음",
+      "targets": "서정진, 서진석",
+      "nArticles": 16,
+      "nConflictArticles": 3,
+      "nResponseArticles": 1,
+      "docIds": [
+        746397,
+        746286,
+        746260
+      ],
+      "evidenceIds": [
+        "N001"
+      ]
+    },
+    {
+      "source": "보도",
+      "period": "2026-06-01~2026-10-19",
+      "topic": "노사 갈등",
+      "status": "사건 보도(논란 표현 없음)",
+      "targets": "서정진",
+      "nArticles": 6,
+      "nConflictArticles": 0,
+      "nResponseArticles": 0,
+      "docIds": [],
+      "evidenceIds": [
+        "N002"
+      ]
+    },
+    {
+      "source": "보도",
+      "period": "2026-02-02~2026-02-02",
+      "topic": "경영권 분쟁",
+      "status": "사건 보도(논란 표현 없음)",
+      "targets": "서정진",
+      "nArticles": 1,
+      "nConflictArticles": 0,
+      "nResponseArticles": 0,
+      "docIds": [],
+      "evidenceIds": [
+        "N003"
+      ]
+    },
+    {
+      "source": "보도",
+      "period": "2026-04-01~2026-04-01",
+      "topic": "주주가치 논란",
+      "status": "사건 보도(논란 표현 없음)",
+      "targets": "서정진",
+      "nArticles": 1,
+      "nConflictArticles": 0,
+      "nResponseArticles": 0,
+      "docIds": [],
+      "evidenceIds": [
+        "N004"
+      ]
+    }
+  ]
+}

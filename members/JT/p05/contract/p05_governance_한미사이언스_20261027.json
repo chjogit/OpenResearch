@@ -1,0 +1,350 @@
+{
+  "schemaVersion": "0.2-draft",
+  "reportId": "RPT-P05-20261027-008930",
+  "agentId": "agent5_governance",
+  "perspective": "경영진·대주주",
+  "subject": {
+    "companyName": "한미사이언스",
+    "stockCode": "008930",
+    "corpCode": "00161426"
+  },
+  "asOf": "2026-10-27",
+  "generatedAt": "2026-11-03T14:58:11+09:00",
+  "dataMode": "DART 공시 목록·원문 + 기사 제목 규칙(제목 미복사)",
+  "completeness": "partial",
+  "claims": [],
+  "evidence": [
+    {
+      "evidenceId": "E01",
+      "sourceType": "DART_DISCLOSURE",
+      "verificationStatus": "공시",
+      "sourceTag": "[공시 20260109000710]",
+      "item": "주요사항보고서(자기주식처분결정)",
+      "dataDate": "2026-01-09",
+      "publishedAt": "2026-01-09",
+      "publishedAtSource": "RCEPT_NO",
+      "rceptNo": "20260109000710",
+      "url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260109000710",
+      "value": 1795018000.0,
+      "unit": "원",
+      "quote": "목적 임직원에 대한 생산성 장려금(PI) 주식지급 (RSA), 기간 2026-01-12~2026-02-12"
+    },
+    {
+      "evidenceId": "E02",
+      "sourceType": "DART_DISCLOSURE",
+      "verificationStatus": "공시",
+      "sourceTag": "[공시 20260312802168]",
+      "item": "현금ㆍ현물배당결정              ",
+      "dataDate": "2026-03-12",
+      "publishedAt": "2026-03-12",
+      "publishedAtSource": "RCEPT_NO",
+      "rceptNo": "20260312802168",
+      "url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260312802168",
+      "value": 20325342300.0,
+      "unit": "원",
+      "quote": "결산배당, 보통주 1주당 300원"
+    },
+    {
+      "evidenceId": "E03",
+      "sourceType": "DART_DISCLOSURE",
+      "verificationStatus": "공시",
+      "sourceTag": "[공시 20260728000479]",
+      "item": "주요사항보고서(자기주식처분결정)",
+      "dataDate": "2026-07-28",
+      "publishedAt": "2026-07-28",
+      "publishedAtSource": "RCEPT_NO",
+      "rceptNo": "20260728000479",
+      "url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260728000479",
+      "value": 1449962000.0,
+      "unit": "원",
+      "quote": "목적 임직원에 대한 생산성 장려금(PI) 및 중대 성과 기여 인센티브 자기주식, 기간 2026-07-29~2026-08-28"
+    },
+    {
+      "evidenceId": "E04",
+      "sourceType": "DART_DISCLOSURE",
+      "verificationStatus": "공시",
+      "sourceTag": "[공시 20261027800693]",
+      "item": "주식소각결정              ",
+      "dataDate": "2026-10-27",
+      "publishedAt": "2026-10-27",
+      "publishedAtSource": "RCEPT_NO",
+      "rceptNo": "20261027800693",
+      "url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261027800693",
+      "value": 9363585341.0,
+      "unit": "원",
+      "quote": "소각 예정일 2026-11-02, 재원 기취득 자기주식"
+    },
+    {
+      "evidenceId": "E05",
+      "sourceType": "DART_DISCLOSURE",
+      "verificationStatus": "공시",
+      "sourceTag": "[공시 20260618800675]",
+      "item": "조회공시요구(풍문또는보도)에대한답변(미확정)              ",
+      "dataDate": "2026-06-18",
+      "publishedAt": "2026-06-18",
+      "publishedAtSource": "RCEPT_NO",
+      "rceptNo": "20260618800675",
+      "url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260618800675",
+      "quote": "한미사이언스(주), 최대주주 등 지분 매각 추진 보도에 대한 조회공시 답변"
+    },
+    {
+      "evidenceId": "N001",
+      "sourceType": "NEWS",
+      "verificationStatus": "보도",
+      "sourceTag": "[보도]",
+      "item": "보도 묶음 기사 수(주제 경영권 분쟁, 제목 속 인물 신동국, 임종훈, 송영숙)",
+      "value": 224.0,
+      "unit": "건",
+      "dataDate": "2026-01~2026-10",
+      "publishedAt": "2026-10-27",
+      "publishedAtSource": "PAGE"
+    },
+    {
+      "evidenceId": "N002",
+      "sourceType": "NEWS",
+      "verificationStatus": "보도",
+      "sourceTag": "[보도]",
+      "item": "보도 묶음 기사 수(주제 사법·수사, 제목 속 인물 신동국, 임주현, 송영숙)",
+      "value": 145.0,
+      "unit": "건",
+      "dataDate": "2026-03~2026-10",
+      "publishedAt": "2026-10-24",
+      "publishedAtSource": "PAGE"
+    },
+    {
+      "evidenceId": "N003",
+      "sourceType": "NEWS",
+      "verificationStatus": "보도",
+      "sourceTag": "[보도]",
+      "item": "보도 묶음 기사 수(주제 개인 의혹, 제목 속 인물 송영숙, 신동국, 임종훈)",
+      "value": 37.0,
+      "unit": "건",
+      "dataDate": "2026-02~2026-10",
+      "publishedAt": "2026-10-19",
+      "publishedAtSource": "PAGE"
+    },
+    {
+      "evidenceId": "N004",
+      "sourceType": "NEWS",
+      "verificationStatus": "보도",
+      "sourceTag": "[보도]",
+      "item": "보도 묶음 기사 수(주제 승계·지분, 제목 속 인물 신동국, 송영숙, 임종훈)",
+      "value": 22.0,
+      "unit": "건",
+      "dataDate": "2026-02~2026-10",
+      "publishedAt": "2026-10-12",
+      "publishedAtSource": "PAGE"
+    },
+    {
+      "evidenceId": "N005",
+      "sourceType": "NEWS",
+      "verificationStatus": "보도",
+      "sourceTag": "[보도]",
+      "item": "보도 묶음 기사 수(주제 주주가치 논란, 제목 속 인물 신동국)",
+      "value": 1.0,
+      "unit": "건",
+      "dataDate": "2026-03~2026-03",
+      "publishedAt": "2026-03-12",
+      "publishedAtSource": "PAGE"
+    }
+  ],
+  "unresolved": [
+    {
+      "reason": "LINK_UNVERIFIED",
+      "affectsClaimIds": [],
+      "item": "보도 쟁점 묶음은 제목 규칙 결과라 주장으로 올리지 않았다(제목 속 인물이 당사자인지 미확인)"
+    }
+  ],
+  "assumptions": [],
+  "handoff": [
+    {
+      "toAgentId": "가치·위험(번호 미확인)",
+      "item": "자본배분 연표의 배당·자사주·투자 금액은 공시 원문 값이다. 주당가치·밸류에이션 영향은 가치·위험 관점이 계산한다."
+    },
+    {
+      "toAgentId": "agent6(투자심리·뉴스)",
+      "item": "보도 쟁점 묶음은 제목 속 경영진·대주주 기준이다. 종목 전체 분위기·언급량은 에이전트 6이 본다."
+    }
+  ],
+  "qualityFlags": [
+    "THRESHOLDS_DRAFT",
+    "RULE_BASED_EXTRACTION",
+    "NEWS_TITLE_RULES_UNREVIEWED"
+  ],
+  "disclaimer": "투자 권유가 아니다. 판정은 공시끼리 맞댄 규칙 결과이며 기준값은 팀 합의 전 초안이다.",
+  "promiseExecution": [
+    {
+      "promiseType": "약속 공시 없음",
+      "promiseDate": null,
+      "promise": "기간 안에 자사주 취득 결정·기업가치제고계획 공시가 없다",
+      "execution": null,
+      "followup": null,
+      "rate": null,
+      "verdict": "자료 없음",
+      "evidenceIds": [],
+      "note": "처분·소각·배당 공시는 자본배분 연표에서 다룬다"
+    }
+  ],
+  "capitalAllocation": [
+    {
+      "date": "2026-01-09",
+      "event": "자사주 처분 결정",
+      "category": "보상",
+      "amount": 1795018000.0,
+      "shares": 48514.0,
+      "detail": "목적 임직원에 대한 생산성 장려금(PI) 주식지급 (RSA), 기간 2026-01-12~2026-02-12",
+      "correctionRceptNos": null,
+      "evidenceIds": [
+        "E01"
+      ]
+    },
+    {
+      "date": "2026-03-12",
+      "event": "현금배당 결정",
+      "category": "주주환원",
+      "amount": 20325342300.0,
+      "shares": null,
+      "detail": "결산배당, 보통주 1주당 300원",
+      "correctionRceptNos": null,
+      "evidenceIds": [
+        "E02"
+      ]
+    },
+    {
+      "date": "2026-07-28",
+      "event": "자사주 처분 결정",
+      "category": "보상",
+      "amount": 1449962000.0,
+      "shares": 40844.0,
+      "detail": "목적 임직원에 대한 생산성 장려금(PI) 및 중대 성과 기여 인센티브 자기주식, 기간 2026-07-29~2026-08-28",
+      "correctionRceptNos": null,
+      "evidenceIds": [
+        "E03"
+      ]
+    },
+    {
+      "date": "2026-10-27",
+      "event": "자사주 소각 결정",
+      "category": "주주환원",
+      "amount": 9363585341.0,
+      "shares": 448286.0,
+      "detail": "소각 예정일 2026-11-02, 재원 기취득 자기주식",
+      "correctionRceptNos": null,
+      "evidenceIds": [
+        "E04"
+      ]
+    }
+  ],
+  "issues": [
+    {
+      "source": "공시",
+      "date": "2026-06-18",
+      "kind": "조회공시 답변",
+      "topic": "경영진·대주주 관련",
+      "issue": "한미사이언스(주), 최대주주 등 지분 매각 추진 보도에 대한 조회공시 답변",
+      "answer": "- 당사는 2024년 7월 3일 주식등의대량보유상황보고서를 통하여 당사의 최대주주인 송영숙 및 최대주주의 특수관계인인 임주현이 신동국과 주식매매계약을 체결한 사실을 확인하였고, 해당 주식등의대량보유상황보고서 내용에 따라 최대주주 변동을 수반하는 거래가 아님을 확인하였습니다. - 이와 관…",
+      "status": "부인",
+      "evidenceIds": [
+        "E05"
+      ]
+    },
+    {
+      "source": "보도",
+      "period": "2026-01-15~2026-10-27",
+      "topic": "경영권 분쟁",
+      "status": "보도 속 해명 있음",
+      "targets": "신동국, 임종훈, 송영숙",
+      "nArticles": 224,
+      "nConflictArticles": 170,
+      "nResponseArticles": 10,
+      "docIds": [
+        742667,
+        742673,
+        742674,
+        742615,
+        742633,
+        742660
+      ],
+      "evidenceIds": [
+        "N001"
+      ]
+    },
+    {
+      "source": "보도",
+      "period": "2026-03-11~2026-10-24",
+      "topic": "사법·수사",
+      "status": "보도 속 해명 있음",
+      "targets": "신동국, 임주현, 송영숙",
+      "nArticles": 145,
+      "nConflictArticles": 91,
+      "nResponseArticles": 30,
+      "docIds": [
+        742559,
+        742875,
+        742856,
+        742399,
+        742397,
+        742395
+      ],
+      "evidenceIds": [
+        "N002"
+      ]
+    },
+    {
+      "source": "보도",
+      "period": "2026-02-23~2026-10-19",
+      "topic": "개인 의혹",
+      "status": "보도 속 해명 있음",
+      "targets": "송영숙, 신동국, 임종훈",
+      "nArticles": 37,
+      "nConflictArticles": 29,
+      "nResponseArticles": 9,
+      "docIds": [
+        742683,
+        742622,
+        742668,
+        742005,
+        742006,
+        742007
+      ],
+      "evidenceIds": [
+        "N003"
+      ]
+    },
+    {
+      "source": "보도",
+      "period": "2026-02-24~2026-10-12",
+      "topic": "승계·지분",
+      "status": "보도 속 해명 있음",
+      "targets": "신동국, 송영숙, 임종훈",
+      "nArticles": 22,
+      "nConflictArticles": 9,
+      "nResponseArticles": 3,
+      "docIds": [
+        742651,
+        742654,
+        742059,
+        741948,
+        741954,
+        741964
+      ],
+      "evidenceIds": [
+        "N004"
+      ]
+    },
+    {
+      "source": "보도",
+      "period": "2026-03-12~2026-03-12",
+      "topic": "주주가치 논란",
+      "status": "사건 보도(논란 표현 없음)",
+      "targets": "신동국",
+      "nArticles": 1,
+      "nConflictArticles": 0,
+      "nResponseArticles": 0,
+      "docIds": [],
+      "evidenceIds": [
+        "N005"
+      ]
+    }
+  ]
+}
