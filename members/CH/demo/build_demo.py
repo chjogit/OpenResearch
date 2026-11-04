@@ -41,7 +41,7 @@ VALIDATION = {
     "meaning": [
         "'제거 문장'은 LLM 이 쓴 문장 중 근거 키 오류·장부 밖 숫자·부호 불일치·금지 표현 등 점검에 걸려 화면에서 빠진 수입니다. 적을수록 좋지만 0 이 목표는 아닙니다(진짜 위반은 걸러져야 함).",
         "점검을 느슨하게 해서 줄인 것이 아닙니다. 진짜 위반(긍정 의도 추정·증권사 목표가·실제 인과 주장·부호가 다른 서술)은 계속 걸리도록 시험으로 고정했습니다.",
-        "아직 못 한 것: 에이전트 4 의 #33 이후 재측정, 감성 사전의 정확도(사람 라벨 평가셋 #39 진행 중 — 표시: SENT_MODEL_UNVALIDATED).",
+        "아직 못 한 것: 에이전트 4 의 #33 이후 재측정, 감성 사전의 개선(평가는 끝났고 정확도 56.6% — 개선 전이라 감성 기반 추론은 계속 건너뜁니다, 상태 SENT_MODEL_UNVALIDATED).",
     ],
 }
 
@@ -189,13 +189,12 @@ STATUS_SQL = {
 TABLES = (("core.price_daily", "일별 시세"), ("core.investor_flow_daily", "투자자별 수급"), ("core.stock_lending_daily", "대차잔고"),
           ("core.financial_fact", "재무제표 계정"), ("core.disclosure", "공시 목록"), ("rag.chunk", "공시·기사 청크"),
           ("core.macro_obs", "거시 지표 관측치"), ("core.ownership_report", "대량보유상황보고(신규)"), ("core.largest_holder", "최대주주 지분(신규)"),
-          ("core.audit_opinion", "감사의견(신규)"), ("core.financial_item", "재무 항목: 감가상각·이자비용 등(신규)"))
+          ("core.audit_opinion", "감사의견(신규)"), ("core.credit_balance", "신용공여 잔고: 시장 전체 일별(신규)"), ("core.financial_item", "재무 항목: 감가상각·이자비용 등(신규)"))
 SOURCE_KO = {"naver_news": "뉴스(국내)", "finnhub_news": "뉴스(해외)", "naver_news_backfill": "뉴스(과거 보강)", "dart_report": "공시 보고서",
              "youtube_comment": "유튜브 댓글", "naver_blog": "블로그", "naver_cafe": "카페"}
 UNAVAILABLE = [
     "호가 잔량·세부 투자자(금융투자·투신·연기금) 자료 — 수급 노드가 '미확보'로 표시",
-    "신용공여 잔고(시장 전체) — 수집 코드는 만들었고 공공 데이터 키 활성(11/4) 뒤 확인·적재 예정",
-    "감성 사전의 정확도 — 사람 라벨 평가셋(600건) 라벨링 진행 중, 그전까지 SENT_MODEL_UNVALIDATED",
+    "감성 사전의 개선 — 사람 라벨 600건 평가 결과 정확도 56.6%(긍정 과소 탐지·중립 편향), 개선 전이라 감성 기반 추론은 건너뜀",
     "공시 주석표 속 감가상각·이자 등 일부 재무 항목 — 계정 매핑 보강은 본선 후보",
 ]
 
@@ -226,7 +225,39 @@ def collect_status() -> dict:
                         n, _ = None, e
                     out["tables"].append({"table": tbl, "label": label, "n": n})
     out["limits"] = {"main_mb": 800, "retention_days": 14}
+    out["market"] = collect_market()
     return out
+
+
+def collect_market() -> list[dict]:
+    """시장 지표(시장 전체 일별): 신용공여 잔고의 행 수·기간·최신 기준일. 접속 정보는 넣지 않음."""
+    import psycopg
+    from dotenv import load_dotenv
+
+    load_dotenv()
+    url = os.getenv("DATABASE_URL", "")
+    if not url:
+        return []
+    try:
+        with psycopg.connect(url, autocommit=True) as conn:
+            conn.execute("SET default_transaction_read_only = on")
+            n, a, b = conn.execute("SELECT count(*), min(bas_dt), max(bas_dt) FROM core.credit_balance").fetchone()
+        return [{"label": "신용공여 잔고 (시장 전체, 일별, 원)", "n": n, "first": str(a), "last": str(b)}]
+    except Exception:  # noqa: BLE001  표가 아직 없으면 비움
+        return []
+
+
+def git_head() -> str:
+    import subprocess
+
+    try:
+        return subprocess.run(["git", "rev-parse", "--short", "HEAD"], cwd=HERE, capture_output=True, text=True, timeout=10).stdout.strip() or "-"
+    except Exception:  # noqa: BLE001
+        return "-"
+
+
+def load_sentiment_eval() -> dict:
+    return json.loads((HERE / "sentiment_eval.json").read_text(encoding="utf-8"))
 
 
 def kst_now() -> str:
@@ -237,9 +268,9 @@ def build_payload(runs: dict, status: dict, generated_at: str | None = None) -> 
     rs = runs["runs"]
     return {
         "meta": {"asOf": runs["as_of"], "generatedAt": generated_at or kst_now(), "runs": len(rs),
-                 "llmCalls": sum(r["attempts"] for r in rs.values()), "contract": "r4-1.3"},
+                 "llmCalls": sum(r["attempts"] for r in rs.values()), "contract": "r4-1.3", "commit": git_head()},
         "tickers": [{"ticker": t, "name": n} for t, n in TICKERS], "agents": {str(k): v for k, v in AGENTS.items()},
-        "runs": rs, "status": status, "validation": VALIDATION, "overview": OVERVIEW,
+        "runs": rs, "status": status, "validation": VALIDATION, "sentimentEval": load_sentiment_eval(), "overview": OVERVIEW,
     }
 
 

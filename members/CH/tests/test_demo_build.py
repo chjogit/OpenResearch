@@ -121,3 +121,19 @@ def test_opinion_leaks_detects_remaining_snippet_or_domain():
 
 def test_conflict_doc_ids_collects_doc_links():
     assert bd.conflict_doc_ids(_opinion_runs()) == [11, 22, 33]
+
+
+def test_payload_has_sentiment_eval_and_commit_and_template_renders_it():
+    p = bd.build_payload(_runs(), _status())
+    e = p["sentimentEval"]
+    assert e["n_labeled"] == 600 and e["n_scored"] == 440 and e["accuracy"] == 56.6
+    assert set(e["per_class"]) == {"긍정", "중립", "부정"} and len(e["by_source"]) == 5
+    assert "commit" in p["meta"]
+    tpl = (Path(bd.HERE) / "template.html").read_text(encoding="utf-8")
+    assert "sentEval()" in tpl and "SW 검수 후 라벨 일치도" in tpl and "기준 커밋" in tpl and "시장 지표" in tpl
+    assert "검증 통과" not in tpl.replace("검증 통과가 아니라", "")
+
+
+def test_unavailable_list_no_longer_says_credit_or_sentiment_pending():
+    assert not any("신용공여" in x or "라벨링 진행 중" in x for x in bd.UNAVAILABLE)
+    assert "core.credit_balance" in [t for t, _ in bd.TABLES]

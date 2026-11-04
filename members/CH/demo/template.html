@@ -67,7 +67,7 @@ const fmt = n => n == null ? "미적용" : Number(n).toLocaleString("ko-KR");
 const TABS = [["overview", "1 개요"], ["demo", "2 에이전트 시연"], ["data", "3 데이터 현황"], ["valid", "4 검증 기록"]];
 const st = {tk: D.tickers[0].ticker, ag: "3", ext: 0, lv: "L2", view: "screen"};
 
-$("#metaline").textContent = `기준일 ${D.meta.asOf} · 생성 ${D.meta.generatedAt} · 실행 ${D.meta.runs}회 · LLM 호출 ${D.meta.llmCalls}회 · 계약 ${D.meta.contract}`;
+$("#metaline").textContent = `기준일 ${D.meta.asOf} · 생성 ${D.meta.generatedAt} · 실행 ${D.meta.runs}회 · LLM 호출 ${D.meta.llmCalls}회 · 계약 ${D.meta.contract} · 기준 커밋 ${esc(D.meta.commit || "-")}`;
 
 function showTab(id) {
   document.querySelectorAll("main section").forEach(s => s.classList.toggle("on", s.id === "s-" + id));
@@ -196,14 +196,35 @@ function docsTable(rows) {
   <div class="card"><h2>표별 건수 (새로 수집한 항목 포함)</h2><div class="tw"><table><tr><th>표</th><th>내용</th><th>건수</th></tr>${s.tables.map(t =>
     `<tr><td>${esc(t.table)}</td><td>${esc(t.label)}</td><td>${fmt(t.n)}</td></tr>`).join("")}</table></div>
   <p class="note">‘(신규)’ 표는 이번 단계에서 새로 수집·적재한 지분공시·감사의견·재무 항목입니다. 건수가 ‘미적용’이면 아직 DB 에 반영 전입니다.</p></div>
+  <div class="card"><h2>시장 지표 (시장 전체)</h2>${(s.market || []).length ? '<div class="tw"><table><tr><th>지표</th><th>행 수</th><th>기간</th><th>최신 기준일</th></tr>' + s.market.map(m =>
+    `<tr><td>${esc(m.label)}</td><td>${fmt(m.n)}</td><td>${esc(m.first)} ~ ${esc(m.last)}</td><td>${esc(m.last)}</td></tr>`).join("") + "</table></div>" : '<p class="note">조회 불가(미적용)</p>'}
+  <p class="note">종목별이 아니라 시장 전체 값입니다. 하루 늦게 올라오므로 평일 2일 안이면 최신으로 봅니다.</p></div>
   <div class="card"><h2>미확보 목록</h2><ul>${(s.unavailable || []).map(x => `<li>${esc(x)}</li>`).join("")}</ul></div>`;
 })();
 
 // ---- 4 검증 기록
+function sentEval() {
+  const e = D.sentimentEval; if (!e) return "";
+  const cls = Object.entries(e.per_class), names = cls.map(([k]) => k);
+  const conf = '<div class="tw"><table><tr><th>정답＼사전</th>' + names.map(n => `<th>${esc(n)}</th>`).join("") + "</tr>" + names.map(r =>
+    `<tr><td>${esc(r)}</td>${names.map(c => `<td>${fmt((e.confusion[r] || {})[c])}</td>`).join("")}</tr>`).join("") + "</table></div>";
+  return `<div class="card"><h2>감성 사전 평가 (사람 라벨)</h2>
+  <div class="kv"><div><small>사람 라벨</small><b>${fmt(e.n_labeled)}건</b></div><div><small>감성 대상(‘무관’ ${fmt(e.n_irrelevant)}건 제외)</small><b>${fmt(e.n_scored)}건</b></div>
+  <div><small>사전 정확도</small><b>${e.accuracy}%</b></div><div><small>SW 검수 후 라벨 일치도(κ)</small><b>${e.kappa_fleiss}</b></div></div>
+  <p class="note">라벨러 3명이 매긴 뒤 SW 가 검수했기 때문에 κ 는 독립적인 일치도가 아니라 ‘SW 검수 후 라벨 일치도’입니다. SW 확인 ${e.n_sw_resolved}건 반영. 검증 통과가 아니라 현재 수준을 잰 결과이며, 개선 전이라 감성 기반 추론은 건너뜁니다.</p>
+  <h3>클래스별</h3><div class="tw"><table><tr><th>정답 클래스</th><th>정밀도</th><th>재현율</th><th>건수</th></tr>${cls.map(([k, v]) =>
+    `<tr><td>${esc(k)}</td><td>${v.precision}</td><td>${v.recall}</td><td>${fmt(v.n)}</td></tr>`).join("")}</table></div>
+  <p class="note">긍정 글의 절반 가까이를 중립으로 분류합니다(긍정 과소 탐지·중립 편향).</p>
+  <h3>혼동 행렬</h3>${conf}
+  <h3>출처별</h3><div class="tw"><table><tr><th>출처</th><th>대상 건수</th><th>정확도</th><th>‘무관’ 비율</th></tr>${e.by_source.map(r =>
+    `<tr><td>${esc(r.source)}</td><td>${fmt(r.n)}</td><td>${r.accuracy}%</td><td>${r.irrelevant}%</td></tr>`).join("")}</table></div>
+  <p class="note">${esc(e.source)}</p></div>`;
+}
 (function () {
   const v = D.validation;
   $("#s-valid").innerHTML = `<div class="card"><h2>성적표 추이</h2><p class="note">${esc(v.note)}</p><div class="tw"><table><tr><th>단계</th><th>제거 문장 합계</th><th>범위</th><th>설명</th></tr>${v.rows.map(r =>
     `<tr><td>${esc(r.stage)}</td><td>${esc(r.removed_total)}</td><td>${esc(r.range)}</td><td>${esc(r.note)}</td></tr>`).join("")}</table></div></div>
+  ${sentEval()}
   <div class="card"><h2>무엇을 뜻하나</h2><ul>${v.meaning.map(m => `<li>${esc(m)}</li>`).join("")}</ul></div>`;
 })();
 
