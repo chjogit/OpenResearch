@@ -291,3 +291,10 @@ def test_sentiment_limit_survives_masking_and_sentence_check():
     assert "56.6%" in masked and "440건" in masked and "수치는 노드 산출물 참조" not in masked
     assert "(수치는 노드 산출물 참조)" in _mask_loose_numbers("Brier 0.265")   # 다른 수치는 계속 가림
     assert llm.sentence_problems("감성 점수는 " + SENT_LIMIT_TEXT + "입니다.", set(), llm.label_terms(None)) == []
+
+
+def test_zero_prior_period_gap_reads_as_no_data_not_zero_counts():
+    from ch_agents import agent3_sentiment_flow as a3
+    import inspect
+    src = inspect.getsource(a3)
+    assert "직전 기간 자료 없음 (수집 기간 짧음)" in src

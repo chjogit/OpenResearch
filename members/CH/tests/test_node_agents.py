@@ -180,3 +180,22 @@ def test_numbers_outside_ledger_are_masked_in_flags_and_notes():
 
 def test_direction_rule_is_in_prompt_notes():
     assert node_agents.DIRECTION_RULE in data4().facts.notes
+
+
+def test_out_of_scope_items_get_fixed_reason_and_others_keep_node_reason():
+    from ch_agents.availability import OUT_OF_SCOPE_TEXT, availability
+    assert availability("호가 잔량") == "not_disclosed" and availability("세부 주체(금융투자·투신·연기금)") == "not_disclosed"
+    for no, make in ALL:
+        f = make().facts
+        for g in f.gaps:
+            if "호가 잔량" in g["label"] or "세부 주체" in g["label"]:
+                assert g["reason"] == OUT_OF_SCOPE_TEXT
+            else:
+                assert OUT_OF_SCOPE_TEXT not in g["reason"]
+
+
+def test_prompt_lists_intentionally_unused_sources_without_banned_word():
+    from ch_agents.llm import COMMON_RULES
+    line = next(l for l in COMMON_RULES.split("\n") if l.startswith("14. "))
+    assert "증권사 가격 전망" in line and "블로그·카페·유튜브 원문" in line and "미확인" in line
+    assert "목표주가" not in line and "목표가" not in line

@@ -7,6 +7,8 @@ from __future__ import annotations
 
 import re
 
+OUT_OF_SCOPE_TEXT = "범위 밖 — 공개·무로그인 출처 없음(외국인·기관 합계로 대체)"
+OUT_OF_SCOPE_ITEM = re.compile(r"호가\s*잔량|세부\s*주체")
 AVAILABILITY = {
     "collecting": "수집 중 (시간이 지나거나 수집이 돌면 채워짐)",
     "partial_disclosure": "공시에 일부 있음 (원문 추가 추출 필요)",
@@ -17,6 +19,7 @@ AVAILABILITY = {
 AVAIL_SHORT = {"collecting": "수집 중", "partial_disclosure": "공시에 일부 있음", "not_disclosed": "공시 없음",
                "not_verified": "검증 미통과", "unclassified": "분류 전"}
 AVAILABILITY_RULES = (
+    ("not_disclosed", OUT_OF_SCOPE_ITEM),   # 수집 대상이 아닌 자료: 스키마 값은 그대로, 사유 문구만 OUT_OF_SCOPE_TEXT (#49)
     ("not_verified", re.compile(r"반대 근거·하방 위험")),
     ("not_disclosed", re.compile(r"판가\s*전가|결제\s*통화|달러\s*비용|원재료.{0,6}통화|계약\s*구조|경쟁\s*강도")),
     ("collecting", re.compile(r"수집|감성|수급|거래일\s*미만|\d+일\s*미만|문서\s*\d+건|기간\s*짧|지연|분기\s*재무|최소\s*\d+건|적용\s*전")),
