@@ -13,6 +13,8 @@ from __future__ import annotations
 
 import re
 
+from .sentiment_limit import SENT_LIMIT_TEXT
+
 STANDARD = "모두의리서치 P03 투자심리·수급 상세 개발기획서 v1.0 (2026-10-28, P01 구조 준용)"
 POLICY_VERSION = "p03-standard-v1"
 Z_EVENT = 2.0
@@ -42,7 +44,7 @@ STATUS_TEXT = {
     "STALE_FLOW": "투자자별 수급 자료가 오래됨",
     "FLOW_LAG": "수급이 가격보다 늦게 끝남 → 연속 일수·최근 강도 해석 주의",
     "AVAILABILITY_CUT": "기준일에 공개 전이던 자료(대차·검색)를 뺌",
-    "SENT_MODEL_UNVALIDATED": "감성은 키워드 사전 기준선, 사람 라벨 평가 전",
+    "SENT_MODEL_UNVALIDATED": SENT_LIMIT_TEXT,
     "SMALL_SAMPLE": "사건 연구 표본 부족 → 수치 보류",
     "DUPLICATE_SIGNALS": "같은 사건을 반영할 수 있는 신호 묶음 → 하나의 근거로 셈",
     "MODEL_NOT_APPROVED": "승인된 예측 모델 없음 → 관측·과거 관계만",

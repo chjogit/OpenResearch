@@ -271,3 +271,13 @@ def test_mention_limit_is_shown_in_n11_and_n12():
     res = run(ext=True)["results"]
     for nid in ("N11", "N12"):
         assert any("부수적으로 언급" in x and "종목 태그 매핑 미적용" in x for x in res[nid].artifacts["limits"])
+
+
+def test_sentiment_limit_wording_uses_eval_result():
+    from ch_agents.sentiment_limit import SENT_LIMIT_TEXT
+    from ch_agents.p03 import STATUS_TEXT
+    assert "56.6%" in SENT_LIMIT_TEXT and "600건" in SENT_LIMIT_TEXT and "개선 전" in SENT_LIMIT_TEXT
+    assert STATUS_TEXT["SENT_MODEL_UNVALIDATED"] == SENT_LIMIT_TEXT
+    assert "검증됨" not in SENT_LIMIT_TEXT and "평가 전" not in SENT_LIMIT_TEXT
+    from ch_agents.llm import BANNED
+    assert not any(w in SENT_LIMIT_TEXT for w in BANNED)
