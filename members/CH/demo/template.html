@@ -119,13 +119,15 @@ ${D.overview.nodes.map(n => `<tr><td>${esc(n[0])}</td><td>${esc(n[1])}</td><td>$
 <div class="card"><h2>시연 방법</h2><p>‘2 에이전트 시연’에서 종목·에이전트·확장 여부·이용자 수준을 고르면 실제 실행 결과(${D.meta.runs}가지)가 바뀝니다.</p></div>`;
 
 // ---- 2 에이전트 시연
+const evLabel = id => /^E\d+$/.test(id) ? `<span title="${esc(id)}">근거 ${parseInt(id.slice(1), 10)}</span>` : esc(id);
+const NODE_TITLE = { N05: "거시 데이터 점검", N06: "거시 해석", N07: "수급 데이터 점검", N08: "수급 해석", N11: "심리·뉴스 데이터 점검", N12: "심리·뉴스 해석" };
 const chip = (grp, val, label, on) => `<button class="chip" data-g="${grp}" data-v="${esc(val)}" aria-pressed="${on}">${esc(label)}</button>`;
 function statusBadge(s) { return `<span class="badge ${/^완료/.test(s) ? "b-ok" : /대체/.test(s) ? "b-warn" : "b-bad"}">${esc(s)}</span>`; }
 function nodeTable(r) {
   const ns = r.contract.nodes || [];
   if (!ns.length) return '<p class="note">노드 정보 없음</p>';
   return '<div class="tw"><table><tr><th>노드</th><th>종류</th><th>상태</th><th>결과</th><th>이유 · 미확보 입력</th></tr>' + ns.map(n =>
-    `<tr><td>${esc(n.nodeId)} ${esc(n.name)}</td><td>${n.kind === "ext" ? "확장" : "기본"}</td>
+    `<tr><td>${esc(NODE_TITLE[n.nodeId] || n.name)} <span class="note" title="${esc(n.nodeId)}">${esc(n.name)}</span></td><td>${n.kind === "ext" ? "확장" : "기본"}</td>
      <td><span class="badge ${n.state === "executed" ? "b-ok" : "b-mute"}">${n.state === "executed" ? "실행" : "건너뜀"}</span></td>
      <td>${esc(n.status || "-")}</td><td>${esc(n.reason || "")}${(n.missingInputs || []).length ? " · 미확보: " + esc(n.missingInputs.join(", ")) : ""}</td></tr>`).join("") + "</table></div>";
 }
@@ -134,7 +136,7 @@ function claimTable(r) {
   if (!cs.length) return '<p class="note">검증을 통과한 주장이 없습니다.</p>';
   return '<div class="tw"><table><tr><th>ID</th><th>태그</th><th>문장</th><th>근거</th><th>검증</th></tr>' + cs.map(c =>
     `<tr><td>${esc(c.claimId)}</td><td><span class="badge b-mute">${esc(c.tag || c.typeLabel || c.type)}</span>${esc(c.typeLabel || "")}</td><td>${esc(c.text)}</td>
-     <td>${esc((c.evidenceIds || []).join(", "))}</td><td>${esc((c.verification || {}).status || "")}</td></tr>`).join("") + "</table></div>";
+     <td>${(c.evidenceIds || []).map(evLabel).join(", ")}</td><td>${esc((c.verification || {}).status || "")}</td></tr>`).join("") + "</table></div>";
 }
 function listBlock(title, items, map) {
   if (!items || !items.length) return `<h3>${title}</h3><p class="note">없음</p>`;
@@ -145,7 +147,14 @@ function evidenceTable(r) {
   if (!ev.length) return '<p class="note">근거 목록 없음</p>';
   const cols = ["evidenceId", "label", "display", "dataDate", "source"];
   return '<div class="tw"><table><tr><th>근거 ID</th><th>항목</th><th>값·제목</th><th>기준일</th><th>출처</th><th>링크</th></tr>' + ev.map(e =>
-    "<tr>" + cols.map(c => `<td>${esc(e[c] == null ? "" : typeof e[c] === "object" ? JSON.stringify(e[c]) : e[c])}</td>`).join("") + `<td>${/^https?:\/\//.test(e.url || "") ? `<a href="${esc(e.url)}" rel="noopener noreferrer" target="_blank">링크</a>` : ""}</td></tr>`).join("") + "</table></div>";
+    "<tr>" + cols.map(c => c === "evidenceId" ? `<td>${evLabel(String(e[c] || ""))}</td>` : `<td>${esc(e[c] == null || typeof e[c] === "object" ? "" : e[c])}</td>`).join("") + `<td>${/^https?:\/\//.test(e.url || "") ? `<a href="${esc(e.url)}" rel="noopener noreferrer" target="_blank">링크</a>` : ""}</td></tr>`).join("") + "</table></div>";
+}
+function conflictBlock(cf) {
+  if (!cf.length) return "<h3>관점별 충돌</h3><p class=\"note\">없음</p>";
+  return `<h3>관점별 충돌 (${cf.length})</h3>` + cf.map(x => `<div class="card"><b>${esc(x.topic)}</b> <span class="note" title="${esc(x.node)}">${esc(NODE_TITLE[x.node] || "")}</span>` + (x.summary
+    ? `<p>${esc(x.summary)}</p>`
+    : '<div class="tw"><table><tr><th>관점</th><th>문장</th><th>성격</th><th>근거 문서</th></tr>' + x.views.map(v =>
+      `<tr><td>${esc(v.head)}</td><td>${esc(v.text)}</td><td><span class="badge b-mute">${esc(v.tagKo)}</span></td><td>${esc(v.docs.join(", "))}</td></tr>`).join("") + "</table></div>") + "</div>").join("");
 }
 function demoView() {
   const r = D.runs[`${st.tk}|${st.ag}|${st.ext}`];
@@ -156,9 +165,10 @@ function demoView() {
   if (st.view === "screen") body = `<div class="md">${md(r.render[st.lv])}</div>`;
   else if (st.view === "nodes") body = nodeTable(r) + (c.predictionSkippedReason ? `<p class="note">예측 생략 이유: ${esc(c.predictionSkippedReason)}</p>` : "");
   else if (st.view === "claims") body = claimTable(r);
-  else if (st.view === "conflict") body = listBlock("관점별 충돌", cf, x => `<li>${esc(typeof x === "string" ? x : x.text || x.summary || JSON.stringify(x))}</li>`)
-    + listBlock("미확보·미확인", un, x => `<li>${esc(typeof x === "string" ? x : x.item || x.text || JSON.stringify(x))}${x.reason ? ' <span class="note">(' + esc(x.reason) + ")</span>" : ""}</li>`)
-    + listBlock("반대 근거·하방 위험", c.downsideRisks, x => `<li>${esc(typeof x === "string" ? x : x.text || JSON.stringify(x))}</li>`);
+  else if (st.view === "conflict") body = conflictBlock(cf)
+    + listBlock("미확보·미확인", un, x => `<li>${esc(typeof x === "string" ? x : x.item || x.text || "")}${x.reason ? ' <span class="note">(' + esc(x.reason) + ")</span>" : ""}</li>`)
+    + ((c.processing || []).length ? `<h3>처리 기록</h3><p class="note">${esc(c.processing.join(" · "))} (빠진 자료가 아니라 처리 통계입니다)</p>` : "")
+    + listBlock("반대 근거·하방 위험", c.downsideRisks, x => `<li>${esc(typeof x === "string" ? x : x.text || "")}</li>`);
   else body = evidenceTable(r);
   const views = [["screen", "화면(수준별)"], ["nodes", "노드 실행"], ["claims", "주장·태그"], ["conflict", "충돌·미확보"], ["evidence", "근거 목록"]];
   return `<div class="kv"><div><small>상태</small><b>${statusBadge(r.status)}</b></div><div><small>노드 건너뜀</small><b>${skipped}</b></div>

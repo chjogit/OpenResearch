@@ -261,6 +261,125 @@ def mask_target_price(runs: dict) -> dict:
     return out
 
 
+# ---- #48 표시 정리: 내부 코드를 한국어로, 충돌을 카드로, 처리 통계를 미확보에서 분리 (시연 렌더러만, 에이전트 출력은 그대로)
+NODE_KO = {"N05": "거시 데이터 점검", "N06": "거시 해석", "N07": "수급 데이터 점검", "N08": "수급 해석",
+           "N11": "심리·뉴스 데이터 점검", "N12": "심리·뉴스 해석"}
+PHRASE_KO = (("확장 노드 입력 요건 미충족", "추가 분석에 필요한 자료 부족"), ("D1 사후 탐색 등급", "사후 탐색 단계(검증 전)"),
+             ("CAR", "사건 뒤 주가 반응(초과수익)"))
+TAG_KO = {"Fact": "사실", "Computation": "계산", "Prediction": "예측", "Interpretation": "해석"}
+KEEP_KEYS = {"nodeId", "claimId", "evidenceIds", "evidenceId", "evidenceLinks", "id", "reportId", "ticker", "agent", "schemaVersion", "tag"}
+STAT_RE = re.compile(r"문서 \d+건")
+
+
+_L, _R = r"(?<![A-Za-z0-9_])", r"(?![A-Za-z0-9_])"   # 한글 조사('E10에서')가 붙어도 코드 경계로 인식 ( 는 한글을 단어 문자로 봄)
+
+
+def ko_text(t: str) -> str:
+    """내부 코드(N05 등)·약어(CAR)·사건/근거 번호를 사람이 읽는 말로. 원 코드는 화면의 title 이나 표 ID 칸에만 남음."""
+    for a, b in PHRASE_KO:
+        t = re.sub(rf"{_L}{re.escape(a)}{_R}" if a.isascii() else re.escape(a), b, t)
+    t = re.sub(rf"{_L}N(05|06|07|08|11|12){_R}", lambda m: NODE_KO[f"N{m.group(1)}"], t)
+    t = re.sub(rf"사건 E0*\d+(?:\s*(?:[·,、]|과|와)\s*E0*\d+)*", lambda m: "사건 " + re.sub(r"E0*(\d+)", r"\1", m.group(0)[3:]), t)   # '사건 E6·E7' → '사건 6·7'
+    t = re.sub(r"근거 E0*(\d+)", r"근거 \1", t)
+    return re.sub(rf"{_L}E0*(\d+){_R}", r"근거 \1", t)
+
+
+def _ko_all(v, key=None):
+    if isinstance(v, str):
+        return v if key in KEEP_KEYS else ko_text(v)
+    if isinstance(v, list):
+        return [_ko_all(x, key) for x in v]
+    if isinstance(v, dict):
+        return {k: _ko_all(x, k) for k, x in v.items()}
+    return v
+
+
+def split_stat(item: str) -> tuple[str, list[str]]:
+    """'…문서 0건, …문서 43건' 같은 처리 통계 문장을 (빠진 자료 문구, 처리 기록 조각) 으로. 0건 조각은 버림."""
+    if not STAT_RE.search(item):
+        return item, []
+    return "", [c.strip() for c in item.split(",") if STAT_RE.search(c) and not re.search(r"(?<!\d)0건", c)]
+
+
+def conflict_card(cf: dict) -> dict:
+    views = []
+    for v in cf.get("views") or []:
+        head, sep, body = (v.get("text") or "").partition(": ")
+        docs = [x.split(":")[1] for x in v.get("evidenceLinks") or [] if str(x).startswith("doc:")]
+        views.append({"head": head if sep else "", "text": body if sep else head, "tagKo": TAG_KO.get(v.get("tag"), v.get("tag") or ""), "docs": docs})
+    card = {"topic": cf.get("topic") or "", "node": cf.get("nodeId") or "", "views": views, "summary": None}
+    if views and all(HIDDEN in v["text"] for v in views):
+        n = lambda w: sum(len(v["docs"]) or 1 for v in views if v["head"].startswith(w))   # noqa: E731
+        alldocs = sorted({d for v in views for d in v["docs"]})
+        card["summary"] = (f"개인 작성 글 사이 논조가 갈림 — 긍정 {n('긍정')}건·부정 {n('부정')}건"
+                           f"(내용 비공개, 근거 문서 {', '.join(alldocs) or '-'})")
+        card["views"] = []
+    return card
+
+
+def localize(runs: dict) -> dict:
+    """#48: 저장된 결과를 화면용으로 정리한 사본. 충돌은 카드, 처리 통계는 '처리 기록', 내부 코드는 한국어."""
+    out = json.loads(json.dumps(runs))
+    for r in out["runs"].values():
+        c = r["contract"]
+        proc: list[str] = []
+        un = []
+        for u in c.get("unverified") or []:
+            item = u.get("item", "") if isinstance(u, dict) else str(u)
+            rest, st = split_stat(item)
+            proc += st
+            if not rest:
+                continue
+            un.append(u)
+        c["unverified"], c["processing"] = un, proc
+        for n in c.get("nodes") or []:
+            keep = []
+            for m in n.get("missingInputs") or []:
+                rest, st = split_stat(m)
+                proc += st
+                if rest:
+                    keep.append(rest)
+            n["missingInputs"] = keep
+        c["processing"] = list(dict.fromkeys(c["processing"]))
+        c["conflicts"] = [conflict_card(cf) for cf in c.get("conflicts") or []]
+        r["contract"] = _ko_all(c)
+        r["render"] = {lv: ko_text(t) for lv, t in r["render"].items()}
+    return out
+
+
+JSON_RE = re.compile(r'^\s*[\[{]\s*"')
+RAW_CODE_RE = re.compile(rf"{_L}N(05|06|07|08|11|12){_R}|{_L}CAR{_R}|{_L}D1 사후|확장 노드 입력 요건 미충족|{_L}E\d+{_R}")
+
+
+def display_hits(runs: dict) -> list[str]:
+    """저장 전 검사(#48): 화면 문자열에 JSON 원문·날것의 내부 코드·0건 미확보 항목이 남았는지. 식별자 칸(KEEP_KEYS)은 제외."""
+    hits: list[str] = []
+
+    def walk(v, key=None):
+        if isinstance(v, str):
+            if key in KEEP_KEYS:
+                return
+            if JSON_RE.match(v):
+                hits.append(f"JSON 원문: {v[:30]}")
+            if RAW_CODE_RE.search(v):
+                hits.append(f"내부 코드: {RAW_CODE_RE.search(v).group(0)}")
+        elif isinstance(v, list):
+            for x in v:
+                walk(x, key)
+        elif isinstance(v, dict):
+            for k, x in v.items():
+                walk(x, k)
+
+    for r in runs["runs"].values():
+        c = r["contract"]
+        walk({k: c.get(k) for k in ("summary", "claims", "unverified", "processing", "conflicts", "nodes", "upsideFactors", "downsideRisks", "nextChecks", "predictionSkippedReason")})
+        walk(r["render"])
+        for u in c.get("unverified") or []:
+            if re.search(r"(?<!\d)0건", str(u.get("item", "") if isinstance(u, dict) else u)):
+                hits.append(f"0건 미확보 항목: {str(u)[:40]}")
+    return list(dict.fromkeys(hits))
+
+
 STATUS_SQL = {
     "docs": "SELECT source, count(*) AS n, min(published_at)::date AS first, max(published_at)::date AS last FROM rag.document GROUP BY source ORDER BY n DESC",
     "size": "SELECT round(pg_database_size(current_database()) / 1048576.0)::int AS mb",
@@ -393,10 +512,15 @@ def main(argv: list[str]) -> int:
             print("캐시가 기준일과 다르거나 덜 찼습니다. run 먼저 실행하세요.")
             return 1
         runs, snippets = mask_opinion(runs, doc_sources(conflict_doc_ids(runs)))
+        runs = localize(runs)
         runs = mask_target_price(localize_missing(runs))
         keys = raw_key_hits(runs)
         if keys:
             print("한국어 대응표에 없는 내부 키가 화면에 남음, 저장하지 않음:", keys)
+            return 1
+        shown = display_hits(runs)
+        if shown:
+            print("화면 표시 검사 실패(JSON 원문·내부 코드·0건 항목), 저장하지 않음:", shown[:10])
             return 1
         html = build_html(build_payload(runs, collect_status()))
         bad = forbidden_hits(html, env_secrets()) + opinion_leaks(html, snippets)

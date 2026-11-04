@@ -183,3 +183,51 @@ def test_youtube_comments_are_masked_like_blog_cafe():
     assert c["conflicts"][0]["views"][0]["text"].endswith(bd.HIDDEN) and "뉴스 제목 인용" in c["conflicts"][0]["views"][1]["text"]
     assert bd.opinion_leaks(json.dumps(out, ensure_ascii=False), snippets) == []
     assert bd.opinion_leaks("https://www.youtube.com/watch?v=x", [])
+
+
+# ---- #48 표시 정리
+def test_ko_text_translates_internal_codes_even_before_korean_particles():
+    out = bd.ko_text("사건 E1과 E9는 N05 미충족 항목, E10에서 CAR 와 D1 사후 탐색 등급, 확장 노드 입력 요건 미충족")
+    assert "사건 1과 9는" in out and "거시 데이터 점검" in out and "근거 10에서" in out
+    assert "사건 뒤 주가 반응(초과수익)" in out and "사후 탐색 단계(검증 전)" in out and "추가 분석에 필요한 자료 부족" in out
+    assert not bd.RAW_CODE_RE.search(out)
+
+
+def _conflict(text_a, text_b):
+    return {"nodeId": "N11", "topic": "사건 E1 논조", "views": [
+        {"text": text_a, "tag": "Interpretation", "evidenceLinks": ["doc:11"]}, {"text": text_b, "tag": "Interpretation", "evidenceLinks": ["doc:22"]}]}
+
+
+def test_conflict_card_summarises_when_both_views_hidden_and_tables_otherwise():
+    hid = bd.conflict_card(_conflict(f"긍정 분류: {bd.HIDDEN}", f"부정 분류: {bd.HIDDEN}"))
+    assert hid["views"] == [] and "긍정 1건·부정 1건" in hid["summary"] and "내용 비공개" in hid["summary"] and "11, 22" in hid["summary"]
+    vis = bd.conflict_card(_conflict("긍정 분류: 실적 개선", "부정 분류: 소송 우려"))
+    assert vis["summary"] is None and vis["views"][0]["tagKo"] == "해석" and vis["views"][1]["docs"] == ["22"]
+
+
+def test_split_stat_drops_zero_clauses_and_keeps_nonzero():
+    rest, proc = bd.split_stat("근거 문장을 붙이지 못해 점수를 내지 않은 문서 0건, 대상 기업 아님으로 분리한 문서 43건")
+    assert rest == "" and proc == ["대상 기업 아님으로 분리한 문서 43건"]
+    assert bd.split_stat("블로그 감성 변화") == ("블로그 감성 변화", [])
+
+
+def test_localize_moves_stats_out_of_unverified_and_display_hits_is_clean():
+    stat = "근거 문장을 붙이지 못해 점수를 내지 않은 문서 0건, 대상 기업 아님으로 분리한 문서 43건"
+    run = _run(agent=6, ext=True)
+    run["contract"].update({"unverified": [{"item": stat, "reason": "N11 미충족 항목"}, {"item": "블로그 감성 변화", "reason": "직전 기간 부족"}],
+                            "conflicts": [_conflict(f"긍정 분류: {bd.HIDDEN}", f"부정 분류: {bd.HIDDEN}")],
+                            "nodes": [{"nodeId": "N11", "name": "Sentiment_Base", "missingInputs": [stat], "reason": "확장 노드 입력 요건 미충족"}]})
+    out = bd.localize({"as_of": "x", "runs": {"k": run}})["runs"]["k"]
+    c = out["contract"]
+    assert [u["item"] for u in c["unverified"]] == ["블로그 감성 변화"] and c["processing"] == ["대상 기업 아님으로 분리한 문서 43건"]
+    assert c["nodes"][0]["missingInputs"] == [] and c["nodes"][0]["nodeId"] == "N11"      # 식별자 칸은 그대로
+    assert c["conflicts"][0]["topic"] == "사건 1 논조" and not bd.display_hits({"runs": {"k": out}})
+
+
+def test_display_hits_catches_json_raw_code_and_zero_items():
+    run = _run()
+    run["contract"]["summary"] = '{"nodeId":"N11"}'
+    run["contract"]["unverified"] = [{"item": "문서 0건 처리"}]
+    run["render"]["L1"] = "N05 점검"
+    hits = bd.display_hits({"runs": {"k": run}})
+    assert any("JSON" in h for h in hits) and any("내부 코드" in h for h in hits) and any("0건" in h for h in hits)
