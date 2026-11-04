@@ -358,7 +358,8 @@ def compute(b: dict, co: dict, as_of: str, period: int | None = None, question: 
                 elif kd and abs(rs - ps) >= 0.1:
                     f.flag(f"{name} 논조 {'개선' if rs > ps else '악화'} ({{{kd}}})")
             else:
-                f.gap(f"{name} 감성 변화", f"직전 기간 문서 {pn}건·{days_prior}일뿐 (수집 기간 짧음)")
+                f.gap(f"{name} 감성 변화", f"직전 기간 문서 {pn}건·{days_prior}일뿐 (수집 기간 짧음)" if pn and days_prior
+                      else "직전 기간 자료 없음 (수집 기간 짧음)")
         else:
             f.gap(f"{name} 감성(최근 7일)", f"점수 붙은 문서 {rn}건 (최소 {MIN_DOCS}건)")
     # 문서 수는 관심 지표로 쓰지 않음: 수집 범위·주기가 바뀌면 문서 수가 같이 바뀌어 관심 변화로 착각하기 쉬움

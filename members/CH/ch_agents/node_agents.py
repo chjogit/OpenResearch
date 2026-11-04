@@ -12,6 +12,7 @@ import re
 from typing import Any
 
 from .agents import AgentData, AgentSpec
+from .availability import OUT_OF_SCOPE_ITEM, OUT_OF_SCOPE_TEXT
 from .facts import Facts
 from .sentiment_limit import SENT_LIMIT_TEXT
 
@@ -145,7 +146,8 @@ def merge_facts(report: dict) -> tuple[Facts, list[str]]:
             if lim not in f.notes:
                 f.notes.append(f"한계({nid}): {_mask_loose_numbers(lim)}")
         for m in res.missing_items:
-            f.gaps.append({"label": m, "reason": f"{nid} 미충족 항목"}) if not any(g["label"] == m for g in f.gaps) else None
+            reason = OUT_OF_SCOPE_TEXT if OUT_OF_SCOPE_ITEM.search(m) else f"{nid} 미충족 항목"
+            f.gaps.append({"label": m, "reason": reason}) if not any(g["label"] == m for g in f.gaps) else None
     f.flags += conflicts
     f.notes.append(DIRECTION_RULE)
     f.trimmed_items = trim_ledger(f)
