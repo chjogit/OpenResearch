@@ -129,3 +129,12 @@ def test_read_sheet_accepts_english_and_csv(tmp_path):
         w.writerow([8, "a", "뉴스", "d", "t", "s", "u", "엉뚱", "", ""])
     got = se.read_sheet(p)
     assert got["7"]["감성"] == "긍정" and got["7"]["불확실성"] == "예" and got["8"]["감성"] == ""
+
+
+def test_find_returned_picks_latest_version(tmp_path):
+    r = tmp_path / "returned"
+    r.mkdir()
+    for n in ("labeler_A_labeled_v2.xlsx", "labeler_A_labeled_v3.xlsx", "labeler_A_labeled_v10.xlsx", "labeler_B.xlsx", "memo.txt"):
+        (r / n).write_text("x")
+    assert se._find_returned(tmp_path, "A").name == "labeler_A_labeled_v10.xlsx"      # 문자열 정렬이 아니라 숫자 버전
+    assert se._find_returned(tmp_path, "B").name == "labeler_B.xlsx" and se._find_returned(tmp_path, "C") is None

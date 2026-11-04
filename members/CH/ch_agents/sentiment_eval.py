@@ -358,19 +358,54 @@ def _prf(gold: list[str], pred: list[str], cats=("긍정", "중립", "부정")) 
     return out
 
 
+def _find_returned(d: Path, lab: str):
+    """returned/ 에서 라벨러 파일 찾기: labeler_A.xlsx 또는 labeler_A_labeled_v3.xlsx 등. 여러 버전이면 가장 큰 _vN, 없으면 이름순 마지막. 원본은 고치지 않음."""
+    import re
+
+    cands = [f for f in (d / "returned").glob(f"labeler_{lab}*") if f.suffix.lower() in (".xlsx", ".csv")]
+    ver = lambda f: (int(m.group(1)) if (m := re.search(r"_v(\d+)", f.stem)) else -1, f.suffix.lower() == ".xlsx", f.name)   # noqa: E731
+    return max(cands, key=ver) if cands else None
+
+
+def _raw_issues(path) -> dict:
+    """시트의 허용 밖 값 수(감성·불확실성 칸에 값이 있는데 선택지가 아닌 것; 영문 감성 표기는 허용)."""
+    path = Path(path)
+    if path.suffix.lower() == ".xlsx":
+        from openpyxl import load_workbook
+
+        it = load_workbook(path, read_only=True, data_only=True).active.iter_rows(values_only=True)
+        head = [str(x or "").strip() for x in next(it)]
+        recs = [dict(zip(head, row)) for row in it]
+    else:
+        with path.open(encoding="utf-8-sig", newline="") as fh:
+            recs = list(csv.DictReader(fh))
+    en_ko = {v: k for k, v in KO_EN.items()}
+    bad_s = bad_u = 0
+    for r in recs:
+        if r.get("id") in (None, ""):
+            continue
+        a, b = str(r.get("감성") or "").strip(), str(r.get("불확실성") or "").strip()
+        bad_s += bool(a) and a not in SHEET_LABELS and a.lower() not in en_ko
+        bad_u += bool(b) and b not in YESNO
+    return {"invalid_sentiment": bad_s, "invalid_uncertainty": bad_u}
+
+
 def score3(sheet_dir, out_dir=None) -> dict:
     """sheet_dir/returned/labeler_{A,B,C}.(xlsx|csv) 와 sample_full.csv(, sw_resolved.csv: id,감성)로 채점. out_dir 에 SW 확인 목록·정답표 저장."""
     d = Path(sheet_dir)
     full = {str(r["doc_id"]): r for r in load(d / "sample_full.csv")}
-    sheets = {}
+    sheets, files, issues = {}, {}, {}
     for lab in LABELERS:
-        f = next(iter(sorted((d / "returned").glob(f"labeler_{lab}.*"))), None)
+        f = _find_returned(d, lab)
         if f is None:
             raise FileNotFoundError(f"{d / 'returned'} 에 labeler_{lab}.xlsx(또는 csv) 가 없습니다.")
         sheets[lab] = read_sheet(f)
+        files[lab] = f.name
+        issues[lab] = {**_raw_issues(f), "n_rows": len(sheets[lab]), "ids_missing_vs_sample": sum(1 for i in full if i not in sheets[lab]),
+                       "ids_not_in_sample": sum(1 for i in sheets[lab] if i not in full)}
     ids = [i for i in full if all(i in sheets[l] for l in LABELERS)]
     complete = [i for i in ids if all(sheets[l][i]["감성"] for l in LABELERS)]
-    out: dict = {"n_sample": len(full), "n_complete_3": len(complete), "labeler_blank": {l: sum(1 for i in ids if not sheets[l][i]["감성"]) for l in LABELERS}}
+    out: dict = {"files": files, "sheet_checks": issues, "n_sample": len(full), "n_complete_3": len(complete), "labeler_blank": {l: sum(1 for i in ids if not sheets[l][i]["감성"]) for l in LABELERS}}
     out["kappa_sentiment_fleiss"] = fleiss_kappa([[sheets[l][i]["감성"] for l in LABELERS] for i in complete])
     out["kappa_sentiment_pairs"] = {f"{a}{b}": cohen_kappa([sheets[a][i]["감성"] for i in complete], [sheets[b][i]["감성"] for i in complete])
                                      for a, b in (("A", "B"), ("A", "C"), ("B", "C"))}
