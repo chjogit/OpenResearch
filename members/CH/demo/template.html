@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="data:,">
+<title>CH 에이전트 시연</title>
+<style>
+:root{--bg:#f7f8fa;--card:#fff;--ink:#1c2430;--mute:#5d6878;--line:#dde2ea;--acc:#1f5fbf;--accbg:#e8f0fc;--ok:#1b7a43;--okbg:#e6f4ec;--warn:#9a5b00;--warnbg:#fdf1dc;--bad:#a02828;--badbg:#fbe9e9}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#12161c;--card:#1a2029;--ink:#e6ebf2;--mute:#9aa6b6;--line:#2c3643;--acc:#7fb0ff;--accbg:#1c2c47;--ok:#6fd49a;--okbg:#17301f;--warn:#f0b45a;--warnbg:#3a2c12;--bad:#ff8c8c;--badbg:#3a1b1b}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.6 system-ui,"Malgun Gothic","Apple SD Gothic Neo",sans-serif;overflow-wrap:anywhere}
+header{padding:20px 16px 8px;max-width:1040px;margin:0 auto}
+h1{font-size:22px;margin:0 0 4px}h2{font-size:18px;margin:0 0 10px}h3{font-size:15px;margin:16px 0 6px}
+.sub{color:var(--mute);font-size:13px}
+nav{position:sticky;top:0;z-index:5;background:var(--bg);border-bottom:1px solid var(--line)}
+nav div{max-width:1040px;margin:0 auto;padding:6px 16px;display:flex;gap:6px;flex-wrap:wrap}
+button,select{font:inherit;color:inherit}
+.tab,.chip{border:1px solid var(--line);background:var(--card);border-radius:999px;padding:5px 14px;cursor:pointer}
+.tab[aria-selected="true"],.chip[aria-pressed="true"]{background:var(--accbg);border-color:var(--acc);color:var(--acc);font-weight:600}
+main{max-width:1040px;margin:0 auto;padding:12px 16px 48px}
+section{display:none}section.on{display:block}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px;margin:0 0 12px}
+.flow{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.flow span.step{background:var(--accbg);color:var(--acc);border-radius:8px;padding:6px 10px;font-size:13px}
+.flow span.arr{color:var(--mute)}
+.ctl{display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center;margin:0 0 10px}
+.ctl label.t{font-size:12px;color:var(--mute);display:block;margin-bottom:2px}
+.grp{display:flex;gap:4px;flex-wrap:wrap}
+.badge{display:inline-block;border-radius:6px;padding:1px 8px;font-size:12px;margin-right:4px}
+.b-ok{background:var(--okbg);color:var(--ok)}.b-warn{background:var(--warnbg);color:var(--warn)}.b-bad{background:var(--badbg);color:var(--bad)}.b-mute{background:var(--line);color:var(--mute)}
+.tw{overflow-x:auto;max-width:100%}
+table{border-collapse:collapse;width:100%;font-size:13px}
+th,td{border:1px solid var(--line);padding:5px 8px;text-align:left;vertical-align:top}
+th{background:var(--accbg)}
+.kv{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin:8px 0}
+.kv div{background:var(--bg);border-radius:8px;padding:8px 10px}.kv b{display:block;font-size:18px}.kv small{color:var(--mute)}
+.md blockquote{margin:6px 0;padding:4px 10px;border-left:3px solid var(--acc);color:var(--mute);background:var(--bg)}
+.md p{margin:4px 0}.md ul{margin:4px 0;padding-left:20px}.md details{margin:6px 0}.md code{background:var(--bg);padding:0 4px;border-radius:4px;font-size:12px}
+.md h4{margin:14px 0 4px;font-size:15px}.md hr{border:0;border-top:1px solid var(--line)}
+.sub-tabs{display:flex;gap:4px;flex-wrap:wrap;margin:8px 0}
+.note{font-size:13px;color:var(--mute)}
+.bar{height:10px;background:var(--line);border-radius:5px;overflow:hidden}.bar i{display:block;height:100%;background:var(--acc)}
+footer{max-width:1040px;margin:0 auto;padding:0 16px 24px;color:var(--mute);font-size:12px}
+</style>
+</head>
+<body>
+<header>
+<h1>CH 에이전트 시연 — 수집 → 노드 → 계약 → 검증</h1>
+<div class="sub" id="metaline"></div>
+</header>
+<nav><div role="tablist" id="tabs"></div></nav>
+<main>
+<section id="s-overview"></section>
+<section id="s-demo"></section>
+<section id="s-data"></section>
+<section id="s-valid"></section>
+</main>
+<footer>이 화면은 미리 실행해 저장한 결과입니다. 서버·DB 연결 없이 열리며, 숫자는 모두 실제 실행 결과 또는 기록된 측정값입니다. 투자 권유가 아닙니다.</footer>
+<script id="payload" type="application/json">/*__DATA__*/null</script>
+<script>
+"use strict";
+const D = JSON.parse(document.getElementById("payload").textContent);
+const $ = (s, r = document) => r.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"}[c]));
+const fmt = n => n == null ? "미적용" : Number(n).toLocaleString("ko-KR");
+const TABS = [["overview", "1 개요"], ["demo", "2 에이전트 시연"], ["data", "3 데이터 현황"], ["valid", "4 검증 기록"]];
+const st = {tk: D.tickers[0].ticker, ag: "3", ext: 0, lv: "L2", view: "screen"};
+
+$("#metaline").textContent = `기준일 ${D.meta.asOf} · 생성 ${D.meta.generatedAt} · 실행 ${D.meta.runs}회 · LLM 호출 ${D.meta.llmCalls}회 · 계약 ${D.meta.contract}`;
+
+function showTab(id) {
+  document.querySelectorAll("main section").forEach(s => s.classList.toggle("on", s.id === "s-" + id));
+  document.querySelectorAll("#tabs .tab").forEach(b => b.setAttribute("aria-selected", b.dataset.id === id));
+  try { history.replaceState(null, "", "#" + id); } catch (e) {}
+}
+$("#tabs").innerHTML = TABS.map(([id, t]) => `<button class="tab" role="tab" data-id="${id}">${t}</button>`).join("");
+$("#tabs").addEventListener("click", e => { const b = e.target.closest(".tab"); if (b) showTab(b.dataset.id); });
+
+// ---- 간단 마크다운 (렌더러가 쓰는 문법만: 제목·굵게·기울임·코드·인용·목록·표·details)
+function inline(t) {
+  return esc(t).replace(/`([^`]+)`/g, "<code>$1</code>").replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>").replace(/(^|[\s(])_([^_]+)_(?=$|[\s).,])/g, "$1<i>$2</i>");
+}
+function md(src) {
+  const lines = src.split("\n"); let out = "", list = false, tbl = [];
+  const flushT = () => {
+    if (!tbl.length) return;
+    const rows = tbl.filter(r => !/^\|\s*-+/.test(r)).map(r => r.replace(/^\||\|$/g, "").split("|").map(c => c.trim()));
+    out += '<div class="tw"><table>' + rows.map((r, i) => "<tr>" + r.map(c => (i ? "<td>" : "<th>") + inline(c) + (i ? "</td>" : "</th>")).join("") + "</tr>").join("") + "</table></div>";
+    tbl = [];
+  };
+  const endList = () => { if (list) { out += "</ul>"; list = false; } };
+  for (const raw of lines) {
+    const l = raw.trimEnd();
+    if (l.startsWith("|")) { endList(); tbl.push(l); continue; }
+    flushT();
+    if (/^<\/?details>$/.test(l)) { endList(); out += l; continue; }
+    const sm = l.match(/^<summary>(.*)<\/summary>$/); if (sm) { out += "<summary>" + esc(sm[1]) + "</summary>"; continue; }
+    const dm = l.match(/^<details><summary>(.*)<\/summary>$/); if (dm) { endList(); out += "<details><summary>" + esc(dm[1]) + "</summary>"; continue; }
+    if (!l.trim()) { endList(); continue; }
+    if (l.startsWith("### ")) { endList(); out += "<h4>" + inline(l.slice(4)) + "</h4>"; continue; }
+    if (l === "---") { endList(); out += "<hr>"; continue; }
+    if (l.startsWith("> ")) { endList(); out += "<blockquote>" + inline(l.slice(2)) + "</blockquote>"; continue; }
+    if (/^[-*] /.test(l)) { if (!list) { out += "<ul>"; list = true; } out += "<li>" + inline(l.slice(2)) + "</li>"; continue; }
+    endList(); out += "<p>" + inline(l) + "</p>";
+  }
+  endList(); flushT(); return out;
+}
+
+// ---- 1 개요
+$("#s-overview").innerHTML = `
+<div class="card"><h2>한눈에</h2>
+<div class="flow">${D.overview.flow.map((s, i) => (i ? '<span class="arr">→</span>' : "") + `<span class="step">${esc(s)}</span>`).join("")}</div>
+<p class="note">수집한 자료를 DB 에 두고, 노드가 계산한 값만 장부로 만들어 LLM 이 문장을 쓰고, 점검을 통과한 문장만 계약(JSON)에 담아 오케스트레이터에 넘깁니다.</p></div>
+<div class="card"><h2>지키는 원칙</h2><ul>${D.overview.principles.map(p => `<li>${esc(p)}</li>`).join("")}</ul></div>
+<div class="card"><h2>에이전트와 노드</h2><div class="tw"><table><tr><th>노드</th><th>에이전트</th><th>종류</th></tr>
+${D.overview.nodes.map(n => `<tr><td>${esc(n[0])}</td><td>${esc(n[1])}</td><td>${esc(n[2])}</td></tr>`).join("")}</table></div>
+<p class="note">기본 노드는 항상, 확장 노드는 선택했을 때(요건 충족 시)만 실행됩니다. 요건이 안 맞으면 '건너뜀'과 이유가 계약에 남습니다.</p></div>
+<div class="card"><h2>시연 방법</h2><p>‘2 에이전트 시연’에서 종목·에이전트·확장 여부·이용자 수준을 고르면 실제 실행 결과(${D.meta.runs}가지)가 바뀝니다.</p></div>`;
+
+// ---- 2 에이전트 시연
+const chip = (grp, val, label, on) => `<button class="chip" data-g="${grp}" data-v="${esc(val)}" aria-pressed="${on}">${esc(label)}</button>`;
+function statusBadge(s) { return `<span class="badge ${/^완료/.test(s) ? "b-ok" : /대체/.test(s) ? "b-warn" : "b-bad"}">${esc(s)}</span>`; }
+function nodeTable(r) {
+  const ns = r.contract.nodes || [];
+  if (!ns.length) return '<p class="note">노드 정보 없음</p>';
+  return '<div class="tw"><table><tr><th>노드</th><th>종류</th><th>상태</th><th>결과</th><th>이유 · 미확보 입력</th></tr>' + ns.map(n =>
+    `<tr><td>${esc(n.nodeId)} ${esc(n.name)}</td><td>${n.kind === "ext" ? "확장" : "기본"}</td>
+     <td><span class="badge ${n.state === "executed" ? "b-ok" : "b-mute"}">${n.state === "executed" ? "실행" : "건너뜀"}</span></td>
+     <td>${esc(n.status || "-")}</td><td>${esc(n.reason || "")}${(n.missingInputs || []).length ? " · 미확보: " + esc(n.missingInputs.join(", ")) : ""}</td></tr>`).join("") + "</table></div>";
+}
+function claimTable(r) {
+  const cs = r.contract.claims || [];
+  if (!cs.length) return '<p class="note">검증을 통과한 주장이 없습니다.</p>';
+  return '<div class="tw"><table><tr><th>ID</th><th>태그</th><th>문장</th><th>근거</th><th>검증</th></tr>' + cs.map(c =>
+    `<tr><td>${esc(c.claimId)}</td><td><span class="badge b-mute">${esc(c.tag || c.typeLabel || c.type)}</span>${esc(c.typeLabel || "")}</td><td>${esc(c.text)}</td>
+     <td>${esc((c.evidenceIds || []).join(", "))}</td><td>${esc((c.verification || {}).status || "")}</td></tr>`).join("") + "</table></div>";
+}
+function listBlock(title, items, map) {
+  if (!items || !items.length) return `<h3>${title}</h3><p class="note">없음</p>`;
+  return `<h3>${title} (${items.length})</h3><ul>${items.map(map).join("")}</ul>`;
+}
+function evidenceTable(r) {
+  const ev = r.contract.evidence || [];
+  if (!ev.length) return '<p class="note">근거 목록 없음</p>';
+  const cols = ["evidenceId", "label", "display", "dataDate", "source"];
+  return '<div class="tw"><table><tr><th>근거 ID</th><th>항목</th><th>값·제목</th><th>기준일</th><th>출처</th><th>링크</th></tr>' + ev.map(e =>
+    "<tr>" + cols.map(c => `<td>${esc(e[c] == null ? "" : typeof e[c] === "object" ? JSON.stringify(e[c]) : e[c])}</td>`).join("") + `<td>${/^https?:\/\//.test(e.url || "") ? `<a href="${esc(e.url)}" rel="noopener noreferrer" target="_blank">링크</a>` : ""}</td></tr>`).join("") + "</table></div>";
+}
+function demoView() {
+  const r = D.runs[`${st.tk}|${st.ag}|${st.ext}`];
+  if (!r) return '<p class="note">이 조합의 실행 결과가 없습니다.</p>';
+  const c = r.contract, cf = c.conflicts || [], un = c.unverified || [];
+  const skipped = (c.nodes || []).filter(n => n.state !== "executed").length;
+  let body;
+  if (st.view === "screen") body = `<div class="md">${md(r.render[st.lv])}</div>`;
+  else if (st.view === "nodes") body = nodeTable(r) + (c.predictionSkippedReason ? `<p class="note">예측 생략 이유: ${esc(c.predictionSkippedReason)}</p>` : "");
+  else if (st.view === "claims") body = claimTable(r);
+  else if (st.view === "conflict") body = listBlock("관점별 충돌", cf, x => `<li>${esc(typeof x === "string" ? x : x.text || x.summary || JSON.stringify(x))}</li>`)
+    + listBlock("미확보·미확인", un, x => `<li>${esc(typeof x === "string" ? x : x.item || x.text || JSON.stringify(x))}${x.reason ? ' <span class="note">(' + esc(x.reason) + ")</span>" : ""}</li>`)
+    + listBlock("반대 근거·하방 위험", c.downsideRisks, x => `<li>${esc(typeof x === "string" ? x : x.text || JSON.stringify(x))}</li>`);
+  else body = evidenceTable(r);
+  const views = [["screen", "화면(수준별)"], ["nodes", "노드 실행"], ["claims", "주장·태그"], ["conflict", "충돌·미확보"], ["evidence", "근거 목록"]];
+  return `<div class="kv"><div><small>상태</small><b>${statusBadge(r.status)}</b></div><div><small>노드 건너뜀</small><b>${skipped}</b></div>
+    <div><small>주장 / 제거 문장</small><b>${r.claims} / ${r.removed}</b></div><div><small>LLM 시도 · 시간</small><b>${r.attempts}회 · ${r.seconds}초</b></div></div>
+    <div class="sub-tabs">${views.map(([v, t]) => chip("view", v, t, st.view === v)).join("")}</div>${body}`;
+}
+function renderDemo() {
+  $("#s-demo").innerHTML = `<div class="card"><div class="ctl">
+    <div><label class="t">종목</label><div class="grp">${D.tickers.map(t => chip("tk", t.ticker, t.name, st.tk === t.ticker)).join("")}</div></div>
+    <div><label class="t">에이전트</label><div class="grp">${Object.entries(D.agents).map(([k, v]) => chip("ag", k, `${k} ${v}`, st.ag === k)).join("")}</div></div>
+    <div><label class="t">확장 노드</label><div class="grp">${chip("ext", "0", "끔", st.ext == 0)}${chip("ext", "1", "켬", st.ext == 1)}</div></div>
+    <div><label class="t">이용자 수준</label><div class="grp">${chip("lv", "L1", "L1 입문", st.lv === "L1")}${chip("lv", "L2", "L2 일반", st.lv === "L2")}${chip("lv", "L3", "L3 전문", st.lv === "L3")}</div></div></div>
+    ${demoView()}</div>`;
+}
+$("#s-demo").addEventListener("click", e => {
+  const b = e.target.closest(".chip"); if (!b) return;
+  st[b.dataset.g] = b.dataset.g === "ext" ? Number(b.dataset.v) : b.dataset.v; renderDemo();
+});
+renderDemo();
+
+// ---- 3 데이터 현황
+function docsTable(rows) {
+  return '<div class="tw"><table><tr><th>소스</th><th>건수</th><th>기간</th><th>최신</th></tr>' + rows.map(r =>
+    `<tr><td>${esc(r.source)}</td><td>${fmt(r.n)}</td><td>${esc(r.first)} ~ ${esc(r.last)}</td><td>${esc(r.last)}</td></tr>`).join("") + "</table></div>";
+}
+(function () {
+  const s = D.status, lim = s.limits || {};
+  const pct = Math.min(100, Math.round((s.main.mb || 0) / (lim.main_mb || 800) * 100));
+  $("#s-data").innerHTML = `
+  <div class="card"><h2>DB 용량</h2><div class="kv"><div><small>메인 DB</small><b>${fmt(s.main.mb)} MB</b></div><div><small>kic-opinion (블로그·카페)</small><b>${fmt(s.opinion.mb)} MB</b></div>
+  <div><small>의견 문서 보관</small><b>${lim.retention_days || 14}일</b></div></div>
+  <div class="bar"><i style="width:${pct}%"></i></div><p class="note">메인 DB 상한 ${lim.main_mb || 800} MB 중 ${pct}%. 블로그·카페는 양이 많아 별도 DB 로 분리했고 ${lim.retention_days || 14}일이 지나면 정리합니다. 공시 원문은 Object Storage 에 둡니다.</p></div>
+  <div class="card"><h2>메인 DB 문서</h2>${docsTable(s.main.docs || [])}</div>
+  <div class="card"><h2>kic-opinion 문서</h2>${docsTable(s.opinion.docs || [])}</div>
+  <div class="card"><h2>표별 건수 (새로 수집한 항목 포함)</h2><div class="tw"><table><tr><th>표</th><th>내용</th><th>건수</th></tr>${s.tables.map(t =>
+    `<tr><td>${esc(t.table)}</td><td>${esc(t.label)}</td><td>${fmt(t.n)}</td></tr>`).join("")}</table></div>
+  <p class="note">‘(신규)’ 표는 이번 단계에서 새로 수집·적재한 지분공시·감사의견·재무 항목입니다. 건수가 ‘미적용’이면 아직 DB 에 반영 전입니다.</p></div>
+  <div class="card"><h2>미확보 목록</h2><ul>${(s.unavailable || []).map(x => `<li>${esc(x)}</li>`).join("")}</ul></div>`;
+})();
+
+// ---- 4 검증 기록
+(function () {
+  const v = D.validation;
+  $("#s-valid").innerHTML = `<div class="card"><h2>성적표 추이</h2><p class="note">${esc(v.note)}</p><div class="tw"><table><tr><th>단계</th><th>제거 문장 합계</th><th>범위</th><th>설명</th></tr>${v.rows.map(r =>
+    `<tr><td>${esc(r.stage)}</td><td>${esc(r.removed_total)}</td><td>${esc(r.range)}</td><td>${esc(r.note)}</td></tr>`).join("")}</table></div></div>
+  <div class="card"><h2>무엇을 뜻하나</h2><ul>${v.meaning.map(m => `<li>${esc(m)}</li>`).join("")}</ul></div>`;
+})();
+
+showTab((location.hash || "#overview").slice(1).replace(/[^a-z]/g, "") || "overview");
+if (!$("#s-" + (location.hash || "").slice(1))) showTab("overview");
+</script>
+</body>
+</html>
