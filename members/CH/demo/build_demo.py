@@ -48,7 +48,7 @@ VALIDATION = {
 OVERVIEW = {
     "flow": ["수집 (kic-agent-data)", "DB 배치 (메인·kic-opinion·Object Storage)", "노드 N05~N08·N11·N12", "계약 r4-1.3 (JSON)", "SW 오케스트레이터"],
     "principles": ["숫자는 DB 값만 씁니다 (LLM 은 장부의 키만 인용, 장부 밖 숫자는 제거).", "자료가 없으면 '미확보'로 적고 채워 넣지 않습니다.",
-                   "투자 권유·목표주가는 쓰지 않습니다 (점검에 걸리면 화면에서 뺍니다)."],
+                   "투자 권유·증권사 가격 전망은 쓰지 않습니다 (점검에 걸리면 화면에서 뺍니다)."],
     "nodes": [("N05·N06", "거시경제(에이전트 3)", "기본/확장"), ("N07·N08", "수급(에이전트 4)", "기본/확장"), ("N11·N12", "투자심리·뉴스(에이전트 6)", "기본/확장")],
 }
 
@@ -114,8 +114,8 @@ def collect_runs(as_of: str, workers: int = 4, cache: Path = CACHE, runner=run_o
             cache.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
     return data
 
-OPINION_SOURCES = ("naver_blog", "naver_cafe")
-HIDDEN = "블로그·카페 글 (내용 비공개)"
+OPINION_SOURCES = ("naver_blog", "naver_cafe", "youtube_comment")      # 개인 작성 글 (11/3 사용자·PM 결정: 내용 비노출)
+HIDDEN = "개인 작성 글 (블로그·카페·유튜브 댓글 — 내용 비공개)"
 
 
 def doc_sources(ids: list[int]) -> dict[int, str]:
@@ -177,9 +177,88 @@ def mask_opinion(runs: dict, source_of: dict[int, str]) -> tuple[dict, list[str]
 
 def opinion_leaks(html: str, snippets: list[str]) -> list[str]:
     """저장 전 검사: 블로그·카페 주소와 가린 글 조각이 HTML 에 남아 있으면 그 목록."""
-    hits = [h for h in ("blog.naver.com", "cafe.naver.com") if h in html]
+    hits = [h for h in ("blog.naver.com", "cafe.naver.com", "youtube.com", "youtu.be") if h in html]
     hits += [f"글 조각: {sn[:20]}…" for sn in snippets if sn in html]
     return hits
+
+
+# 미확보 항목: 내부 키 대신 한국어 이름 + 이유 (PM 결정 11/3). 대응표에 없는 키가 화면에 나오면 저장 거부.
+MISSING_KO = {
+    "scenario_assumptions": "시나리오 가정값(사용자 입력 없음 — 기본 환산만 표시)",
+    "price_after_event": "사건 이후 주가(기준일 이후라 아직 없음 — 미래 자료 사용 금지)",
+    "호가 잔량": "호가 잔량(공개 원천 없음)",
+    "세부 주체(금융투자·투신·연기금)": "세부 투자자(금융투자·투신·연기금) 자료(공개 원천 없음)",
+}
+RAW_KEY = re.compile(r"(?<![A-Za-z0-9_])[a-z][a-z0-9]*(?:_[a-z0-9]+)+(?![A-Za-z0-9_])")
+TARGET_PRICE = re.compile(r"목표\s*주가|목표가")
+TP_MASK = "[증권사 가격 전망]"
+
+
+def _short(ko: str) -> str:
+    return ko.split("(")[0].strip()
+
+
+def _visible_strings(c: dict):
+    """화면에 글자로 나오는 계약 필드(내부 키 점검 대상)."""
+    for n in c.get("nodes") or []:
+        yield n.get("reason") or ""
+        yield from n.get("missingInputs") or []
+    for u in c.get("unverified") or []:
+        yield u.get("item") or ""
+        yield u.get("reason") or ""
+    for cl in c.get("claims") or []:
+        yield cl.get("text") or ""
+    yield c.get("predictionSkippedReason") or ""
+    for x in c.get("nextChecks") or []:
+        yield x if isinstance(x, str) else json.dumps(x, ensure_ascii=False)
+
+
+def localize_missing(runs: dict) -> dict:
+    out = json.loads(json.dumps(runs))
+    for r in out["runs"].values():
+        c = r["contract"]
+        for n in c.get("nodes") or []:
+            n["missingInputs"] = [MISSING_KO.get(m, m) for m in n.get("missingInputs") or []]
+            if n.get("reason"):
+                n["reason"] = _replace_keys(n["reason"])
+        for u in c.get("unverified") or []:
+            for f in ("item", "reason"):
+                if u.get(f):
+                    u[f] = _replace_keys(u[f])
+        c["nextChecks"] = [_replace_keys(x) if isinstance(x, str) else x for x in c.get("nextChecks") or []]
+    return out
+
+
+def _replace_keys(text: str) -> str:
+    for k, ko in MISSING_KO.items():
+        text = text.replace(k, _short(ko) if k.isascii() else k)
+    return text
+
+
+def raw_key_hits(runs: dict) -> list[str]:
+    """한국어 대응표에 없는 내부 키(snake_case)가 화면 문자열에 남았는지."""
+    hits = set()
+    for r in runs["runs"].values():
+        for t in _visible_strings(r["contract"]):
+            hits.update(RAW_KEY.findall(t))
+        for md in r["render"].values():
+            hits.update(RAW_KEY.findall(md))
+    return sorted(hits)
+
+
+def mask_target_price(runs: dict) -> dict:
+    """기사 제목 인용 속 '목표주가'를 '[증권사 가격 전망]'으로 (충돌 구역 문장·근거 라벨·노트). 면책 문구 등 시스템 문장은 그대로."""
+    out = json.loads(json.dumps(runs))
+    for r in out["runs"].values():
+        c = r["contract"]
+        for e in c.get("evidence") or []:
+            for f in ("label", "display", "note"):
+                if isinstance(e.get(f), str):
+                    e[f] = TARGET_PRICE.sub(TP_MASK, e[f])
+        for cf in c.get("conflicts") or []:
+            for v in cf.get("views") or []:
+                v["text"] = TARGET_PRICE.sub(TP_MASK, v["text"])
+    return out
 
 
 STATUS_SQL = {
@@ -314,6 +393,11 @@ def main(argv: list[str]) -> int:
             print("캐시가 기준일과 다르거나 덜 찼습니다. run 먼저 실행하세요.")
             return 1
         runs, snippets = mask_opinion(runs, doc_sources(conflict_doc_ids(runs)))
+        runs = mask_target_price(localize_missing(runs))
+        keys = raw_key_hits(runs)
+        if keys:
+            print("한국어 대응표에 없는 내부 키가 화면에 남음, 저장하지 않음:", keys)
+            return 1
         html = build_html(build_payload(runs, collect_status()))
         bad = forbidden_hits(html, env_secrets()) + opinion_leaks(html, snippets)
         if bad:
