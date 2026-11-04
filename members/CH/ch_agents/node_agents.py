@@ -116,8 +116,8 @@ def _to_placeholders(text: str, links: list[str], items: dict[str, dict]) -> str
 
 def _mask_loose_numbers(text: str) -> str:
     """진술 속 장부 키 밖 숫자(예: Brier 0.265)를 가림. 남겨 두면 LLM 이 그대로 옮겨 써서 '키 밖 숫자' 로 문장이 지워짐."""
-    parts = re.split(r"(\{[A-Z]\d+(?:,\s*[A-Z]\d+)*\})", text)
-    return "".join(p if p.startswith("{") else LOOSE_NUMBER.sub("(수치는 노드 산출물 참조)", p) for p in parts)
+    parts = re.split(r"(\{[A-Z]\d+(?:,\s*[A-Z]\d+)*\}|" + re.escape(SENT_LIMIT_TEXT) + ")", text)   # 고정 한계 문구는 그대로 둠(#47)
+    return "".join(p if p.startswith("{") or p == SENT_LIMIT_TEXT else LOOSE_NUMBER.sub("(수치는 노드 산출물 참조)", p) for p in parts)
 
 
 def merge_facts(report: dict) -> tuple[Facts, list[str]]:

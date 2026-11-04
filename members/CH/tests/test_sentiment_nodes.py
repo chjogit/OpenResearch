@@ -281,3 +281,13 @@ def test_sentiment_limit_wording_uses_eval_result():
     assert "검증됨" not in SENT_LIMIT_TEXT and "평가 전" not in SENT_LIMIT_TEXT
     from ch_agents.llm import BANNED
     assert not any(w in SENT_LIMIT_TEXT for w in BANNED)
+
+
+def test_sentiment_limit_survives_masking_and_sentence_check():
+    from ch_agents.sentiment_limit import SENT_LIMIT_TEXT
+    from ch_agents.node_agents import _mask_loose_numbers
+    from ch_agents import llm
+    masked = _mask_loose_numbers(f"{SENT_LIMIT_TEXT} (SENT_MODEL_UNVALIDATED)")
+    assert "56.6%" in masked and "수치는 노드 산출물 참조" not in masked
+    assert "(수치는 노드 산출물 참조)" in _mask_loose_numbers("Brier 0.265")   # 다른 수치는 계속 가림
+    assert llm.sentence_problems("감성 점수는 " + SENT_LIMIT_TEXT + "입니다.", set(), llm.label_terms(None)) == []

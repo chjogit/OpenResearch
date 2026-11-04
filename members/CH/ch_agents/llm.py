@@ -17,6 +17,7 @@ from . import contract as contract_mod
 from . import exposure as exposure_mod
 from . import verify as verifier
 from .glossary import terms_for
+from .sentiment_limit import SENT_LIMIT_TEXT
 from .prompts import (CHUNK_BOOST_EXAMPLE, CHUNK_BOOST_MISSING, CHUNK_BOOST_RULE, CHUNK_OUTPUT_RULE,
                       CHUNK_RUNTIME_RULE, chunk_boost_enabled, mode_guide)
 from .rag import PROMPT_RULE as RAG_RULE
@@ -389,6 +390,7 @@ def label_terms(data: AgentData | None) -> set[str]:
         opts = (data.extra or {}).get("opts") or {}
         for k in ("scenario", "question"):
             terms.update(LOOSE_NUMBER.findall(str(opts.get(k) or "")))
+    terms.update(LOOSE_NUMBER.findall(SENT_LIMIT_TEXT))   # 고정 한계 문구(#47)의 평가 수치는 용어로 허용
     terms.update({t.lstrip("+-") for t in terms})   # '+5%' 라벨과 '5%' 문장을 같은 용어로
     return terms
 
