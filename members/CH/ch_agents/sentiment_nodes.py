@@ -17,6 +17,7 @@ from statistics import mean
 from . import agent3_sentiment_flow as a3
 from .asof import cut_future, require_as_of
 from .facts import Facts, series_points
+from .sentiment_limit import SENT_LIMIT_TEXT
 from .nodes import Conflict, ConflictView, Finding, NodeResult, NodeTask, register
 
 SRC_DOC = a3.SRC_DOC
@@ -228,7 +229,7 @@ def n11(b: dict, as_of: str) -> NodeResult:
     # ① 기존 에이전트 3 와 같은 심리 지표(논조·검색 관심): 같은 코드, 같은 입력 → 같은 값
     legacy = a3.compute({"docs": [dict(r) for r in b.get("grouped") or []], "docs_agg": b.get("docs_agg"), "search": b.get("search"),
                          "flows": [], "price": b.get("price"), "kospi": b.get("kospi")}, co, as_of)["facts"]
-    arts: dict = {"limits": [DATE_LIMIT, MENTION_LIMIT, "감성은 키워드 사전 기준선이며 사람 라벨 평가 전(SENT_MODEL_UNVALIDATED)"]}
+    arts: dict = {"limits": [DATE_LIMIT, MENTION_LIMIT, f"{SENT_LIMIT_TEXT} (SENT_MODEL_UNVALIDATED)"]}
     finds: list[Finding] = []
     missing: list[str] = []
     # ② 문서 단위: 대상 기업 분리, 근거 문장 없는 점수 제외
@@ -423,7 +424,7 @@ def n12(b: dict, as_of: str, validated: bool = False) -> NodeResult:
     # 감성 기반 추론 게이트 (E2): 하나라도 미충족이면 추론을 만들지 않고 이유를 남김
     why = []
     if not validated:
-        why.append("SENT_MODEL_UNVALIDATED: 감성은 키워드 사전 기준선이며 사람 라벨 평가 전")
+        why.append(f"SENT_MODEL_UNVALIDATED: {SENT_LIMIT_TEXT}")
     if len(days) < MIN_DAYS:
         why.append(f"감성이 있는 날 {len(days)}일 (최소 {MIN_DAYS}일)")
     if len(ev) < MIN_EVENTS:

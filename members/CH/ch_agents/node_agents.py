@@ -13,6 +13,7 @@ from typing import Any
 
 from .agents import AgentData, AgentSpec
 from .facts import Facts
+from .sentiment_limit import SENT_LIMIT_TEXT
 
 PLACEHOLDER = re.compile(r"\{([A-Z]\d+)\}")
 LOOSE_NUMBER = re.compile(r"[+-]?\d+\.\d+%?|[+-]?\d{1,3}(?:,\d{3})+|[+-]?\d+%")   # 소수·천 단위·퍼센트 (일수·노드 번호 같은 정수는 제외)
@@ -65,7 +66,7 @@ def _specs() -> dict[int, AgentSpec]:
         6: AgentSpec(
             6, "에이전트 6 투자심리·뉴스 (Sentiment & News)", sentiment_nodes,
             role=("유사·중복 기사를 한 사건으로 묶어, 사건별 기대·우려와 불확실성 표현을 근거 원문 문장과 함께 보여 줍니다. 감성 점수는 "
-                  "키워드 사전 기준선이며 사람 라벨 평가 전입니다. 확장 노드는 사건 뒤 t+1·t+3·t+5 초과수익과 추가 예측력 검증을 보이고, "
+                  f"{SENT_LIMIT_TEXT}입니다. 확장 노드는 사건 뒤 t+1·t+3·t+5 초과수익과 추가 예측력 검증을 보이고, "
                   "검증 요건을 통과하지 못하면 감성 기반 추론을 하지 않고 이유를 말합니다."),
             checklist=[
                 "사건별 감성·불확실성과 근거 문장 (근거 없는 점수는 쓰지 않음)",
@@ -115,8 +116,8 @@ def _to_placeholders(text: str, links: list[str], items: dict[str, dict]) -> str
 
 def _mask_loose_numbers(text: str) -> str:
     """진술 속 장부 키 밖 숫자(예: Brier 0.265)를 가림. 남겨 두면 LLM 이 그대로 옮겨 써서 '키 밖 숫자' 로 문장이 지워짐."""
-    parts = re.split(r"(\{[A-Z]\d+(?:,\s*[A-Z]\d+)*\})", text)
-    return "".join(p if p.startswith("{") else LOOSE_NUMBER.sub("(수치는 노드 산출물 참조)", p) for p in parts)
+    parts = re.split(r"(\{[A-Z]\d+(?:,\s*[A-Z]\d+)*\}|" + re.escape(SENT_LIMIT_TEXT) + ")", text)   # 고정 한계 문구는 그대로 둠(#47)
+    return "".join(p if p.startswith("{") or p == SENT_LIMIT_TEXT else LOOSE_NUMBER.sub("(수치는 노드 산출물 참조)", p) for p in parts)
 
 
 def merge_facts(report: dict) -> tuple[Facts, list[str]]:

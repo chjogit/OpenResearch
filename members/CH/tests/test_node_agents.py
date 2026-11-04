@@ -5,6 +5,7 @@ import pytest
 
 from ch_agents import contract, node_agents, nodes, renderer
 from ch_agents.llm import run_node_agent
+from ch_agents.sentiment_limit import SENT_LIMIT_TEXT
 from conftest import AS_OF, CO, FakeLLM
 from test_flow_nodes import inputs as flow_inputs
 from test_macro_nodes import bundle as macro_bundle
@@ -174,7 +175,7 @@ def test_numbers_outside_ledger_are_masked_in_flags_and_notes():
         d = make()
         for t in [*d.facts.flags, *d.facts.notes]:
             rest = node_agents.PLACEHOLDER.sub("", t)
-            assert not node_agents.LOOSE_NUMBER.search(rest.replace(node_agents.DIRECTION_RULE, "")), (no, t)
+            assert not node_agents.LOOSE_NUMBER.search(rest.replace(node_agents.DIRECTION_RULE, "").replace(SENT_LIMIT_TEXT, "")), (no, t)
 
 
 def test_direction_rule_is_in_prompt_notes():
