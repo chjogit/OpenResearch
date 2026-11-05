@@ -449,8 +449,11 @@ def verify_answer(parsed: dict | None, led: Ledger, question: str, interp: dict)
 UNIT_SUFFIX = ("백분위", "배", "%p", "%", "조원", "억원", "원", "주", "일")
 
 
+from ch_agents.notation import fix_notation, notation_problems  # noqa: E402,F401  값 표기 바로잡기(#60)
+
+
 def render(text: str, led: Ledger) -> str:
-    """{키} 를 장부 표기로. LLM 이 값과 키를 겹쳐 쓴 경우('{M1} {M1}', '{M1}배')는 한 번만 보이게 한다."""
+    """{키} 를 장부 표기로. LLM 이 값과 키를 겹쳐 쓴 경우('{M1} {M1}', '{M1}배')는 한 번만 보이게 한다. 부호 중복·조사는 fix_notation 으로 바로잡는다."""
     text = re.sub(r"(\{[A-Z]\d+\})(?:\s*[·,]?\s*\1)+", r"\1", text)
     out, pos = [], 0
     for m in re.finditer(r"\{([A-Z]\d+)\}", text):
@@ -463,7 +466,7 @@ def render(text: str, led: Ledger) -> str:
                 pos += len(u)
                 break
     out.append(text[pos:])
-    return "".join(out)
+    return fix_notation("".join(out))
 
 
 def fallback_answer(led: Ledger) -> list[dict]:
