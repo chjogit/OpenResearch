@@ -20,8 +20,10 @@
 """
 from __future__ import annotations
 
+import json
 import re
 from datetime import date, timedelta
+from pathlib import Path
 
 STANDARD = "모두의리서치 P01 거시경제 상세 개발기획서 v1.0 (2026-10-28)"
 POLICY_VERSION = "p01-standard-v1"
@@ -166,6 +168,18 @@ def recheck(codes: list[str]) -> list[str]:
 
 # ---------------------------------------------------------------- 4. 분기 자료 점검
 
+# 급변 분기 원문 대조 결과(#50, 2026-11-04): real=원문과 일치하는 실제 변화 → 검토 표시 안 함, derivation=단독분기 값이 음수라 계속 표시
+REVIEWED_PATH = Path(__file__).with_name("quarter_reviewed.json")
+
+
+def _reviewed() -> dict[tuple, str]:
+    try:
+        rows = json.loads(REVIEWED_PATH.read_text(encoding="utf-8"))["rows"]
+    except (OSError, ValueError, KeyError):
+        return {}
+    return {(r["company_id"], r["period_end"]): r["verdict"] for r in rows}
+
+
 QOQ_LIMIT = 0.5     # 직전 분기 대비 ±50% 넘게 변하면 검토
 YOY_LIMIT = 1.0     # 전년 동기 대비 2배 넘게 변하면 검토
 
@@ -184,9 +198,14 @@ def quarter_check(f, rows: list[dict] | None, cid, as_of: str, group: str = "분
         days = (date.fromisoformat(str(b["pe"])[:10]) - date.fromisoformat(str(a["pe"])[:10])).days
         if not 80 <= days <= 100:
             out["gaps"] += 1
+    reviewed = _reviewed()
+    out["reviewed"] = 0
     for i in range(1, len(mine)):
         a, b = float(mine[i - 1]["v"]), float(mine[i]["v"])
         if a > 0 and abs(b / a - 1) > QOQ_LIMIT:
+            if reviewed.get((cid, str(mine[i]["pe"])[:10])) == "real":     # 원문 대조 완료 → 검토 필요 표시 안 함
+                out["reviewed"] += 1
+                continue
             out["review"].append({"pe": str(mine[i]["pe"])[:10], "kind": "직전 분기 대비", "ratio": b / a})
         if i >= 4 and float(mine[i - 4]["v"]) > 0 and b / float(mine[i - 4]["v"]) - 1 > YOY_LIMIT:
             out["review"].append({"pe": str(mine[i]["pe"])[:10], "kind": "전년 동기 대비", "ratio": b / float(mine[i - 4]["v"])})
@@ -194,6 +213,8 @@ def quarter_check(f, rows: list[dict] | None, cid, as_of: str, group: str = "분
     f.add("공시된 단독분기 매출 이력", len(mine), "개", str(last["pe"])[:10], "core.financial_quarter (revenue)",
           kind="calc", group=group,
           note="DART 누적값 차감(Q2=반기−Q1, Q4=연간−3분기) 결과. 보고서 접수일(없으면 45·90일) 뒤부터 이용")
+    if out["reviewed"]:
+        f.notes.append(f"급변 분기 {out['reviewed']}곳은 DART 원문 대조 완료(실제 변화)")
     if out["gaps"]:
         f.gap("분기 연속성", f"이력 중 끊긴 분기 {out['gaps']}곳 → 기준선 계산에서 제외될 수 있음")
     if out["review"]:
