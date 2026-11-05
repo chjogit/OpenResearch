@@ -246,6 +246,42 @@ def outlook_block(no: int, facts, ctx: dict) -> dict:
     return {"agent": no, "agentName": {3: "거시경제", 4: "수급", 6: "투자심리·뉴스"}[no], **contract.outlook_block(ol, {})}
 
 
+def agent_brief(no: int, facts, ol: dict) -> dict:
+    """질의응답 경로의 에이전트별 200자 요약(#64). 이 경로는 노드만 실행해 LLM 요약이 없으므로 코드가 만든다:
+    노드가 낸 판정 문장 1개(장부 값을 채운 것) + 전망·과거 검증 판정. 계약 summary200 과 같은 길이 규칙(공백 포함 200자)."""
+    from ch_agents import brief as brief_mod, outlook as outlook_mod
+    from ch_agents.notation import fix_notation
+
+    tail = brief_mod.outlook_tail({"outlook": ol})
+    budget = brief_mod.MAX_CHARS - (len(tail) + 1 if tail else 0)
+    fill = lambda s: re.sub(r"\{([A-Z]\d+)\}", lambda m: facts.items[m.group(1)]["text"] if m.group(1) in facts.items else m.group(0), s)
+    cands = [fill(s) for s in [*facts.flags, *facts.notes] if "방향어 규칙" not in s]
+    cands += [f"{v['label']} {v['display']}" for v in (ol.get("ledger") or {}).values()]
+    obs = next((fix_notation(c.strip()) for c in cands if c.strip() and len(c.strip()) <= budget and not re.search(r"\{[^{}]*\}", c)
+                and not brief_mod.INTERNAL_CODE_RE.search(c) and not outlook_mod.problems(c)), "")
+    text = f"{obs} {tail}".strip() or "요약에 쓸 수 있는 핵심 관찰을 확보하지 못했습니다."
+    hr = ol.get("hitRate") or {}
+    return {"agent": no, "agentName": ol["agentName"], "text": text, "chars": len(text), "method": "node-rule", "methodLabel": brief_mod.METHOD_LABEL["node-rule"],
+            "direction": ol["direction"], "directionLabel": ol["directionLabel"], "verdict": hr.get("verdict"), "verdictLabel": hr.get("verdictLabel")}
+
+
+def answer_brief(rendered: list[dict]) -> dict:
+    """최종 답의 첫 문단을 200자 이내로(#64): 안내 문장을 뺀 앞 문장부터 200자 안에 들어가는 만큼. 첫 문장이 길면 잘라 '…' 표시."""
+    from ch_agents.brief import INTERNAL_CODE_RE, MAX_CHARS
+
+    sents = [c["문장"].strip() for c in rendered if c.get("구분") != "안내" and c.get("문장") and not INTERNAL_CODE_RE.search(c["문장"])]
+    text = ""
+    for s in sents:
+        nxt = f"{text} {s}".strip()
+        if len(nxt) > MAX_CHARS:
+            break
+        text = nxt
+    cut = not text and bool(sents)
+    if cut:
+        text = sents[0][:MAX_CHARS - 1].rstrip() + "…"
+    return {"text": text, "chars": len(text), "method": "첫 문장 잘라냄" if cut else "앞 문장 모음"}
+
+
 def tool_node_agent(args: dict, ctx: dict, led: Ledger) -> dict:
     from ch_agents import node_agents
 
@@ -256,6 +292,7 @@ def tool_node_agent(args: dict, ctx: dict, led: Ledger) -> dict:
     report = node_agents.run_nodes(no, ctx["ticker"], ctx["as_of"], extension=True, scenario=scen, co=ctx["co"])
     facts, conflicts = node_agents.merge_facts(report)
     ctx.setdefault("outlooks", {})[no] = outlook_block(no, facts, ctx)
+    ctx.setdefault("briefs", {})[no] = agent_brief(no, facts, ctx["outlooks"][no])
     mp = led.add_facts(facts.items)
     led.statements += [_remap(s, mp) for s in [*facts.flags, *facts.notes] if "방향어 규칙" not in s]
     led.gaps += [g for g in facts.gaps if g not in led.gaps]
@@ -588,6 +625,8 @@ def answer(question: str, llm, emit: Callable[[dict], None] | None = None, unive
         done.append({"tool": choice["tool"], "args": choice.get("args") or {}, "result": res})
         step("도구", tool=choice["tool"], args=choice.get("args") or {}, reason=str(choice.get("reason") or ""), origin=origin,
              result=res, seconds=round(time.monotonic() - ts, 1))
+    if ctx.get("briefs"):        # 에이전트별 200자 요약(#64)
+        out["agentBriefs"] = [ctx["briefs"][k] for k in sorted(ctx["briefs"])]
     if ctx["outlooks"]:      # 에이전트별 전망 결론(종합은 오케스트레이터 몫이라 만들지 않음)
         out["outlook"] = {"cards": [ctx["outlooks"][k] for k in sorted(ctx["outlooks"])], "note": OUTLOOK_QA_NOTE}
     if not led.items and not led.docs and not led.statements:
@@ -628,6 +667,7 @@ def answer(question: str, llm, emit: Callable[[dict], None] | None = None, unive
         rendered = [{"문장": JUDGMENT_NOTICE, "구분": "안내", "방향": "안내", "근거": []}, *rendered,
                     {"문장": JUDGMENT_SELF_CHECK, "구분": "안내", "방향": "안내", "근거": []}]
     out["answer"] = rendered
+    out["brief"] = answer_brief(rendered)
     out["evidence"] = {"장부": {k: {"항목": v["label"], "값": v["text"], "기준일": v.get("as_of"), "출처": v.get("source")} for k, v in led.items.items()
                                if any(k in c["근거"] or "{" + k + "}" in c["문장"] for c in ok)},
                        "문서": {k: d for k, d in led.docs.items() if any(k in c["근거"] for c in ok)}}

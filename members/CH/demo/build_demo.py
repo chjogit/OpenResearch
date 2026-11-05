@@ -80,7 +80,7 @@ def slim_run(out: dict, ticker: str, name: str, agent_no: int, extension: bool) 
 
     c = out["contract"]
     keep = ("agent", "target", "asOf", "status", "summary", "claims", "upsideFactors", "downsideRisks", "unverified", "nextChecks",
-            "evidence", "nodes", "nodeSummary", "predictionSkippedReason", "conflicts", "dataQuality", "disclaimer", "reportId", "schemaVersion")
+            "evidence", "nodes", "nodeSummary", "predictionSkippedReason", "conflicts", "dataQuality", "disclaimer", "reportId", "schemaVersion", "summary200", "summary200Method")
     rendered = renderer.render_all(c)
     return {
         "ticker": ticker, "name": name, "agentNo": agent_no, "agentName": AGENTS[agent_no], "ext": bool(extension),
@@ -220,6 +220,7 @@ def _visible_strings(c: dict):
     for cl in c.get("claims") or []:
         yield cl.get("text") or ""
     yield c.get("predictionSkippedReason") or ""
+    yield c.get("summary200") or ""
     for x in c.get("nextChecks") or []:
         yield x if isinstance(x, str) else json.dumps(x, ensure_ascii=False)
 
@@ -237,6 +238,12 @@ def localize_missing(runs: dict) -> dict:
                 if u.get(f):
                     u[f] = _replace_keys(u[f])
         c["nextChecks"] = [_replace_keys(x) if isinstance(x, str) else x for x in c.get("nextChecks") or []]
+        for cl in c.get("claims") or []:
+            if cl.get("text"):
+                cl["text"] = _replace_keys(cl["text"])
+        if c.get("summary200"):
+            c["summary200"] = _replace_keys(c["summary200"])
+        r["render"] = {lv: _replace_keys(md) for lv, md in r["render"].items()}
     return out
 
 
@@ -244,6 +251,27 @@ def _replace_keys(text: str) -> str:
     for k, ko in MISSING_KO.items():
         text = text.replace(k, _short(ko) if k.isascii() else k)
     return text
+
+
+def brief_hits(runs: dict, qs: dict | None) -> list[str]:
+    """저장 전 검사(#64): 200자 요약이 비어 있거나 200자를 넘거나 내부 코드가 보이면 목록으로."""
+    from ch_agents.brief import INTERNAL_CODE_RE, MAX_CHARS
+
+    bad = []
+    texts = [(k, r["contract"].get("summary200") or "") for k, r in runs["runs"].items()]
+    for it in (qs or {}).get("items") or []:
+        res = it.get("result") or it
+        texts += [(f"질문 에이전트 {b['agent']}", b["text"]) for b in res.get("agentBriefs") or []]
+        if res.get("brief"):
+            texts.append(("질문 답 요약", res["brief"]["text"]))
+    for k, t in texts:
+        if not t.strip():
+            bad.append(f"{k}: 빈 요약")
+        elif len(t) > MAX_CHARS:
+            bad.append(f"{k}: {len(t)}자")
+        elif INTERNAL_CODE_RE.search(t):
+            bad.append(f"{k}: 내부 코드")
+    return bad
 
 
 def raw_key_hits(runs: dict) -> list[str]:
@@ -600,7 +628,7 @@ def build_payload(runs: dict, status: dict, generated_at: str | None = None, out
     rs = runs["runs"]
     return {
         "meta": {"asOf": runs["as_of"], "generatedAt": generated_at or kst_now(), "runs": len(rs),
-                 "llmCalls": sum(r["attempts"] for r in rs.values()), "contract": "r4-1.4", "commit": git_head(), "outlookNote": OUTLOOK_NOTE},
+                 "llmCalls": sum(r["attempts"] for r in rs.values()), "contract": "r4-1.5", "commit": git_head(), "outlookNote": OUTLOOK_NOTE},
         "tickers": [{"ticker": t, "name": n} for t, n in TICKERS], "agents": {str(k): v for k, v in AGENTS.items()},
         "runs": rs, "status": status, "validation": VALIDATION, "sentimentEval": load_sentiment_eval(), "overview": OVERVIEW,
         "outlook": outlook or {}, "outlookValidation": load_outlook_validation(),
@@ -668,6 +696,10 @@ def main(argv: list[str]) -> int:
         nbad = notation_hits(runs) + (notation_hits(qs) if qs else [])
         if nbad:
             print("값 표기 오류(부호 중복·같은 단위 연속·조사 불일치)가 남음, 저장하지 않음:", nbad[:10])
+            return 1
+        bbad = brief_hits(runs, qs)
+        if bbad:
+            print("200자 요약 검사 실패, 저장하지 않음:", bbad[:10])
             return 1
         qbad = question_problems(qs["items"]) if qs else []
         if qbad:

@@ -7,7 +7,7 @@
   "required": ["schemaVersion", "reportId", "agent", "target", "mode", "asOf", "generatedAt", "status", "summary",
                "claims", "downsideRisks", "unverified", "evidence", "verification", "disclaimer"],
   "properties": {
-    "schemaVersion": {"type": "string", "enum": ["r4-1.0", "r4-1.1", "r4-1.2", "r4-1.3", "r4-1.4"]},
+    "schemaVersion": {"type": "string", "enum": ["r4-1.0", "r4-1.1", "r4-1.2", "r4-1.3", "r4-1.4", "r4-1.5"]},
     "reportId": {"type": "string", "pattern": "^RPT-\\d+-[0-9A-Za-z.]+-\\d{8}-[0-9a-f]{8}$"},
     "agent": {
       "type": "object", "required": ["id", "module", "name"],
@@ -33,6 +33,8 @@
       "type": "object", "required": ["text", "evidenceIds"],
       "properties": {"text": {"type": "string"}, "evidenceIds": {"type": "array", "items": {"type": "string", "pattern": "^E\\d+$"}}}
     },
+    "summary200": {"type": "string", "minLength": 1, "maxLength": 200, "description": "에이전트 200자 요약 (r4-1.5, 선택). 공백 포함, 값을 채운 뒤 기준. 핵심 관찰 + 20거래일 전망·과거 검증 판정. 옛 결과에는 없음"},
+    "summary200Method": {"type": "string", "enum": ["llm", "llm-retry", "llm-trim", "rule"], "description": "llm: LLM 요약 통과 · llm-retry: 줄여 다시 쓴 뒤 통과 · llm-trim: 검사를 통과한 앞 문장만 남김 · rule: 규칙 기반 대체(검사 미통과)"},
     "claims": {
       "type": "array",
       "items": {

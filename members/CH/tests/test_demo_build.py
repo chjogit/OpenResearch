@@ -255,7 +255,7 @@ def test_collect_outlook_rejects_advice_text(monkeypatch):
 
 def test_payload_and_template_carry_outlook_and_r41_and_validation():
     p = bd.build_payload(_runs(), _status(), outlook={"005930": {"4": _ol_block()}})
-    assert p["meta"]["contract"] == "r4-1.4" and p["outlook"]["005930"]["4"]["direction"] == "neutral" and "outlookNote" in p["meta"]
+    assert p["meta"]["contract"] == "r4-1.5" and p["outlook"]["005930"]["4"]["direction"] == "neutral" and "outlookNote" in p["meta"]
     v = p["outlookValidation"]
     assert v["status"] in ("measured", "none")
     if v["status"] == "measured":

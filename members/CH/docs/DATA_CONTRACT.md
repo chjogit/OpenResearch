@@ -372,6 +372,7 @@
 - 필드 이름·의미 변경, 필수 필드 추가, 허용 값 축소: `r4-2.0`
 - 버전을 올릴 때는 `contract.SCHEMA_VERSION`, 스키마 파일의 `schemaVersion.enum`, 이 문서 제목을 함께 바꿉니다.
 - 이력: `r4-1.1` (2026-10-28) `unverified[].availability`·`availabilityLabel` 추가 (선택 필드). 스키마는 `r4-1.0` 출력도 그대로 받습니다.
+- 이력: `r4-1.5` (2026-11-05) `summary200`(에이전트 200자 요약: 공백 포함 200자 이내, 핵심 관찰 + 20거래일 전망·과거 검증 판정)·`summary200Method`(llm·llm-retry·rule) 추가 (선택 필드, #64). 기존 `summary` 객체는 그대로.
 - 이력: `r4-1.4` (2026-11-05) `outlook`(20거래일 가격 방향 전망 결론: 방향·사유·긍정/부정 요인·적중률 또는 미검증·규칙 버전) 추가 (선택 필드, 에이전트 3·4·6). 규칙: `docs/OUTLOOK_RULES.md`, SW 요약: `docs/SW_INTERFACE_SUMMARY.md`.
 - 이력: `r4-1.2` (2026-10-28 밤) `evidence[].tier`·`resultType`, 에이전트별 `p01`·`p03` 추가 (선택 필드). 제작 기준: `docs/P01_거시경제_상세개발기획서.md`, `docs/P03_투자심리수급_상세개발기획서.md`.
 

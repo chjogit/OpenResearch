@@ -41,7 +41,7 @@ th{background:var(--accbg)}
 .sub-tabs{display:flex;gap:4px;flex-wrap:wrap;margin:8px 0}
 .note{font-size:13px;color:var(--mute)}
 .bar{height:10px;background:var(--line);border-radius:5px;overflow:hidden}.bar i{display:block;height:100%;background:var(--acc)}
-.ol{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:10px}.ol .card{margin:0}.ol h3{margin:0 0 6px}
+.brief .bt{font-size:15px;line-height:1.6;margin:6px 0}.cnt.over{color:var(--bad,#c33);font-weight:700}.ol{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:10px}.ol .card{margin:0}.ol h3{margin:0 0 6px}
 .dir{display:inline-block;border-radius:8px;padding:2px 12px;font-weight:700;font-size:16px}
 .step{border-left:4px solid var(--acc)}.step b{display:inline-block;margin-bottom:4px}.step code{font-size:12px;background:var(--bg);padding:0 4px;border-radius:4px}
 .sent{display:inline}.sent .badge{margin-right:3px}.ansbox p{margin:6px 0}.evl{color:var(--acc);cursor:pointer;text-decoration:none;border-bottom:1px dotted var(--acc)}
@@ -166,6 +166,8 @@ function demoView() {
   const r = D.runs[`${st.tk}|${st.ag}|${st.ext}`];
   if (!r) return '<p class="note">이 조합의 실행 결과가 없습니다.</p>';
   const c = r.contract, cf = c.conflicts || [], un = c.unverified || [];
+  const ol0 = ((D.outlook || {})[st.tk] || {})[st.ag] || {}, hr0 = ol0.hitRate || {};
+  const brief = briefCard(`${D.agents[st.ag]} (에이전트 ${st.ag}) 200자 요약`, c.summary200, c.summary200Method, ol0.directionLabel, ol0.direction, hr0.verdictLabel, hr0.verdict);
   const skipped = (c.nodes || []).filter(n => n.state !== "executed").length;
   let body;
   if (st.view === "screen") body = `<div class="md">${md(r.render[st.lv])}</div>`;
@@ -177,13 +179,25 @@ function demoView() {
     + listBlock("반대 근거·하방 위험", c.downsideRisks, x => `<li>${esc(typeof x === "string" ? x : x.text || "")}</li>`);
   else body = evidenceTable(r);
   const views = [["screen", "화면(수준별)"], ["nodes", "노드 실행"], ["claims", "주장·태그"], ["conflict", "충돌·미확보"], ["evidence", "근거 목록"]];
-  return `<div class="kv"><div><small>상태</small><b>${statusBadge(r.status)}</b></div><div><small>노드 건너뜀</small><b>${skipped}</b></div>
+  return brief + `<div class="kv"><div><small>상태</small><b>${statusBadge(r.status)}</b></div><div><small>노드 건너뜀</small><b>${skipped}</b></div>
     <div><small>주장 / 제거 문장</small><b>${r.claims} / ${r.removed}</b></div><div><small>LLM 시도 · 시간</small><b>${r.attempts}회 · ${r.seconds}초</b></div></div>
     <div class="sub-tabs">${views.map(([v, t]) => chip("view", v, t, st.view === v)).join("")}</div>${body}`;
 }
 // ---- 20거래일 전망 카드 (계약 r4-1.4 outlook): 세 에이전트 결론을 나란히, 종합은 만들지 않음
 const DIR_CLS = {positive: "b-ok", neutral: "b-mute", negative: "b-bad"};
 const SIG_KO = {positive: "긍정 신호", negative: "부정 신호", neutral: "기준 미달", missing: "자료 없음"};
+const METHOD_KO = {llm: "LLM 요약", "llm-retry": "LLM 요약(줄여 다시 씀)", rule: "규칙 기반 요약(LLM 요약이 검사를 통과하지 못해 대체)", "node-rule": "노드 결과 규칙 요약(질의응답은 노드만 실행해 LLM 요약 없음)"};
+function briefCard(title, text, method, dirLabel, direction, verdictLabel, verdict) {
+  if (!text) return "";
+  const n = [...text].length;
+  return `<div class="card brief"><b>${esc(title)}</b> ${dirLabel ? `<span class="badge ${DIR_CLS[direction] || "b-mute"}">20거래일 ${esc(dirLabel)}</span>` : ""}${verdictLabel ? `<span class="badge ${verdict === "edge" ? "b-ok" : "b-warn"}">검증: ${esc(verdictLabel)}</span>` : ""}
+  <p class="bt">${esc(text)}</p><div class="note"><span class="cnt${n > 200 ? " over" : ""}">${n}자 / 200자</span> · ${esc(METHOD_KO[method] || method || "")}</div></div>`;
+}
+function briefsHtml(r) {
+  const cards = (r.agentBriefs || []).map(b => briefCard(`${b.agentName} (에이전트 ${b.agent})`, b.text, b.method, b.directionLabel, b.direction, b.verdictLabel, b.verdict)).join("");
+  const fin = r.brief && r.brief.text ? briefCard("답 요약", r.brief.text, r.brief.method) : "";
+  return cards || fin ? `<div class="card"><h2>200자 요약</h2><p class="note">에이전트가 오케스트레이터·사용자에게 주는 요약입니다(공백 포함 200자 이내, 숫자는 장부 값). 아래에 상세 답이 이어집니다.</p><div class="ol">${cards}${fin}</div></div>` : "";
+}
 function outlookCard(no, o) {
   const ledger = Object.entries(o.ledger || {});
   const fac = (rows, lab) => rows.length ? rows.map(f => `<li><b>${lab}</b> ${esc(f.text)} <span class="note">(${esc((f.evidenceKeys || []).join(", "))} · ${esc(f.tag === "Computation" ? "계산" : "사실")})</span></li>`).join("") : "";
@@ -308,7 +322,7 @@ function genHtml(r) {
 }
 function showFinal(r) {
   const ol = r.outlook && r.outlook.cards.length ? `<div class="card"><h2>20거래일 전망 (에이전트별, 규칙 기반)</h2><p class="note">${esc(r.outlook.note)}</p><div class="ol">${r.outlook.cards.map(c => outlookCard(String(c.agent), c)).join("")}</div></div>` : "";
-  $("#ask-final").innerHTML = genHtml(r) + ol + answerHtml(r) + evidenceHtml(r);
+  $("#ask-final").innerHTML = briefsHtml(r) + genHtml(r) + ol + answerHtml(r) + evidenceHtml(r);
 }
 function askReset(q) {
   $("#ask-trace").innerHTML = "<h2>에이전트 작동 (단계별)</h2>";
