@@ -41,6 +41,8 @@ th{background:var(--accbg)}
 .sub-tabs{display:flex;gap:4px;flex-wrap:wrap;margin:8px 0}
 .note{font-size:13px;color:var(--mute)}
 .bar{height:10px;background:var(--line);border-radius:5px;overflow:hidden}.bar i{display:block;height:100%;background:var(--acc)}
+.ol{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:10px}.ol .card{margin:0}.ol h3{margin:0 0 6px}
+.dir{display:inline-block;border-radius:8px;padding:2px 12px;font-weight:700;font-size:16px}
 footer{max-width:1040px;margin:0 auto;padding:0 16px 24px;color:var(--mute);font-size:12px}
 </style>
 </head>
@@ -175,8 +177,31 @@ function demoView() {
     <div><small>주장 / 제거 문장</small><b>${r.claims} / ${r.removed}</b></div><div><small>LLM 시도 · 시간</small><b>${r.attempts}회 · ${r.seconds}초</b></div></div>
     <div class="sub-tabs">${views.map(([v, t]) => chip("view", v, t, st.view === v)).join("")}</div>${body}`;
 }
+// ---- 20거래일 전망 카드 (계약 r4-1.4 outlook): 세 에이전트 결론을 나란히, 종합은 만들지 않음
+const DIR_CLS = {positive: "b-ok", neutral: "b-mute", negative: "b-bad"};
+const SIG_KO = {positive: "긍정 신호", negative: "부정 신호", neutral: "기준 미달", missing: "자료 없음"};
+function outlookCard(no, o) {
+  const ledger = Object.entries(o.ledger || {});
+  const fac = (rows, lab) => rows.length ? rows.map(f => `<li><b>${lab}</b> ${esc(f.text)} <span class="note">(${esc((f.evidenceKeys || []).join(", "))} · ${esc(f.tag === "Computation" ? "계산" : "사실")})</span></li>`).join("") : "";
+  return `<div class="card"><h3>${esc(D.agents[no])} <span class="note">에이전트 ${no}</span></h3>
+  <p><span class="dir badge ${DIR_CLS[o.direction]}">${esc(o.directionLabel)}</span> <span class="note">${o.horizonDays}거래일 · ${esc(o.startAfter)} 다음 거래일부터</span>${o.reason ? ` <span class="badge b-warn">${esc(o.reason)}</span>` : ""}</p>
+  <ul>${fac(o.positiveFactors, "긍정 요인") + fac(o.negativeFactors, "부정 요인") || '<li class="note">기준을 넘는 요인이 없습니다.</li>'}</ul>
+  <h3>평가한 신호</h3><ul>${(o.signals || []).map(x => `<li>${esc(x.name)}: <span class="badge b-mute">${SIG_KO[x.state] || esc(x.state)}</span> <span class="note">${esc(x.text)}</span></li>`).join("")}</ul>
+  ${ledger.length ? '<div class="tw"><table><tr><th>키</th><th>항목</th><th>값</th><th>기준일</th><th>출처</th></tr>' + ledger.map(([k, v]) => `<tr><td>${esc(k)}</td><td>${esc(v.label)}</td><td>${esc(v.display)}</td><td>${esc(v.dataDate)}</td><td>${esc(v.source)}</td></tr>`).join("") + "</table></div>" : ""}
+  <p><b>과거 적중률</b> ${esc(o.hitRate.text)}</p>
+  <p class="note">규칙 ${esc(o.ruleVersion)} · 한계: ${esc(o.limit)}</p></div>`;
+}
+function outlookBlock() {
+  const per = (D.outlook || {})[st.tk]; if (!per) return "";
+  const name = (D.tickers.find(t => t.ticker === st.tk) || {}).name;
+  const line = Object.keys(D.agents).filter(k => per[k]).map(k => `${D.agents[k]} <b>${esc(per[k].directionLabel)}</b>`).join(" · ");
+  return `<div class="card"><h2>${esc(name)} — 앞으로 20거래일 전망 (규칙 기반)</h2><p>${line}</p>
+  <p class="note">${esc(D.meta.outlookNote)} 매수·매도·보유 판단이나 가격 수준이 아닙니다.</p>
+  <div class="ol">${Object.keys(D.agents).filter(k => per[k]).map(k => outlookCard(k, per[k])).join("")}</div>
+  <p class="note"><b>종합 결론은 오케스트레이터(SW) 담당</b>입니다. 중립(신호 미약)은 반대 의견이 아니라 규칙 기준을 넘는 신호가 없다는 뜻입니다.</p></div>`;
+}
 function renderDemo() {
-  $("#s-demo").innerHTML = `<div class="card"><div class="ctl">
+  $("#s-demo").innerHTML = outlookBlock() + `<div class="card"><div class="ctl">
     <div><label class="t">종목</label><div class="grp">${D.tickers.map(t => chip("tk", t.ticker, t.name, st.tk === t.ticker)).join("")}</div></div>
     <div><label class="t">에이전트</label><div class="grp">${Object.entries(D.agents).map(([k, v]) => chip("ag", k, `${k} ${v}`, st.ag === k)).join("")}</div></div>
     <div><label class="t">확장 노드</label><div class="grp">${chip("ext", "0", "끔", st.ext == 0)}${chip("ext", "1", "켬", st.ext == 1)}</div></div>
@@ -230,10 +255,25 @@ function sentEval() {
     `<tr><td>${esc(r.source)}</td><td>${fmt(r.n)}</td><td>${r.accuracy}%</td><td>${r.irrelevant}%</td></tr>`).join("")}</table></div>
   <p class="note">${esc(e.source)}</p></div>`;
 }
+function outlookValid() {
+  const o = D.outlookValidation; if (!o) return "";
+  if (o.status !== "measured") return `<div class="card"><h2>전망 규칙(outlook-r1)과 적중률</h2><p class="note">${esc(o.note)}</p></div>`;
+  const pc = x => x == null ? "-" : (x * 100).toFixed(1) + "%";
+  const rows = o.rows.map(r => r.unverified
+    ? `<tr><td>${esc(r.name)}</td><td colspan="6"><span class="badge b-warn">미검증</span> ${esc(r.unverified)}</td></tr>`
+    : `<tr><td>${esc(r.name)}</td><td><b>${pc(r.rate)}</b> <span class="note">(${pc((r.ci95 || [])[0])}~${pc((r.ci95 || [])[1])})</span></td><td>${fmt(r.n)}</td><td>${pc(r.neutralShare)}</td><td>${pc(r.baselines.alwaysPositive)}</td><td>${pc(r.baselines.momentum)}</td><td>${pc(r.baselines.random)}</td></tr>`).join("");
+  return `<div class="card"><h2>전망 규칙(${esc(o.ruleVersion)})과 과거 적중률</h2>
+  <p>20거래일 뒤 KOSPI 대비 초과수익률 부호가 긍정 결론이면 양수, 부정 결론이면 음수일 때 적중으로 셉니다. 중립 결론은 적중률에서 빼고 비율만 따로 봅니다. 규칙은 결과를 보고 고치지 않았습니다.</p>
+  <div class="tw"><table><tr><th>에이전트</th><th>적중률 (95% 구간)</th><th>판정 건수</th><th>중립 비율</th><th>기준선: 항상 긍정</th><th>기준선: 모멘텀</th><th>기준선: 무작위</th></tr>${rows}</table></div>
+  <p class="note">기준: ${esc(o.basis)} · 기준선은 같은 표본에서 비교했습니다. 에이전트 4·3 의 적중률은 기준선과 뚜렷한 차이가 없습니다. 측정 ${esc(o.generatedAt || "")}.</p>
+  <ul>${o.limits.map(x => `<li>${esc(x)}</li>`).join("")}</ul>
+  <p class="note">계산 방식·도출 과정: ${esc(o.doc)} · 다시 계산: <code>${esc(o.command || "")}</code></p></div>`;
+}
 (function () {
   const v = D.validation;
   $("#s-valid").innerHTML = `<div class="card"><h2>성적표 추이</h2><p class="note">${esc(v.note)}</p><div class="tw"><table><tr><th>단계</th><th>제거 문장 합계</th><th>범위</th><th>설명</th></tr>${v.rows.map(r =>
     `<tr><td>${esc(r.stage)}</td><td>${esc(r.removed_total)}</td><td>${esc(r.range)}</td><td>${esc(r.note)}</td></tr>`).join("")}</table></div></div>
+  ${outlookValid()}
   ${sentEval()}
   <div class="card"><h2>무엇을 뜻하나</h2><ul>${v.meaning.map(m => `<li>${esc(m)}</li>`).join("")}</ul></div>`;
 })();

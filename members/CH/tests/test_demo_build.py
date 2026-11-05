@@ -231,3 +231,40 @@ def test_display_hits_catches_json_raw_code_and_zero_items():
     run["render"]["L1"] = "N05 점검"
     hits = bd.display_hits({"runs": {"k": run}})
     assert any("JSON" in h for h in hits) and any("내부 코드" in h for h in hits) and any("0건" in h for h in hits)
+
+
+def _ol_block(direction="neutral", text="x"):
+    return {"direction": direction, "directionLabel": "중립", "positiveFactors": [], "negativeFactors": [], "signals": [{"text": text}], "limit": "한계", "note": "참고"}
+
+
+def test_collect_outlook_covers_all_tickers_agents_and_uses_contract_block(monkeypatch):
+    from ch_agents import contract
+
+    monkeypatch.setattr(contract, "outlook_block", lambda ol, _c: _ol_block(text=ol["t"]))
+    out = bd.collect_outlook("2026-10-30", builder=lambda as_of, t, no: {"t": f"{t}-{no}"})
+    assert set(out) == {t for t, _ in bd.TICKERS} and all(set(v) == {"3", "4", "6"} for v in out.values())
+
+
+def test_collect_outlook_rejects_advice_text(monkeypatch):
+    from ch_agents import contract
+
+    monkeypatch.setattr(contract, "outlook_block", lambda ol, _c: _ol_block(text="지금이 매수 적기"))
+    with pytest.raises(ValueError):
+        bd.collect_outlook("2026-10-30", builder=lambda *a: {})
+
+
+def test_payload_and_template_carry_outlook_and_r41_and_validation():
+    p = bd.build_payload(_runs(), _status(), outlook={"005930": {"4": _ol_block()}})
+    assert p["meta"]["contract"] == "r4-1.4" and p["outlook"]["005930"]["4"]["direction"] == "neutral" and "outlookNote" in p["meta"]
+    v = p["outlookValidation"]
+    assert v["status"] in ("measured", "none")
+    if v["status"] == "measured":
+        by = {r["agent"]: r for r in v["rows"]}
+        assert "unverified" in by[6] and by[4]["baselines"]["random"] == 0.5 and by[4]["ci95"]
+    tpl = (Path(bd.HERE) / "template.html").read_text(encoding="utf-8")
+    assert "outlookBlock()" in tpl and "outlookValid()" in tpl and "오케스트레이터(SW) 담당" in tpl
+
+
+def test_outlook_validation_none_without_results_file(monkeypatch, tmp_path):
+    monkeypatch.setattr(bd, "HERE", tmp_path / "demo")
+    assert bd.load_outlook_validation()["status"] == "none"

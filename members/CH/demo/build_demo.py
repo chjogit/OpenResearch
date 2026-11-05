@@ -46,9 +46,10 @@ VALIDATION = {
 }
 
 OVERVIEW = {
-    "flow": ["수집 (kic-agent-data)", "DB 배치 (메인·kic-opinion·Object Storage)", "노드 N05~N08·N11·N12", "계약 r4-1.3 (JSON)", "SW 오케스트레이터"],
+    "flow": ["수집 (kic-agent-data)", "DB 배치 (메인·kic-opinion·Object Storage)", "노드 N05~N08·N11·N12", "계약 r4-1.4 (JSON)", "SW 오케스트레이터"],
     "principles": ["숫자는 DB 값만 씁니다 (LLM 은 장부의 키만 인용, 장부 밖 숫자는 제거).", "자료가 없으면 '미확보'로 적고 채워 넣지 않습니다.",
-                   "투자 권유·증권사 가격 전망은 쓰지 않습니다 (점검에 걸리면 화면에서 뺍니다)."],
+                   "투자 권유·증권사 가격 전망은 쓰지 않습니다 (점검에 걸리면 화면에서 뺍니다).",
+                   "20거래일 전망(긍정·중립·부정)은 정해진 규칙이 노드 값만으로 정합니다 (LLM 이 정하지 않음). 매수·매도 판단이나 가격 수준이 아니며, 세 결론의 종합은 오케스트레이터(SW) 담당입니다."],
     "nodes": [("N05·N06", "거시경제(에이전트 3)", "기본/확장"), ("N07·N08", "수급(에이전트 4)", "기본/확장"), ("N11·N12", "투자심리·뉴스(에이전트 6)", "기본/확장")],
 }
 
@@ -462,13 +463,64 @@ def kst_now() -> str:
     return datetime.now(timezone(timedelta(hours=9))).strftime("%Y-%m-%d %H:%M KST")
 
 
-def build_payload(runs: dict, status: dict, generated_at: str | None = None) -> dict:
+OUTLOOK_NOTE = ("전망은 정해진 규칙(outlook-r1)이 노드 값만으로 계산한 20거래일 가격 방향입니다. 저장한 LLM 실행 결과는 그대로 두고 전망만 기준일에 맞춰 다시 계산했습니다 "
+                "(에이전트 6 은 원문 14일 보관이라 당시와 다를 수 있음). 세 결론의 종합은 오케스트레이터(SW) 담당이며 여기서는 만들지 않습니다.")
+
+
+def outlook_builder(as_of: str, ticker: str, agent_no: int) -> dict:
+    """노드만 실행해(LLM 없음) 전망 계산 결과를 얻는다."""
+    from ch_agents import db, node_agents
+
+    return node_agents.build_data(agent_no, ticker, as_of, extension=False, co=db.company(ticker)).extra["outlook"]
+
+
+def collect_outlook(as_of: str, builder=outlook_builder) -> dict:
+    """{ticker: {agent: 계약 outlook 블록}}. 화면에 나가기 전 금지 표현 검사(outlook.problems)를 통과해야 한다."""
+    from ch_agents import contract, outlook
+
+    out: dict = {}
+    for t, _ in TICKERS:
+        out[t] = {}
+        for no in AGENTS:
+            blk = contract.outlook_block(builder(as_of, t, no), {})
+            texts = [f["text"] for f in blk["positiveFactors"] + blk["negativeFactors"]] + [x["text"] for x in blk["signals"]] + [blk["limit"], blk["note"]]
+            bad = outlook.problems(" ".join(texts))
+            if bad:
+                raise ValueError(f"전망 문장에 금지 표현 {bad} ({t} 에이전트 {no})")
+            out[t][str(no)] = blk
+    return out
+
+
+def load_outlook_validation() -> dict:
+    """#55 적중률 결과(hit_rate.json)의 요약. 파일이 없으면 '측정 중'."""
+    p = HERE.parent / "outlook" / "hit_rate.json"
+    if not p.exists():
+        return {"status": "none", "note": "적중률 측정 중 (결과 파일 없음)"}
+    d = json.loads(p.read_text(encoding="utf-8"))
+    rows = []
+    for no, name in AGENTS.items():
+        e = (d.get("agents") or {}).get(str(no)) or {}
+        if "unverified" in e:
+            rows.append({"agent": no, "name": name, "unverified": e["unverified"]})
+            continue
+        non = e.get("nonOverlapping") or {}
+        rows.append({"agent": no, "name": name, "rate": e.get("rate"), "n": e.get("n"), "ci95": e.get("ci95"), "neutralShare": non.get("neutralShare"),
+                     "baselines": {k: v.get("rate") for k, v in (non.get("baselines") or {}).items()}, "period": e.get("period")})
+    return {"status": "measured", "ruleVersion": d.get("ruleVersion"), "basis": d.get("basis"), "generatedAt": d.get("generatedAt"), "rows": rows,
+            "doc": "docs/OUTLOOK_BACKTEST.md", "command": d.get("command"),
+            "limits": ["겹치지 않는 20거래일 간격 표본이 헤드라인이며, 같은 날짜의 종목은 시장 움직임을 공유해 신뢰구간은 실제보다 좁습니다.",
+                       "에이전트 3: 지표 수정 이력 미보관(공표 시점 규칙으로 보수 처리), 판정이 드물어 건수가 적습니다. 에이전트 4: 실제 서비스의 수급 하루 지연은 반영하지 않았습니다.",
+                       "에이전트 6: 원문 보관 14일이라 과거 재계산 불가 — 앞으로 기록해 사후 측정합니다."]}
+
+
+def build_payload(runs: dict, status: dict, generated_at: str | None = None, outlook: dict | None = None) -> dict:
     rs = runs["runs"]
     return {
         "meta": {"asOf": runs["as_of"], "generatedAt": generated_at or kst_now(), "runs": len(rs),
-                 "llmCalls": sum(r["attempts"] for r in rs.values()), "contract": "r4-1.3", "commit": git_head()},
+                 "llmCalls": sum(r["attempts"] for r in rs.values()), "contract": "r4-1.4", "commit": git_head(), "outlookNote": OUTLOOK_NOTE},
         "tickers": [{"ticker": t, "name": n} for t, n in TICKERS], "agents": {str(k): v for k, v in AGENTS.items()},
         "runs": rs, "status": status, "validation": VALIDATION, "sentimentEval": load_sentiment_eval(), "overview": OVERVIEW,
+        "outlook": outlook or {}, "outlookValidation": load_outlook_validation(),
     }
 
 
@@ -522,7 +574,7 @@ def main(argv: list[str]) -> int:
         if shown:
             print("화면 표시 검사 실패(JSON 원문·내부 코드·0건 항목), 저장하지 않음:", shown[:10])
             return 1
-        html = build_html(build_payload(runs, collect_status()))
+        html = build_html(build_payload(runs, collect_status(), outlook=collect_outlook(as_of)))
         bad = forbidden_hits(html, env_secrets()) + opinion_leaks(html, snippets)
         if bad:
             print("금지 패턴 발견, 저장하지 않음:", bad)
