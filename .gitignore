@@ -14,3 +14,4 @@ members/CH/eval_*.csv
 members/CH/persona_audit*.json
 members/CH/eval_sets/
 members/CH/demo/_cache/
+members/CH/qa/_runs/
