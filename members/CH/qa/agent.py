@@ -1,0 +1,555 @@
+"""자연어 질의응답 에이전트 (내부 확인용, 티켓 #53, specs/agent-demo.md C).
+
+한국어 질문 → ① 해석(LLM: 종목 언급·기간·영역·의도·거절·가정) + 코드 보정(종목 사전 대조, 투자 권유 정규식, 가정은 질문 속 글자만)
+→ ② 도구 선택 루프(LLM 이 다음 도구를 고르는 JSON 행동, 호출 상한) → ③ 답 작성(LLM) → ④ 검사(장부 키 밖 숫자·금지어·의도 추정·블로그 주소).
+도구: 에이전트 3·4·6 노드 실행(NodeTask/NodeResult 그대로, LLM 없음), 시세 요약(읽기 전용 DB), 문서 검색(RAG).
+숫자는 도구가 DB 에서 만든 장부 키로만 나오고, LLM 은 `{키}` 만 씁니다. DB 는 읽기 전용, 기준일(as_of) 이후 자료는 쓰지 않습니다.
+"""
+from __future__ import annotations
+
+import difflib
+import json
+import re
+import time
+from collections.abc import Callable
+from dataclasses import dataclass, field
+from datetime import date, timedelta
+from pathlib import Path
+from typing import Any
+
+HERE = Path(__file__).resolve().parent
+MAX_TOOL_CALLS = 4            # 도구 호출 상한 (C2)
+TIME_BUDGET_S = 60.0          # 질문당 목표 시간 (C6)
+DOMAIN_AGENT = {"거시": 3, "수급": 4, "심리뉴스": 6}
+INTENTS = ("현황", "원인·영향", "시나리오", "투자권유", "가격전망", "범위밖")
+REFUSE_INTENTS = ("투자권유", "가격전망")
+UNIVERSE_NOTE = "분석 대상은 DB 에 적재된 국내 종목(KOSPI 200 등)뿐입니다"
+
+# 투자 권유·가격 전망을 코드에서도 한 번 더 막는다(LLM 이 놓쳐도 거절). '순매수'·'매수세' 같은 수급 용어는 걸리지 않게 한다.
+ADVICE_RE = re.compile(r"(사도|살까|사야|팔아야|팔까|팔아도|매수\s*(해|할|추천|타이밍)|매도\s*(해|할|추천|타이밍)|담아도|들어가도|"
+                       r"추천\s*(해|종목)|(오를|내릴|떨어질|상승할|하락할)\s*(까|것|지|거)|올라갈까|내려갈까|목표\s*(주)?가|얼마\s*까지\s*(오|갈|올)|"
+                       r"(내일|다음\s*주|다음\s*달|내년|앞으로).{0,12}(주가|가격).{0,10}(전망|예측|예상|얼마)|전망해|예측해)")
+OPINION_RE = re.compile(r"https?://|blog\.naver|cafe\.naver|youtube\.com|youtu\.be", re.I)         # 답 문장: 주소는 모두 금지
+OPINION_HOST_RE = re.compile(r"blog\.naver|cafe\.naver|youtube\.com|youtu\.be", re.I)               # 문서: 개인 작성 글 주소만
+
+
+# ---------------------------------------------------------------- 종목 사전
+
+@dataclass
+class Company:
+    ticker: str
+    name: str
+
+
+def _norm(s: str) -> str:
+    return re.sub(r"[\s·\-_.()&]", "", s).lower()
+
+
+_ALIASES: dict[str, str] | None = None
+
+
+def aliases() -> dict[str, str]:
+    global _ALIASES
+    if _ALIASES is None:
+        _ALIASES = {_norm(k): v for k, v in json.loads((HERE / "aliases.json").read_text(encoding="utf-8")).items()}
+    return _ALIASES
+
+
+def load_universe() -> list[Company]:
+    from ch_agents import db
+
+    return [Company(r["ticker"], r["name"]) for r in db.q("SELECT ticker, name FROM core.company WHERE market = 'KR' ORDER BY company_id")]
+
+
+def resolve_company(mention: str | None, universe: list[Company]) -> dict:
+    """언급 문자열 → 종목. status: found | ambiguous | not_found | none. 이름 일치 → 별칭 → 부분 일치 → 유사도 순."""
+    if not mention or not _norm(mention):
+        return {"status": "none", "mention": mention}
+    m = _norm(mention)
+    m = aliases().get(m, None) and _norm(aliases()[m]) or m
+    by_norm = {_norm(c.name): c for c in universe}
+    if m in by_norm:
+        c = by_norm[m]
+        return {"status": "found", "mention": mention, "ticker": c.ticker, "name": c.name, "method": "이름 일치"}
+    if len(m) >= 2:
+        part = [c for c in universe if m in _norm(c.name) or _norm(c.name) in m and len(_norm(c.name)) >= 3]
+        if len(part) == 1:
+            return {"status": "found", "mention": mention, "ticker": part[0].ticker, "name": part[0].name, "method": "부분 일치"}
+        if len(part) > 1:
+            return {"status": "ambiguous", "mention": mention, "candidates": [f"{c.name}({c.ticker})" for c in part[:6]]}
+    best = max(universe, key=lambda c: difflib.SequenceMatcher(None, m, _norm(c.name)).ratio(), default=None)
+    if best and difflib.SequenceMatcher(None, m, _norm(best.name)).ratio() >= 0.74:
+        return {"status": "found", "mention": mention, "ticker": best.ticker, "name": best.name, "method": "오타 보정(유사도)"}
+    return {"status": "not_found", "mention": mention}
+
+
+# ---------------------------------------------------------------- LLM 호출 (검사 가능한 얇은 층)
+
+@dataclass
+class Meter:
+    calls: int = 0
+    input_tokens: int = 0
+    output_tokens: int = 0
+    seconds: float = 0.0
+    log: list[dict] = field(default_factory=list)
+
+
+def call_json(llm, system: str, user: str, meter: Meter, label: str) -> tuple[dict | None, str]:
+    """LLM 한 번 호출 → JSON dict(실패 시 None). 호출 수·토큰·시간을 meter 에 쌓는다."""
+    from langchain_core.messages import HumanMessage, SystemMessage
+
+    from ch_agents import llm as llm_mod
+
+    t0 = time.monotonic()
+    raw = ""
+    try:
+        resp = llm_mod.invoke(llm, [SystemMessage(content=system), HumanMessage(content=user)])
+        raw = resp.content
+        usage = getattr(resp, "usage_metadata", None) or {}
+        meter.input_tokens += int(usage.get("input_tokens") or 0)
+        meter.output_tokens += int(usage.get("output_tokens") or 0)
+    except Exception as e:  # noqa: BLE001
+        raw = f"ERROR {type(e).__name__}: {e}"
+    dt = time.monotonic() - t0
+    meter.calls += 1
+    meter.seconds += dt
+    meter.log.append({"label": label, "seconds": round(dt, 1)})
+    return (llm_mod.parse_json(raw) if not raw.startswith("ERROR") else None), raw
+
+
+# ---------------------------------------------------------------- ① 해석
+
+INTERPRET_SYSTEM = """당신은 한국 상장사 분석 질의응답 시스템의 '질문 해석기'입니다. 사용자의 한국어 질문을 아래 JSON 하나로만 해석하십시오(설명 없이).
+{
+ "company_mention": 질문에 나온 회사 이름 그대로(오타·별칭 포함, 없으면 null),
+ "period": {"type": "default" | "relative" | "date", "days": 상대 기간의 일수(지난주=7, 최근 한 달=30, 최근 3개월=90, 올해=기본 아님→default), "as_of": "YYYY-MM-DD"(특정 날짜 기준일 때만)},
+ "domains": ["거시" | "수급" | "심리뉴스"] 중 질문이 요구하는 영역들(금리·환율·유가·물가·거시=거시, 외국인·기관·개인·거래대금·유동성=수급, 뉴스·분위기·여론·감성·블로그=심리뉴스. 해당 없으면 []),
+ "intent": "현황" | "원인·영향" | "시나리오" | "투자권유" | "가격전망" | "범위밖",
+ "refuse": 투자 권유(사라/팔라/추천/타이밍)나 가격 전망(오를까·목표가·얼마까지)을 요구하면 true,
+ "scenario": 질문에 '환율이 10% 오르면'처럼 가정이 글자 그대로 있을 때만 그 구절, 없으면 null(가정을 만들어 넣지 말 것)
+}
+의도 기준: 현황=지금·최근 상태 묻기, 원인·영향=왜/어떤 영향, 시나리오=가정이 담긴 질문, 투자권유=매수·매도·추천 요구, 가격전망=미래 주가 예측 요구, 범위밖=종목 분석과 무관하거나 이 시스템 데이터로 답할 수 없는 일반 질문.
+'순매수'·'외국인 매수세'처럼 수급 상태를 묻는 것은 투자 권유가 아닙니다."""
+
+
+def interpret(question: str, llm, universe: list[Company], today: str, latest: str, meter: Meter) -> dict:
+    user = f"오늘 날짜: {today}\n데이터 최신일: {latest}\n질문: {question}"
+    parsed, raw = call_json(llm, INTERPRET_SYSTEM, user, meter, "해석")
+    parsed = parsed or {}
+    notes: list[str] = []
+    if not parsed:
+        notes.append("LLM 해석 실패 → 규칙으로만 해석")
+    mention = parsed.get("company_mention")
+    mention = None if mention in ("", "null", None) else str(mention)
+    comp = resolve_company(mention, universe)
+    if comp["status"] == "none":        # LLM 이 놓쳤으면 질문에서 사전 이름을 직접 찾는다(가장 긴 이름 우선)
+        qn = _norm(question)
+        hits = sorted((c for c in universe if len(_norm(c.name)) >= 2 and _norm(c.name) in qn), key=lambda c: -len(_norm(c.name)))
+        hits += [c for a, n in aliases().items() if a in qn for c in universe if c.name == n]
+        if hits:
+            comp = {"status": "found", "mention": hits[0].name, "ticker": hits[0].ticker, "name": hits[0].name, "method": "질문 속 이름 직접 탐색"}
+            notes.append("LLM 이 종목을 놓쳐 코드가 질문에서 직접 찾음")
+    period = parsed.get("period") if isinstance(parsed.get("period"), dict) else {}
+    ptype = period.get("type") if period.get("type") in ("default", "relative", "date") else "default"
+    as_of, days = latest, None
+    if ptype == "date":
+        try:
+            d = date.fromisoformat(str(period.get("as_of"))[:10])
+            as_of = min(d, date.fromisoformat(latest)).isoformat()
+            if d.isoformat() > latest:
+                notes.append(f"요청 기준일 {d} 이 데이터 최신일 {latest} 보다 뒤라 최신일로 낮춤")
+        except (TypeError, ValueError):
+            ptype = "default"
+    if ptype == "relative":
+        try:
+            days = max(1, min(365, int(period.get("days"))))
+        except (TypeError, ValueError):
+            ptype = "default"
+    domains = [d for d in (parsed.get("domains") or []) if d in DOMAIN_AGENT]
+    intent = parsed.get("intent") if parsed.get("intent") in INTENTS else "현황"
+    refuse = bool(parsed.get("refuse")) or intent in REFUSE_INTENTS
+    if ADVICE_RE.search(question) and not refuse:
+        refuse = True
+        intent = "투자권유"
+        notes.append("코드 규칙이 투자 권유·가격 전망 표현을 잡아 거절로 바꿈")
+    scen = parsed.get("scenario")
+    scen = str(scen).strip() if scen else None
+    if scen and _norm(scen) not in _norm(question):        # 가정은 질문 속 글자일 때만
+        notes.append(f"질문에 없는 가정({scen})은 버림")
+        scen = None
+    if scen and intent not in REFUSE_INTENTS:
+        intent = "시나리오"
+        if "거시" not in domains:
+            domains.append("거시")
+    return {"company": comp, "period": {"type": ptype, "days": days, "as_of": as_of}, "domains": domains, "intent": intent,
+            "refuse": refuse, "scenario": scen, "notes": notes, "raw": raw[:600]}
+
+
+# ---------------------------------------------------------------- ② 도구
+
+class Ledger:
+    """도구들이 낸 숫자 장부를 하나로 합친다. 키가 겹치면 새 키(Q#)로 바꿔 서로 덮어쓰지 않게 한다."""
+
+    def __init__(self):
+        self.items: dict[str, dict] = {}
+        self.gaps: list[dict] = []
+        self.notes: list[str] = []
+        self.statements: list[str] = []
+        self.docs: dict[str, dict] = {}
+        self._n = 0
+
+    def add_facts(self, items: dict[str, dict]) -> dict[str, str]:
+        mapping: dict[str, str] = {}
+        for k, v in items.items():
+            nk = k
+            if nk in self.items and self.items[nk] != v:
+                self._n += 1
+                nk = f"Q{self._n}"
+            self.items[nk] = v
+            mapping[k] = nk
+        return mapping
+
+    def keys(self) -> set[str]:
+        return set(self.items) | set(self.docs)
+
+
+def _remap(text: str, mapping: dict[str, str]) -> str:
+    return re.sub(r"\{([A-Z]\d+)\}", lambda m: "{" + mapping.get(m.group(1), m.group(1)) + "}", text)
+
+
+def tool_node_agent(args: dict, ctx: dict, led: Ledger) -> dict:
+    from ch_agents import node_agents
+
+    no = int(args.get("agent_no"))
+    if no not in (3, 4, 6):
+        raise ValueError("agent_no 는 3·4·6")
+    scen = ctx["interp"]["scenario"] if no == 3 else None
+    report = node_agents.run_nodes(no, ctx["ticker"], ctx["as_of"], extension=True, scenario=scen, co=ctx["co"])
+    facts, conflicts = node_agents.merge_facts(report)
+    mp = led.add_facts(facts.items)
+    led.statements += [_remap(s, mp) for s in [*facts.flags, *facts.notes] if "방향어 규칙" not in s]
+    led.gaps += [g for g in facts.gaps if g not in led.gaps]
+    nodes = [{"node": n["nodeId"], "state": n["state"], "status": n.get("status"), "reason": n.get("reason")} for n in report["nodes"]]
+    skipped = report.get("prediction_skipped_reason")
+    return {"summary": f"에이전트 {no}: 노드 {len(nodes)}개, 장부 {len(facts.items)}항목, 충돌 {len(conflicts)}건"
+                       + (f", 예측 생략: {skipped}" if skipped else ""),
+            "nodes": nodes, "keys": sorted(mp.values()), "tech": "노드 실행(규칙·통계 계산, LLM 없음)"}
+
+
+def tool_price(args: dict, ctx: dict, led: Ledger) -> dict:
+    from ch_agents import db
+    from ch_agents.facts import Facts
+
+    days = max(1, min(250, int(args.get("days") or ctx["days"] or 20)))
+    rows = db.q("SELECT trade_date, close, volume FROM core.price_daily WHERE company_id = %(cid)s AND trade_date <= %(as_of)s::date "
+                "ORDER BY trade_date DESC LIMIT %(n)s", {"cid": ctx["co"]["company_id"], "as_of": ctx["as_of"], "n": days + 1})
+    f = Facts("P")
+    if len(rows) >= 2 and rows[0]["close"] and rows[-1]["close"]:
+        last, first = float(rows[0]["close"]), float(rows[-1]["close"])
+        f.add(f"종가({rows[0]['trade_date']})", last, "KRW", rows[0]["trade_date"], "core.price_daily", kind="obs")
+        f.add(f"최근 {len(rows) - 1}거래일 등락률", (last / first - 1) * 100, "%chg", rows[0]["trade_date"], "core.price_daily", kind="calc")
+        vols = [float(r["volume"]) for r in rows[:-1] if r["volume"]]
+        if vols:
+            f.add(f"최근 {len(vols)}거래일 평균 거래량", sum(vols) / len(vols), "주수", rows[0]["trade_date"], "core.price_daily", kind="calc")
+    else:
+        f.gap("시세", "기준일 이전 시세가 부족")
+    mp = led.add_facts(f.items)
+    led.gaps += [g for g in f.gaps if g not in led.gaps]
+    return {"summary": f"시세 {len(rows)}행 → 장부 {len(f.items)}항목", "keys": sorted(mp.values()), "tech": "읽기 전용 SQL(고정 질의)"}
+
+
+def tool_docs(args: dict, ctx: dict, led: Ledger) -> dict:
+    from ch_agents import rag
+
+    docs = rag.retrieve(6, ctx["co"], ctx["as_of"])
+    shown, hidden = [], 0
+    for d in docs:
+        src = str(d.get("source") or "")
+        if src in ("naver_blog", "naver_cafe", "youtube_comment") or OPINION_HOST_RE.search(str(d.get("summary") or "") + str(d.get("url") or "")):
+            hidden += 1            # 개인 작성 글: 건수만, 내용·주소는 쓰지 않음
+            continue
+        k = f"D{len(led.docs) + 1}"
+        led.docs[k] = {"title": str(d.get("title") or "")[:80], "source": src, "published": str(d.get("published") or "")[:10]}
+        shown.append(k)
+        if len(shown) >= 6:
+            break
+    return {"summary": f"문서 {len(docs)}건 중 공개 보도·공시 {len(shown)}건 사용, 개인 작성 글 {hidden}건은 내용 비공개",
+            "keys": shown, "tech": rag_tech()}
+
+
+TOOLS: dict[str, Callable[[dict, dict, Ledger], dict]] = {"run_node_agent": tool_node_agent, "price_summary": tool_price, "doc_search": tool_docs}
+TOOL_DESC = """- run_node_agent {"agent_no": 3|4|6}: 3=거시(금리·환율 노출, 시나리오), 4=수급(거래대금·외국인·기관·개인), 6=투자심리·뉴스(사건별 감성). 규칙·통계 계산, LLM 없음.
+- price_summary {"days": 정수}: 종가·기간 등락률·평균 거래량(읽기 전용 DB).
+- doc_search {}: 뉴스·공시 문서 검색(RAG). 개인 작성 글은 건수만 나옴."""
+
+
+def rag_tech() -> dict:
+    from ch_agents import rag_hybrid, rerank
+
+    return {"검색": "키워드 후보 + 벡터 검색(HNSW)" if rag_hybrid.enabled() else "키워드·규칙 점수 선별(벡터 검색 꺼짐: CH_RAG_HYBRID=off)",
+            "임베딩 모델": f"{rag_hybrid.QUERY_MODEL} ({rag_hybrid.EMBED_DIM}차원)", "후보 상위 N": rag_hybrid.N_CANDIDATES,
+            "문서당 청크": rag_hybrid.PER_DOC, "리랭커": f"{rerank.model_name()} 사용" if rerank.enabled() else "사용 안 함(CH_RAG_RERANK=off)"}
+
+
+# ---------------------------------------------------------------- ②-b 도구 선택 루프
+
+PLANNER_SYSTEM = f"""당신은 한국 상장사 질의응답 에이전트의 '다음 행동 선택기'입니다. 질문과 지금까지의 관찰을 보고, 근거가 더 필요하면 도구 하나를 고르고 충분하면 답하기로 넘기십시오.
+사용 가능한 도구:
+{TOOL_DESC}
+JSON 하나만 출력: {{"action": "tool" | "answer", "tool": 도구 이름, "args": {{...}}, "reason": 한 문장(왜 이 행동인지)}}
+규칙: 질문이 요구하는 영역마다 해당 도구를 부르십시오. 같은 도구·같은 인자를 반복하지 마십시오. 도구는 최대 {MAX_TOOL_CALLS}번. 숫자를 만들지 마십시오(도구 결과의 키만 근거)."""
+
+
+def default_plan(interp: dict) -> list[dict]:
+    plan = [{"tool": "run_node_agent", "args": {"agent_no": DOMAIN_AGENT[d]}, "reason": f"{d} 영역 질문이라 에이전트 {DOMAIN_AGENT[d]} 노드를 실행"} for d in interp["domains"]]
+    if not plan:
+        plan = [{"tool": "price_summary", "args": {}, "reason": "영역이 특정되지 않아 시세 요약부터 확인"}]
+    return plan
+
+
+def plan_next(llm, question: str, interp: dict, done: list[dict], meter: Meter) -> dict:
+    obs = "\n".join(f"- {d['tool']} {json.dumps(d['args'], ensure_ascii=False)} → {d['result']['summary']} (키: {', '.join(d['result'].get('keys', [])[:12])})" for d in done) or "(아직 없음)"
+    user = (f"질문: {question}\n해석: 종목={interp['company'].get('name')}, 영역={interp['domains']}, 의도={interp['intent']}, "
+            f"기준일={interp['period']['as_of']}, 가정={interp['scenario']}\n관찰:\n{obs}\n남은 도구 호출: {MAX_TOOL_CALLS - len(done)}회")
+    parsed, _ = call_json(llm, PLANNER_SYSTEM, user, meter, f"도구 선택 {len(done) + 1}")
+    return parsed or {}
+
+
+# ---------------------------------------------------------------- ③ 답 + ④ 검사
+
+ANSWER_SYSTEM = """당신은 한국 상장사 분석 질의응답의 '답 작성기'입니다. 아래 [숫자 장부]·[판정 문장]·[문서]만 근거로 질문에 답하십시오.
+규칙:
+1. 숫자는 장부 키를 `{S1}` 처럼 중괄호로만 쓰십시오(값을 글자로 옮겨 쓰지 말고 키로). 예: '외국인 5일 순매수는 {S3}'. 장부에 없는 숫자·날짜·비율을 직접 쓰지 마십시오. 문서 속 숫자도 쓰지 마십시오.
+2. 투자 권유, 매수·매도 의견, 증권사 가격 전망 수치, 미래 주가 예측을 쓰지 마십시오. 순매수·순매도 기록만으로 매수 의도·정보 보유를 추정하지 마십시오.
+3. 근거가 없는 내용은 쓰지 말고 '미확보'에 적으십시오. 블로그·카페·유튜브 내용·주소는 쓰지 마십시오.
+4. 문장마다 구분(사실/해석/예측)과 근거 키 목록을 붙이십시오. 문장은 5개 이하.
+출력 JSON 하나: {"답": [{"문장": "...", "구분": "사실|해석|예측", "근거": ["S1","D2"]}], "미확보": ["..."]}"""
+
+
+def build_answer_prompt(question: str, interp: dict, led: Ledger) -> str:
+    lines = [f"질문: {question}", f"종목: {interp['company'].get('name')} / 기준일: {interp['period']['as_of']}" + (f" / 사용자가 말한 가정: {interp['scenario']}" if interp["scenario"] else "")]
+    lines.append("[숫자 장부]")
+    for k, v in list(led.items.items())[:70]:
+        lines.append(f"- {k}: {v['label']} = {v['text']} (기준 {v.get('as_of')})")
+    lines.append("[판정 문장]")
+    lines += [f"- {s}" for s in led.statements[:25]]
+    lines.append("[문서]")
+    lines += [f"- {k}: {d['title']} ({d['published']})" for k, d in led.docs.items()]
+    lines.append("[무자료]")
+    lines += [f"- {g['label']}: {g['reason']}" for g in led.gaps[:15]]
+    return "\n".join(lines)
+
+
+PH = re.compile(r"\{([A-Z]\d+)\}")
+
+
+def to_keys(text: str, led: Ledger) -> str:
+    """LLM 이 장부 값을 글자 그대로 옮겨 쓴 경우(예: '-507,069주') 그 값의 키로 되돌린다(기존 llm.auto_keys 와 같은 취지). 키 밖 숫자는 그대로 둬 검사에서 걸린다."""
+    text = re.sub(r"\{([A-Z]\d+(?:\s*[,·]\s*[A-Z]\d+)+)\}", lambda m: ", ".join("{" + k + "}" for k in re.findall(r"[A-Z]\d+", m.group(1))), text)   # '{M76, M77}' → '{M76}, {M77}'
+    for k, v in sorted(led.items.items(), key=lambda kv: -len(kv[1]["text"])):
+        t = v["text"]
+        if t and t != "무자료" and t in text:
+            text = text.replace(t, "{" + k + "}")
+        elif t and t[:1] in "+-" and t[1:] in text and not re.search(r"\d", text[max(0, text.find(t[1:]) - 1):text.find(t[1:])]):
+            text = text.replace(t[1:], "{" + k + "}", 1)
+    return text
+
+
+def verify_answer(parsed: dict | None, led: Ledger, question: str, interp: dict) -> tuple[list[dict], list[dict]]:
+    """답 문장 검사. 반환: (통과 문장, 제거 내역). 장부 키 밖 숫자·없는 키·금지어·의도 추정·블로그 주소·근거 없음은 제거."""
+    from ch_agents import llm as llm_mod
+
+    valid = led.keys()
+    allowed = set(llm_mod.COMMON_TERMS) | set(llm_mod.LOOSE_NUMBER.findall(question)) | set(llm_mod.LOOSE_NUMBER.findall(interp.get("scenario") or ""))
+    allowed |= {x.lstrip("+-") for x in allowed}
+    ok, removed = [], []
+    for c in (parsed or {}).get("답") or []:
+        text = to_keys(str(c.get("문장") or "").strip(), led)
+        refs = [str(r) for r in (c.get("근거") or []) if str(r) in valid]
+        probs = llm_mod.sentence_problems(text, valid, allowed)
+        if re.search(r"\{[^{}]*\}", PH.sub("", text)):
+            probs.append("해석할 수 없는 중괄호 표기")
+        if "미확보" in text and set(PH.findall(text)) & set(led.items):
+            probs.append("장부에 값이 있는데 미확보라고 씀")
+        if OPINION_RE.search(text):
+            probs.append("개인 작성 글 주소·출처 노출")
+        if not (set(re.findall(r"\{([A-Z]\d+)\}", text)) | set(refs)):
+            probs.append("근거 키 없음")
+        if text and not probs:
+            ok.append({"문장": text, "구분": c.get("구분") if c.get("구분") in ("사실", "해석", "예측") else "해석", "근거": refs})
+        else:
+            removed.append({"문장": text[:120], "이유": probs})
+    return ok, removed
+
+
+UNIT_SUFFIX = ("백분위", "배", "%p", "%", "조원", "억원", "원", "주", "일")
+
+
+def render(text: str, led: Ledger) -> str:
+    """{키} 를 장부 표기로. LLM 이 값과 키를 겹쳐 쓴 경우('{M1} {M1}', '{M1}배')는 한 번만 보이게 한다."""
+    text = re.sub(r"(\{[A-Z]\d+\})(?:\s*[·,]?\s*\1)+", r"\1", text)
+    out, pos = [], 0
+    for m in re.finditer(r"\{([A-Z]\d+)\}", text):
+        out.append(text[pos:m.start()])
+        t = led.items[m.group(1)]["text"] if m.group(1) in led.items else m.group(0)
+        out.append(t)
+        pos = m.end()
+        for u in UNIT_SUFFIX:                         # 장부 표기가 이미 그 단위로 끝나면 키 뒤에 붙은 같은 단위는 뺀다
+            if t.endswith(u) and text.startswith(u, pos):
+                pos += len(u)
+                break
+    out.append(text[pos:])
+    return "".join(out)
+
+
+def fallback_answer(led: Ledger) -> list[dict]:
+    """LLM 답이 모두 검사에서 빠졌을 때: 도구가 만든 판정 문장을 그대로(숫자는 장부 키)."""
+    out = []
+    for s in led.statements:
+        keys = re.findall(r"\{([A-Z]\d+)\}", s)
+        if keys and "관점별 충돌" not in s:
+            out.append({"문장": s, "구분": "사실", "근거": keys})
+        if len(out) >= 4:
+            break
+    return out
+
+
+# ---------------------------------------------------------------- 전체 실행
+
+REFUSAL = ("투자 권유(사라·팔라·추천)나 미래 주가 전망은 답하지 않습니다. 대신 이 종목의 수급 현황, 거시 노출, 뉴스·심리 사건, 시세 요약처럼 "
+           "DB 에 있는 근거로 확인할 수 있는 질문은 답할 수 있습니다.")
+
+
+def answer(question: str, llm, emit: Callable[[dict], None] | None = None, universe: list[Company] | None = None,
+           today: str | None = None, latest: str | None = None, tools: dict | None = None) -> dict:
+    """질문 하나를 처리해 결과 dict(해석·실행 추적·답·근거·미확보)를 돌려준다. emit 으로 단계마다 알린다."""
+    emit = emit or (lambda e: None)
+    t0 = time.monotonic()
+    meter = Meter()
+    tools = tools or TOOLS
+    trace: list[dict] = []
+
+    def step(kind: str, **kw):
+        e = {"kind": kind, "t": round(time.monotonic() - t0, 1), **kw}
+        trace.append(e)
+        emit(e)
+
+    from ch_agents import db, llm as llm_mod
+
+    universe = universe or load_universe()
+    today = today or date.today().isoformat()
+    latest = latest or str(db.q("SELECT max(trade_date) AS m FROM core.price_daily")[0]["m"])[:10]
+    interp = interpret(question, llm, universe, today, latest, meter)
+    step("해석", result={k: interp[k] for k in ("company", "period", "domains", "intent", "refuse", "scenario", "notes")},
+         tech={"LLM": llm_mod.MODEL, "방식": "JSON 모드 한 번 호출 + 코드 보정(종목 사전·투자 권유 정규식·가정은 질문 속 글자만)"})
+    out: dict[str, Any] = {"question": question, "interpretation": {k: interp[k] for k in ("company", "period", "domains", "intent", "refuse", "scenario", "notes")},
+                           "answer": [], "gaps": [], "status": "", "trace": trace}
+
+    def finish(status: str, text: str | None = None) -> dict:
+        out["status"] = status
+        if text:
+            out["message"] = text
+        out["usage"] = {"llm_calls": meter.calls, "input_tokens": meter.input_tokens, "output_tokens": meter.output_tokens,
+                        "llm_seconds": round(meter.seconds, 1), "total_seconds": round(time.monotonic() - t0, 1)}
+        out["tech"] = {"LLM": llm_mod.MODEL, "도구 호출 방식": "LLM 이 JSON 행동(도구·인자·이유)을 고르는 자체 루프(함수호출 API 미사용)",
+                       "도구 호출 상한": MAX_TOOL_CALLS, "시간 목표(초)": TIME_BUDGET_S, "검사": "장부 키 밖 숫자·없는 키·금지어·의도 추정·개인 작성 글 주소·근거 없음",
+                       "RAG": rag_tech()}
+        step("종료", status=status, usage=out["usage"])
+        return out
+
+    if interp["refuse"]:
+        out["answer"] = []
+        return finish("거절", REFUSAL)
+    comp = interp["company"]
+    if comp["status"] == "none":
+        return finish("종목 필요", "어느 종목인지 알려 주세요. 예: '삼성전자 최근 외국인 수급은?'")
+    if comp["status"] == "ambiguous":
+        return finish("종목 모호", "어느 종목인지 정해 주세요: " + ", ".join(comp["candidates"]))
+    if comp["status"] == "not_found":
+        out["gaps"] = [{"label": f"'{comp['mention']}'", "reason": f"분석 대상 종목 밖(미확보) — {UNIVERSE_NOTE}"}]
+        return finish("미확보", f"'{comp['mention']}' 은(는) 이 시스템의 분석 대상 종목에서 찾지 못했습니다. 지어내지 않고 '미확보'로 답합니다.")
+    if interp["intent"] == "범위밖" and not interp["domains"]:
+        out["gaps"] = [{"label": "질문 범위", "reason": "종목 분석(거시·수급·심리뉴스·시세) 밖이거나 DB 에 없는 자료를 묻는 질문"}]
+        return finish("미확보", "이 질문은 이 시스템이 가진 자료(거시·수급·심리뉴스·시세)로 답할 수 없어 '미확보'로 답합니다.")
+
+    co = db.company(comp["ticker"])
+    days = interp["period"]["days"]
+    ctx = {"co": co, "ticker": comp["ticker"], "as_of": interp["period"]["as_of"], "days": days, "interp": interp}
+    led = Ledger()
+    done: list[dict] = []
+    seen: set[str] = set()
+    queue = default_plan(interp)
+    for _ in range(MAX_TOOL_CALLS):
+        if time.monotonic() - t0 > TIME_BUDGET_S:
+            step("시간 초과", message=f"{TIME_BUDGET_S:.0f}초를 넘겨 도구 호출을 멈추고 지금까지의 근거로 답합니다")
+            out["timeout"] = True
+            break
+        choice = plan_next(llm, question, interp, done, meter)
+        origin = "LLM 선택"
+        if choice.get("action") == "answer" and done:
+            step("선택", action="답하기", reason=str(choice.get("reason") or ""), origin=origin)
+            break
+        if choice.get("action") != "tool" or choice.get("tool") not in tools:
+            nxt = next((q for q in queue if f"{q['tool']}{q['args']}" not in seen), None)     # LLM 선택이 형식에 맞지 않으면 영역별 기본 계획
+            if nxt is None:
+                break
+            choice, origin = {"tool": nxt["tool"], "args": nxt["args"], "reason": nxt["reason"]}, "기본 계획(LLM 선택 형식 오류 또는 근거 없이 종료 시도)"
+        sig = f"{choice['tool']}{choice.get('args') or {}}"
+        if sig in seen:
+            nxt = next((q for q in queue if f"{q['tool']}{q['args']}" not in seen), None)
+            if nxt is None:
+                break
+            choice, origin = {"tool": nxt["tool"], "args": nxt["args"], "reason": nxt["reason"]}, "기본 계획(같은 호출 반복 방지)"
+            sig = f"{choice['tool']}{choice['args']}"
+        seen.add(sig)
+        ts = time.monotonic()
+        try:
+            res = tools[choice["tool"]](choice.get("args") or {}, ctx, led)
+        except Exception as e:  # noqa: BLE001
+            res = {"summary": f"도구 실패: {type(e).__name__}: {str(e)[:120]}", "keys": [], "tech": "-"}
+        done.append({"tool": choice["tool"], "args": choice.get("args") or {}, "result": res})
+        step("도구", tool=choice["tool"], args=choice.get("args") or {}, reason=str(choice.get("reason") or ""), origin=origin,
+             result=res, seconds=round(time.monotonic() - ts, 1))
+    if not led.items and not led.docs and not led.statements:
+        out["gaps"] = led.gaps or [{"label": "근거", "reason": "도구가 가져온 근거가 없음"}]
+        return finish("미확보", "근거로 쓸 수 있는 자료를 가져오지 못해 '미확보'로 답합니다.")
+
+    parsed, raw = call_json(llm, ANSWER_SYSTEM, build_answer_prompt(question, interp, led), meter, "답 작성")
+    ok, removed = verify_answer(parsed, led, question, interp)
+    mode = "LLM 답"
+    if not ok:
+        ok, mode = fallback_answer(led), "규칙 기반 대체(LLM 답이 검사를 통과하지 못함)"
+    if not ok:
+        out["gaps"] = led.gaps[:10] or [{"label": "질문 내용", "reason": "도구가 가져온 근거로 답할 수 있는 문장이 없음"}]
+        step("답·검사", mode=mode, kept=0, removed=removed, verifier="장부 키 밖 숫자·없는 키·금지어·의도 추정·개인 작성 글 주소·근거 없음")
+        return finish("미확보", "가져온 근거만으로는 검사를 통과하는 답을 만들 수 없어 '미확보'로 답합니다.")
+    out["answer"] = [{**c, "문장": render(c["문장"], led)} for c in ok]
+    out["evidence"] = {"장부": {k: {"항목": v["label"], "값": v["text"], "기준일": v.get("as_of"), "출처": v.get("source")} for k, v in led.items.items()
+                               if any(k in c["근거"] or "{" + k + "}" in c["문장"] for c in ok)},
+                       "문서": {k: d for k, d in led.docs.items() if any(k in c["근거"] for c in ok)}}
+    llm_gaps = [str(g) for g in (parsed or {}).get("미확보") or [] if not (set(PH.findall(str(g))) & set(led.items))]   # 장부에 값이 있는 항목을 미확보라 쓴 것은 버림
+    out["gaps"] = [{"label": g, "reason": "LLM 이 근거 부족으로 보고"} for g in llm_gaps] + led.gaps[:10]
+    step("답·검사", mode=mode, kept=len(ok), removed=removed, verifier="장부 키 밖 숫자·없는 키·금지어·의도 추정·개인 작성 글 주소·근거 없음")
+    return finish("완료" + ("" if mode == "LLM 답" else " (규칙 기반 대체)"))
+
+
+# ---------------------------------------------------------------- 사람이 읽는 요약 (콘솔·저장용)
+
+def summary_text(r: dict) -> str:
+    it = r["interpretation"]
+    c = it["company"]
+    lines = [f"질문: {r['question']}",
+             f"해석: 종목={c.get('name') or c.get('mention') or '-'}({c['status']}) · 기준일={it['period']['as_of']}"
+             + (f" · 최근 {it['period']['days']}일" if it["period"]["days"] else "") + f" · 영역={','.join(it['domains']) or '-'} · 의도={it['intent']}"
+             + (" · 거절" if it["refuse"] else "") + (f" · 가정={it['scenario']}" if it["scenario"] else "")]
+    for e in r["trace"]:
+        if e["kind"] == "도구":
+            lines.append(f"[{e['t']}s] 도구 {e['tool']} {json.dumps(e['args'], ensure_ascii=False)} ← {e['reason']} ({e['origin']}) → {e['result']['summary']}")
+        elif e["kind"] == "답·검사":
+            lines.append(f"[{e['t']}s] 답·검사: {e['mode']}, 통과 {e['kept']}문장, 제거 {len(e['removed'])}문장")
+    lines.append(f"상태: {r['status']}" + (f" — {r['message']}" if r.get("message") else ""))
+    lines += [f"  ({c['구분']}) {c['문장']}  ← {', '.join(c['근거'])}" for c in r["answer"]]
+    lines += [f"  미확보: {g['label']} — {g['reason']}" for g in r["gaps"][:6]]
+    u = r["usage"]
+    lines.append(f"LLM {u['llm_calls']}회 · 토큰 입력 {u['input_tokens']}/출력 {u['output_tokens']} · {u['total_seconds']}초")
+    return "\n".join(lines)
