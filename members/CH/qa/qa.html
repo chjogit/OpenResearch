@@ -25,6 +25,7 @@ table{border-collapse:collapse;width:100%;font-size:13px}td,th{border:1px solid 
  <h2>1. 해석 결과</h2><div id="interp" class="box mut">-</div>
  <h2>2. 단계별 실행 추적 (도구·이유·사용 기술·시간)</h2><div id="trace" class="mut">-</div>
  <h2>3. 답</h2><div id="ans" class="box mut">-</div>
+ <div id="outlook"></div>
  <h2>근거 · 미확보 · 사용 기술</h2><div id="ev" class="mut">-</div>
 </section>
 <section id="p2" class="hide"><div id="evalbox" class="mut">불러오는 중…</div></section>
@@ -48,7 +49,16 @@ function addStep(e){
  else if(e.kind=="시간 초과")h+=`<span class="bad">${esc(e.message)}</span>`;
  else if(e.kind=="종료")h+=`${esc(e.status)} · LLM ${e.usage.llm_calls}회 · 토큰 ${e.usage.input_tokens}/${e.usage.output_tokens} · 총 ${e.usage.total_seconds}s`;
  $("trace").insertAdjacentHTML("beforeend",h+"</div>");}
-function showResult(r){
+const DIRC={positive:"ok",negative:"bad",neutral:""};
+function showOutlook(r){
+ const o=r.outlook;if(!o||!o.cards.length){$("outlook").innerHTML="";return;}
+ const fac=(rows,l)=>rows.map(f=>`<li><b>${l}</b> ${esc(f.text)} <span class="mut">(${esc((f.evidenceKeys||[]).join(", "))})</span></li>`).join("");
+ $("outlook").innerHTML="<h2>20거래일 전망 (에이전트별, 규칙 기반)</h2><div class=\"mut\">"+esc(o.note)+"</div>"+o.cards.map(c=>{const h=c.hitRate;
+  return `<div class="box"><b>${esc(c.agentName)}</b> (에이전트 ${c.agent}) <span class="tag ${DIRC[c.direction]||""}">${esc(c.directionLabel)}</span>${c.reason?` <span class="mut">사유: ${esc(c.reason)}</span>`:""}`+
+  `<ul>${fac(c.positiveFactors,"긍정 요인")+fac(c.negativeFactors,"부정 요인")||"<li class=\"mut\">기준을 넘는 요인 없음</li>"}</ul>`+
+  `<div>${esc(h.text)} · <span class="tag ${h.verdict=="edge"?"ok":"bad"}">판정: ${esc(h.verdictLabel)}</span></div>`+(h.notice?`<div class="bad"><b>${esc(h.notice)}</b></div>`:"")+
+  `<div class="mut">규칙 ${esc(c.ruleVersion)} · ${esc(c.limit)}</div></div>`;}).join("");}
+function showResult(r){showOutlook(r);
  $("ans").className="box";
  $("ans").innerHTML=`<div><b>${esc(r.status)}</b>${r.message?" — "+esc(r.message):""}</div>`+r.answer.map(c=>`<p>${c.방향&&c.방향!="중립"?`<span class="tag ${c.방향=="긍정"?"ok":c.방향=="부정"?"bad":""}">${esc(c.방향)}</span>`:""}<span class="tag">${esc(c.구분)}</span>${esc(c.문장)} <span class="mut">${c.근거.length?"["+esc(c.근거.join(", "))+"]":""}</span></p>`).join("");
  const ev=r.evidence||{장부:{},문서:{}};

@@ -286,3 +286,44 @@ def test_comma_key_lists_are_split_before_checks():
     led = make_ledger()
     ok, removed = qa.verify_answer({"답": [{"문장": "외국인 순매수 {S1, S2} 를 함께 본다.", "구분": "사실", "근거": ["S1"]}]}, led, "q", {"scenario": None})
     assert len(ok) == 1 and qa.render(ok[0]["문장"], led) == "외국인 순매수 -507,069주, 0.23% 를 함께 본다."
+
+
+def _flow_facts():
+    from ch_agents.facts import Facts
+
+    f = Facts("S")
+    f.add("외국인 20일 순매수 강도(거래대금 대비)", 2.0, "%", "2026-11-04", "t", kind="계산")
+    f.add("기관 20일 순매수 강도(거래대금 대비)", 0.5, "%", "2026-11-04", "t", kind="계산")
+    return f
+
+
+def test_outlook_block_has_direction_hit_verdict_and_notice(monkeypatch, tmp_path):
+    from ch_agents import outlook
+
+    monkeypatch.setattr(outlook, "HIT_RATE_PATH", tmp_path / "none.json")
+    b = qa.outlook_block(4, _flow_facts(), {"as_of": "2026-11-04", "ticker": "005930", "co": {}})
+    assert b["agent"] == 4 and b["direction"] == "positive" and b["horizonDays"] == 20 and b["ruleVersion"] == outlook.RULE_VERSION
+    assert b["hitRate"]["verdict"] == "unverified" and b["hitRate"]["notice"] == outlook.VERDICT_NOTICE["unverified"]
+    assert outlook.problems(" ".join(f["text"] for f in b["positiveFactors"] + b["negativeFactors"])) == []
+
+
+def test_judgment_answer_carries_per_agent_outlook_without_overall_conclusion(monkeypatch):
+    calls, tools = _judgment_setup(monkeypatch)
+
+    def node_tool(args, ctx, led):
+        ctx["outlooks"][args["agent_no"]] = qa.outlook_block(4, _flow_facts(), ctx) | {"agent": args["agent_no"]}
+        return tools["price_summary"](args, ctx, led)
+
+    llm = FakeLLM(interp_json(intent="투자판단자료", domains=[]), ans={"답": [{"문장": "외국인 5일 순매수는 {S1}이다.", "구분": "사실", "방향": "부정", "근거": ["S1"]}], "미확보": []})
+    r = qa.answer("삼성전자 지금 사도 돼?", llm, universe=UNI, today=TODAY, latest=LATEST, tools={**tools, "run_node_agent": node_tool})
+    cards = r["outlook"]["cards"]
+    assert [c["agent"] for c in cards] == [3, 4, 6] and "종합" in r["outlook"]["note"] and "overall" not in r["outlook"]
+    assert all(c["hitRate"]["verdict"] in ("edge", "indistinct", "unverified") for c in cards)
+    text = json.dumps(r["outlook"], ensure_ascii=False)
+    assert not qa.CONCLUSION_RE.search(text.replace("순매수", "")) and "목표주가" not in text
+    assert "전망[" in qa.summary_text(r)
+
+
+def test_qa_html_renders_outlook_cards_with_notice():
+    html = (qa.HERE / "qa.html").read_text(encoding="utf-8")
+    assert "showOutlook" in html and "h.notice" in html and "판정:" in html

@@ -43,6 +43,7 @@ JUDGMENT_PLAN = ({"tool": "price_summary", "args": {}, "reason": "투자 판단 
                  {"tool": "run_node_agent", "args": {"agent_no": 4}, "reason": "투자 판단 자료 — 수급(에이전트 4)"},
                  {"tool": "run_node_agent", "args": {"agent_no": 6}, "reason": "투자 판단 자료 — 심리·뉴스·사건(에이전트 6)"},
                  {"tool": "run_node_agent", "args": {"agent_no": 3}, "reason": "투자 판단 자료 — 거시 노출(에이전트 3)"})
+OUTLOOK_QA_NOTE = "전망은 정해진 규칙이 낸 20거래일 방향이며 매수·매도 판단이나 가격 수준이 아닙니다. 세 결론의 종합은 오케스트레이터(SW) 담당이라 여기서 만들지 않습니다."
 OPINION_RE = re.compile(r"https?://|blog\.naver|cafe\.naver|youtube\.com|youtu\.be", re.I)         # 답 문장: 주소는 모두 금지
 OPINION_HOST_RE = re.compile(r"blog\.naver|cafe\.naver|youtube\.com|youtu\.be", re.I)               # 문서: 개인 작성 글 주소만
 
@@ -237,6 +238,14 @@ def _remap(text: str, mapping: dict[str, str]) -> str:
     return re.sub(r"\{([A-Z]\d+)\}", lambda m: "{" + mapping.get(m.group(1), m.group(1)) + "}", text)
 
 
+def outlook_block(no: int, facts, ctx: dict) -> dict:
+    """에이전트 3·4·6 의 20거래일 전망 결론(#54) — 계약 r4-1.4 outlook 블록과 같은 모양·같은 판정 문구(#58). 규칙 계산이라 LLM 이 쓰지 않는다."""
+    from ch_agents import contract, node_agents
+
+    ol = node_agents.outlook_for(no, facts, ctx["as_of"], ctx["ticker"], ctx["co"], None, False, fetch=False)
+    return {"agent": no, "agentName": {3: "거시경제", 4: "수급", 6: "투자심리·뉴스"}[no], **contract.outlook_block(ol, {})}
+
+
 def tool_node_agent(args: dict, ctx: dict, led: Ledger) -> dict:
     from ch_agents import node_agents
 
@@ -246,6 +255,7 @@ def tool_node_agent(args: dict, ctx: dict, led: Ledger) -> dict:
     scen = ctx["interp"]["scenario"] if no == 3 else None
     report = node_agents.run_nodes(no, ctx["ticker"], ctx["as_of"], extension=True, scenario=scen, co=ctx["co"])
     facts, conflicts = node_agents.merge_facts(report)
+    ctx.setdefault("outlooks", {})[no] = outlook_block(no, facts, ctx)
     mp = led.add_facts(facts.items)
     led.statements += [_remap(s, mp) for s in [*facts.flags, *facts.notes] if "방향어 규칙" not in s]
     led.gaps += [g for g in facts.gaps if g not in led.gaps]
@@ -516,7 +526,7 @@ def answer(question: str, llm, emit: Callable[[dict], None] | None = None, unive
 
     co = db.company(comp["ticker"])
     days = interp["period"]["days"]
-    ctx = {"co": co, "ticker": comp["ticker"], "as_of": interp["period"]["as_of"], "days": days, "interp": interp}
+    ctx = {"co": co, "ticker": comp["ticker"], "as_of": interp["period"]["as_of"], "days": days, "interp": interp, "outlooks": {}}
     led = Ledger()
     done: list[dict] = []
     seen: set[str] = set()
@@ -559,6 +569,8 @@ def answer(question: str, llm, emit: Callable[[dict], None] | None = None, unive
         done.append({"tool": choice["tool"], "args": choice.get("args") or {}, "result": res})
         step("도구", tool=choice["tool"], args=choice.get("args") or {}, reason=str(choice.get("reason") or ""), origin=origin,
              result=res, seconds=round(time.monotonic() - ts, 1))
+    if ctx["outlooks"]:      # 에이전트별 전망 결론(종합은 오케스트레이터 몫이라 만들지 않음)
+        out["outlook"] = {"cards": [ctx["outlooks"][k] for k in sorted(ctx["outlooks"])], "note": OUTLOOK_QA_NOTE}
     if not led.items and not led.docs and not led.statements:
         out["gaps"] = led.gaps or [{"label": "근거", "reason": "도구가 가져온 근거가 없음"}]
         return finish("미확보", "근거로 쓸 수 있는 자료를 가져오지 못해 '미확보'로 답합니다.")
@@ -620,6 +632,8 @@ def summary_text(r: dict) -> str:
             lines.append(f"[{e['t']}s] 답·검사: {e['mode']}, 통과 {e['kept']}문장, 제거 {len(e['removed'])}문장")
     lines.append(f"상태: {r['status']}" + (f" — {r['message']}" if r.get("message") else ""))
     lines += [f"  ({c['구분']}) {c['문장']}  ← {', '.join(c['근거'])}" for c in r["answer"]]
+    lines += [f"  전망[{o['agentName']}] {o['directionLabel']}" + (f"({o['reason']})" if o.get("reason") else "") + f" · {o['hitRate']['verdictLabel']}"
+              + (f" — {o['hitRate']['notice']}" if o["hitRate"].get("notice") else "") for o in (r.get("outlook") or {}).get("cards", [])]
     lines += [f"  미확보: {g['label']} — {g['reason']}" for g in r["gaps"][:6]]
     u = r["usage"]
     lines.append(f"LLM {u['llm_calls']}회 · 토큰 입력 {u['input_tokens']}/출력 {u['output_tokens']} · {u['total_seconds']}초")
