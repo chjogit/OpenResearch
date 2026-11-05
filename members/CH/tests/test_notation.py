@@ -48,3 +48,13 @@ def test_contract_plain_fixes_unit_duplicate_in_next_checks():
         docs = []
 
     assert contract.plain("직전 금통위 결정 후 {M1}일, 다음 점검", D) == "직전 금통위 결정 후 8일, 다음 점검"
+
+
+@pytest.mark.parametrize("src,want", [
+    ("전년 대비 증가한 달은 6개개, 3건건이 5점점", "전년 대비 증가한 달은 6개, 3건이 5점"),
+    ("개개인 6개개인 1일일차 6개개월", "개개인 6개개인 1일일차 6개개월"),        # 뒤에 다른 한글 단어가 붙으면 건드리지 않음
+])
+def test_duplicate_count_units_use_same_unit_list_as_josa(src, want):
+    from ch_agents import notation
+
+    assert fix_notation(src) == want and notation_problems(want) == [] and "개|점" in notation.UNITS
