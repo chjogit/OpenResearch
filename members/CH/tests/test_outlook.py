@@ -107,7 +107,8 @@ def test_hit_rate_unverified_until_results_exist(tmp_path):
 
 
 @pytest.mark.parametrize("no,make", ALL)
-def test_contract_carries_outlook_and_validates(no, make):
+def test_contract_carries_outlook_and_validates(no, make, monkeypatch, tmp_path):
+    monkeypatch.setattr(outlook, "HIT_RATE_PATH", tmp_path / "none.json")                      # 실제 측정 결과 파일(#55)과 무관하게 '측정 전' 경로를 시험
     d = make()
     assert d.extra["outlook"]["agentNo"] == no
     out = run_node_agent(no, "005930", llm=FakeLLM(good_json(d)), data=d)

@@ -184,7 +184,7 @@ def _factor_tag(keys: list[str], items: dict[str, dict]) -> str:
 def hit_rate(agent_no: int, path: Path | None = None) -> dict:
     """#55 결과 파일에서 에이전트별 적중률을 읽음. 파일·항목이 없거나 규칙 버전이 다르거나 표본이 적으면 '미검증'."""
     p = path or HIT_RATE_PATH
-    base = {"status": "unverified", "rate": None, "n": None, "period": None, "basis": None, "ci95": None}
+    base = {"status": "unverified", "rate": None, "n": None, "period": None, "basis": None, "ci95": None, "neutralShare": None, "baselines": None}
     if not p.exists():
         return {**base, "reason": "측정 전 (적중률 결과 파일 없음 — #55)"}
     try:
@@ -201,12 +201,20 @@ def hit_rate(agent_no: int, path: Path | None = None) -> dict:
     n = ent.get("n")
     if not isinstance(n, int) or n < MIN_HIT_N:
         return {**base, "reason": f"표본 {n}건으로 부족(최소 {MIN_HIT_N}건)"}
+    non = ent.get("nonOverlapping") or {}
     return {"status": "measured", "rate": ent.get("rate"), "n": n, "period": ent.get("period"), "basis": ent.get("basis"),
-            "ci95": ent.get("ci95"), "reason": None}
+            "ci95": ent.get("ci95"), "reason": None, "neutralShare": non.get("neutralShare"),
+            "baselines": {k: v.get("rate") for k, v in (non.get("baselines") or {}).items()} or None}
 
 
 def hit_rate_text(h: dict) -> str:
     if h["status"] != "measured":
         return f"과거 적중률: 미검증 ({h['reason']})"
     ci = f", 95% 신뢰구간 {h['ci95'][0]:.0%}~{h['ci95'][1]:.0%}" if h.get("ci95") else ""
-    return f"과거 적중률 {h['rate']:.1%} ({h['n']}건, {h['period']}, 기준: {h['basis']}{ci})"
+    extra = ""
+    if h.get("neutralShare") is not None:
+        extra += f" · 중립 결론 {h['neutralShare']:.0%}(적중률에서 제외)"
+    if h.get("baselines"):
+        b = h["baselines"]
+        extra += f" · 같은 표본 기준선: 항상 긍정 {b['alwaysPositive']:.1%}, 모멘텀 {b['momentum']:.1%}, 무작위 {b['random']:.0%}"
+    return f"과거 적중률 {h['rate']:.1%} ({h['n']}건, {h['period']}, 기준: {h['basis']}{ci}){extra}"

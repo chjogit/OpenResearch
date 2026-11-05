@@ -1,0 +1,16 @@
+{
+ "scoredAt": "2026-11-05 13:00",
+ "ruleVersion": "outlook-r1",
+ "pending": 12,
+ "agents": {
+  "3": {
+   "samples": 0
+  },
+  "4": {
+   "samples": 0
+  },
+  "6": {
+   "samples": 0
+  }
+ }
+}
