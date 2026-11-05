@@ -137,6 +137,7 @@ prompt_block = docs_for_prompt(docs)                # 프롬프트에 붙일 D1,
 - E3 기준일: 조회 도구(`rag.fetch`·`rag_hybrid.fetch_*`·`db.q`)는 `as_of` 필수. **기준일과 같은 날짜는 포함, 다음 날부터 제거.** 뉴스 게시일이 날짜 단위라 같은 날 장중/장후는 구분 못 함(한계).
 - E4 태그 Fact/Computation/Prediction/Interpretation + 관점별 충돌(`Conflict`, 평균 금지). 옛 '구분' 대응: 사실→Fact(근거가 모두 계산 항목이면 Computation)·해석→Interpretation·예측→Prediction.
 - E5 재시도 상한 `MAX_REPAIR_ATTEMPTS`(기본 1, `CH_MAX_REPAIR_ATTEMPTS`, 최대 2): 노드 틀과 `run_agent`(기존 '수정 1회')가 같은 값을 씀. 초과하면 `unresolved`.
+- 계약 `r4-1.4`(#54): 선택 필드 `outlook` — 에이전트 3·4·6 의 20거래일 가격 방향 전망 결론(규칙 `outlook-r1`, 적중률은 #55 전까지 '미검증'). 규칙 `docs/OUTLOOK_RULES.md`, SW 요약 `docs/SW_INTERFACE_SUMMARY.md`.
 - 계약 `r4-1.3`(선택 필드만 추가): `agent.agentNos`, `claims[].tag`, `nodes[]`, `nodeSummary`, `conflicts`, `predictionSkippedReason`. 옛 출력은 변환표(`p01`→3, `p03`→4·6)로 `contract.upgrade_legacy` 가 채우며 분석 값은 그대로.
 
 ## 에이전트 3 거시경제·정책 (#24, `ch_agents/macro_nodes.py`)

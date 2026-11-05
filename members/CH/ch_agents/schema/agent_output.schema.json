@@ -7,7 +7,7 @@
   "required": ["schemaVersion", "reportId", "agent", "target", "mode", "asOf", "generatedAt", "status", "summary",
                "claims", "downsideRisks", "unverified", "evidence", "verification", "disclaimer"],
   "properties": {
-    "schemaVersion": {"type": "string", "enum": ["r4-1.0", "r4-1.1", "r4-1.2", "r4-1.3"]},
+    "schemaVersion": {"type": "string", "enum": ["r4-1.0", "r4-1.1", "r4-1.2", "r4-1.3", "r4-1.4"]},
     "reportId": {"type": "string", "pattern": "^RPT-\\d+-[0-9A-Za-z.]+-\\d{8}-[0-9a-f]{8}$"},
     "agent": {
       "type": "object", "required": ["id", "module", "name"],
@@ -140,9 +140,44 @@
                     "required": ["base", "extSelected", "extExecuted", "executed"]},
     "conflicts": {"type": "array", "description": "관점별 충돌 (상충 신호 대조, 평균 금지) (r4-1.3, 선택)",
                   "items": {"type": "object", "required": ["topic", "views"]}},
-    "predictionSkippedReason": {"type": ["string", "null"], "description": "확장 노드 검증 미통과로 추론을 건너뛴 이유"}
+    "predictionSkippedReason": {"type": ["string", "null"], "description": "확장 노드 검증 미통과로 추론을 건너뛴 이유"},
+    "outlook": {
+      "type": "object", "description": "20거래일 가격 방향 전망 결론 (r4-1.4, 선택, 에이전트 3·4·6). 값은 규칙(ruleVersion)이 정하며 매수·매도·보유 판단이나 가격 수준이 아님. 종합은 오케스트레이터 담당",
+      "required": ["direction", "directionLabel", "horizonDays", "startAfter", "reasonCode", "reason", "positiveFactors", "negativeFactors", "hitRate", "ruleVersion", "tag"],
+      "properties": {
+        "direction": {"type": "string", "enum": ["positive", "neutral", "negative"]},
+        "directionLabel": {"type": "string", "enum": ["긍정", "중립", "부정"]},
+        "horizonDays": {"type": "integer", "description": "기준일(startAfter) 다음 거래일부터의 거래일 수 (20)"},
+        "startAfter": {"type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$"},
+        "reasonCode": {"type": ["string", "null"], "enum": ["mixed", "insufficient", "weak", null], "description": "중립일 때 사유: mixed 혼재 · insufficient 근거 부족 · weak 신호 미약"},
+        "reason": {"type": ["string", "null"]},
+        "tag": {"type": "string", "enum": ["Prediction"]},
+        "positiveFactors": {"type": "array", "items": {"$ref": "#/$defs/outlookFactor"}},
+        "negativeFactors": {"type": "array", "items": {"$ref": "#/$defs/outlookFactor"}},
+        "signals": {"type": "array", "description": "규칙이 평가한 신호 전체(긍정·부정·기준 미달·자료 없음)",
+                    "items": {"type": "object", "required": ["id", "name", "state", "text"],
+                              "properties": {"state": {"type": "string", "enum": ["positive", "negative", "neutral", "missing"]}}}},
+        "ledger": {"type": "object", "description": "요인이 가리키는 장부 키 → 값·기준일·출처"},
+        "hitRate": {"type": "object", "required": ["status", "text"],
+                    "description": "#55 결과 파일에서 읽은 과거 적중률. 측정 전·표본 부족·규칙 버전 불일치·자료 보관 한계면 status=unverified 와 사유",
+                    "properties": {"status": {"type": "string", "enum": ["measured", "unverified"]}, "rate": {"type": ["number", "null"]},
+                                   "n": {"type": ["integer", "null"]}, "period": {"type": ["string", "null"]}, "basis": {"type": ["string", "null"]},
+                                   "ci95": {"type": ["array", "null"]}, "reason": {"type": ["string", "null"]}, "text": {"type": "string"}}},
+        "ruleVersion": {"type": "string"},
+        "rule": {"type": "object"},
+        "limit": {"type": "string"},
+        "note": {"type": "string"},
+        "verification": {"type": "object"}
+      }
+    }
   },
   "$defs": {
+    "outlookFactor": {
+      "type": "object", "required": ["signalId", "text", "tag", "evidenceKeys"],
+      "properties": {"signalId": {"type": "string"}, "text": {"type": "string"}, "template": {"type": "string"},
+                     "tag": {"type": "string", "enum": ["Fact", "Computation"]}, "evidenceKeys": {"type": "array", "items": {"type": "string"}},
+                     "evidenceIds": {"type": "array", "items": {"type": "string"}}}
+    },
     "linkedText": {
       "type": "object", "required": ["text", "evidenceIds"],
       "properties": {"text": {"type": "string"}, "evidenceIds": {"type": "array", "items": {"type": "string"}}}

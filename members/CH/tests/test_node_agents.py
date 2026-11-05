@@ -62,7 +62,7 @@ def test_contract_is_valid_with_nodes_tags_and_agent_nos(no, make):
     out = run_node_agent(no, "005930", llm=FakeLLM(good_json(make())), data=make())
     c = out["contract"]
     assert contract.validate(c) == [] and contract.link_errors(c) == []
-    assert c["schemaVersion"] == "r4-1.3" and c["agent"]["id"] == no and c["agent"]["agentNos"] == [no]
+    assert c["schemaVersion"] == "r4-1.4" and c["agent"]["id"] == no and c["agent"]["agentNos"] == [no]
     assert c["nodes"] and c["nodeSummary"]["executed"] >= 1 and all(cl["tag"] in nodes.TAGS for cl in c["claims"])
     assert out["status"].startswith("완료") and c["claims"]
 
