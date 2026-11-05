@@ -188,7 +188,8 @@ function outlookCard(no, o) {
   <ul>${fac(o.positiveFactors, "긍정 요인") + fac(o.negativeFactors, "부정 요인") || '<li class="note">기준을 넘는 요인이 없습니다.</li>'}</ul>
   <h3>평가한 신호</h3><ul>${(o.signals || []).map(x => `<li>${esc(x.name)}: <span class="badge b-mute">${SIG_KO[x.state] || esc(x.state)}</span> <span class="note">${esc(x.text)}</span></li>`).join("")}</ul>
   ${ledger.length ? '<div class="tw"><table><tr><th>키</th><th>항목</th><th>값</th><th>기준일</th><th>출처</th></tr>' + ledger.map(([k, v]) => `<tr><td>${esc(k)}</td><td>${esc(v.label)}</td><td>${esc(v.display)}</td><td>${esc(v.dataDate)}</td><td>${esc(v.source)}</td></tr>`).join("") + "</table></div>" : ""}
-  <p><b>과거 적중률</b> ${esc(o.hitRate.text)}</p>
+  <p><b>과거 적중률</b> ${esc(o.hitRate.text)}${o.hitRate.verdictLabel ? ` · <span class="badge ${o.hitRate.verdict === "edge" ? "b-ok" : "b-warn"}">판정: ${esc(o.hitRate.verdictLabel)}</span>` : ""}</p>
+  ${o.hitRate.notice ? `<p class="badge b-warn" style="display:block;white-space:normal">${esc(o.hitRate.notice)}</p>` : ""}
   <p class="note">규칙 ${esc(o.ruleVersion)} · 한계: ${esc(o.limit)}</p></div>`;
 }
 function outlookBlock() {
@@ -260,12 +261,13 @@ function outlookValid() {
   if (o.status !== "measured") return `<div class="card"><h2>전망 규칙(outlook-r1)과 적중률</h2><p class="note">${esc(o.note)}</p></div>`;
   const pc = x => x == null ? "-" : (x * 100).toFixed(1) + "%";
   const rows = o.rows.map(r => r.unverified
-    ? `<tr><td>${esc(r.name)}</td><td colspan="6"><span class="badge b-warn">미검증</span> ${esc(r.unverified)}</td></tr>`
-    : `<tr><td>${esc(r.name)}</td><td><b>${pc(r.rate)}</b> <span class="note">(${pc((r.ci95 || [])[0])}~${pc((r.ci95 || [])[1])})</span></td><td>${fmt(r.n)}</td><td>${pc(r.neutralShare)}</td><td>${pc(r.baselines.alwaysPositive)}</td><td>${pc(r.baselines.momentum)}</td><td>${pc(r.baselines.random)}</td></tr>`).join("");
+    ? `<tr><td>${esc(r.name)}</td><td colspan="7"><span class="badge b-warn">미검증</span> ${esc(r.unverified)}</td></tr>`
+    : `<tr><td>${esc(r.name)}</td><td><span class="badge ${r.verdict === "edge" ? "b-ok" : "b-warn"}">${esc(r.verdictLabel || "")}</span></td><td><b>${pc(r.rate)}</b> <span class="note">(${pc((r.ci95 || [])[0])}~${pc((r.ci95 || [])[1])})</span></td><td>${fmt(r.n)}</td><td>${pc(r.neutralShare)}</td><td>${pc(r.baselines.alwaysPositive)}</td><td>${pc(r.baselines.momentum)}</td><td>${pc(r.baselines.random)}</td></tr>`).join("");
   return `<div class="card"><h2>전망 규칙(${esc(o.ruleVersion)})과 과거 적중률</h2>
   <p>20거래일 뒤 KOSPI 대비 초과수익률 부호가 긍정 결론이면 양수, 부정 결론이면 음수일 때 적중으로 셉니다. 중립 결론은 적중률에서 빼고 비율만 따로 봅니다. 규칙은 결과를 보고 고치지 않았습니다.</p>
-  <div class="tw"><table><tr><th>에이전트</th><th>적중률 (95% 구간)</th><th>판정 건수</th><th>중립 비율</th><th>기준선: 항상 긍정</th><th>기준선: 모멘텀</th><th>기준선: 무작위</th></tr>${rows}</table></div>
-  <p class="note">기준: ${esc(o.basis)} · 기준선은 같은 표본에서 비교했습니다. 에이전트 4·3 의 적중률은 기준선과 뚜렷한 차이가 없습니다. 측정 ${esc(o.generatedAt || "")}.</p>
+  <div class="tw"><table><tr><th>에이전트</th><th>판정</th><th>적중률 (95% 구간)</th><th>판정 건수</th><th>중립 비율</th><th>기준선: 항상 긍정</th><th>기준선: 모멘텀</th><th>기준선: 무작위</th></tr>${rows}</table></div>
+  <p class="note">기준: ${esc(o.basis)} · 기준선은 같은 표본에서 비교했습니다. 판정은 95% 구간 하한이 세 기준선 중 최고값보다 커야 '우위 있음'입니다. 아래 고정 문구가 결론 옆에 붙습니다. 측정 ${esc(o.generatedAt || "")}.</p>
+  ${[...new Set(o.rows.map(r => r.notice).filter(Boolean))].map(n => `<p><b>${esc(n)}</b></p>`).join("")}
   <ul>${o.limits.map(x => `<li>${esc(x)}</li>`).join("")}</ul>
   <p class="note">계산 방식·도출 과정: ${esc(o.doc)} · 다시 계산: <code>${esc(o.command || "")}</code></p></div>`;
 }

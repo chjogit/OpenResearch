@@ -493,6 +493,8 @@ def collect_outlook(as_of: str, builder=outlook_builder) -> dict:
 
 def load_outlook_validation() -> dict:
     """#55 적중률 결과(hit_rate.json)의 요약. 파일이 없으면 '측정 중'."""
+    from ch_agents import outlook
+
     p = HERE.parent / "outlook" / "hit_rate.json"
     if not p.exists():
         return {"status": "none", "note": "적중률 측정 중 (결과 파일 없음)"}
@@ -501,11 +503,12 @@ def load_outlook_validation() -> dict:
     for no, name in AGENTS.items():
         e = (d.get("agents") or {}).get(str(no)) or {}
         if "unverified" in e:
-            rows.append({"agent": no, "name": name, "unverified": e["unverified"]})
+            rows.append({"agent": no, "name": name, "unverified": e["unverified"], "verdictLabel": e.get("verdictLabel"), "notice": outlook.VERDICT_NOTICE["unverified"]})
             continue
         non = e.get("nonOverlapping") or {}
         rows.append({"agent": no, "name": name, "rate": e.get("rate"), "n": e.get("n"), "ci95": e.get("ci95"), "neutralShare": non.get("neutralShare"),
-                     "baselines": {k: v.get("rate") for k, v in (non.get("baselines") or {}).items()}, "period": e.get("period")})
+                     "baselines": {k: v.get("rate") for k, v in (non.get("baselines") or {}).items()}, "period": e.get("period"),
+                     "verdict": e.get("verdict"), "verdictLabel": e.get("verdictLabel"), "notice": outlook.VERDICT_NOTICE.get(e.get("verdict"))})
     return {"status": "measured", "ruleVersion": d.get("ruleVersion"), "basis": d.get("basis"), "generatedAt": d.get("generatedAt"), "rows": rows,
             "doc": "docs/OUTLOOK_BACKTEST.md", "command": d.get("command"),
             "limits": ["겹치지 않는 20거래일 간격 표본이 헤드라인이며, 같은 날짜의 종목은 시장 움직임을 공유해 신뢰구간은 실제보다 좁습니다.",
