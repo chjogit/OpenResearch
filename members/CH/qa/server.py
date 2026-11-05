@@ -3,7 +3,8 @@ r"""질의응답 확인용 로컬 서버 (티켓 #53). 명령 하나로 실행:
     cd members\CH
     python -m qa.server            # http://127.0.0.1:8765  (이 PC 에서만 접속, 공개 배포 아님)
 
-- GET  /            질의응답 HTML (질문 입력 → 해석 → 단계별 실행 추적 → 답·근거·미확보, 시험셋 탭)
+- GET  /            시연 HTML 하나(demo/demo.html): 질문 입력 → 해석 → 단계별 실행 추적 → 답·근거·미확보, 성능·구조 탭
+- GET  /api/status  {"live": true} — 이 응답이 오면 화면이 '실시간 모드 켜짐'(없으면 저장된 기록 재생)
 - POST /api/ask     {"question": "..."} → 줄 단위 JSON(NDJSON) 스트림: 단계마다 {"event":...}, 마지막 {"result":...}
 - GET  /api/eval    시험셋 결과(qa/eval_results.json)
 DB 는 읽기 전용(ch_agents.db), 비밀값은 .env 에서만 읽고 응답·저장 파일에 넣지 않는다. 한 번에 한 질문만 처리한다.
@@ -65,7 +66,11 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         if self.path.split("?")[0] == "/":
-            self._send(200, (HERE / "qa.html").read_bytes(), "text/html; charset=utf-8")
+            self._send(200, (HERE.parent / "demo" / "demo.html").read_bytes(), "text/html; charset=utf-8")      # 시연 HTML 하나(#59)
+        elif self.path.startswith("/api/status"):
+            from ch_agents import llm as L
+
+            self._send(200, json.dumps({"live": True, "llm": L.MODEL}, ensure_ascii=False).encode(), "application/json; charset=utf-8")
         elif self.path.startswith("/api/eval"):
             f = HERE / "eval_results.json"
             self._send(200, f.read_bytes() if f.exists() else b"{}", "application/json; charset=utf-8")
@@ -92,7 +97,7 @@ class Handler(BaseHTTPRequestHandler):
 
         with LOCK:
             try:
-                r = agent.answer(q, _llm(), emit=lambda e: put({"event": e}), universe=_universe())
+                r = agent.public_view(agent.answer(q, _llm(), emit=lambda e: put({"event": agent.public_view({"trace": [e]})["trace"][0]}), universe=_universe()))
                 RUNS.mkdir(exist_ok=True)
                 (RUNS / f"{time.strftime('%Y%m%d-%H%M%S')}.json").write_text(json.dumps(scrub(r), ensure_ascii=False, indent=1, default=str), encoding="utf-8")
                 r["summary_text"] = agent.summary_text(r)
@@ -103,6 +108,11 @@ class Handler(BaseHTTPRequestHandler):
 
 
 def main(port: int = 8765):
+    for stream in (sys.stdout, sys.stderr):      # Windows 콘솔(cp949)에서 한글·기호 출력이 응답을 끊지 않게
+        try:
+            stream.reconfigure(encoding="utf-8", errors="replace")
+        except (AttributeError, ValueError):
+            pass
     srv = ThreadingHTTPServer(("127.0.0.1", port), Handler)
     print(f"질의응답 확인용 서버: http://127.0.0.1:{port}  (종료: Ctrl+C)", flush=True)
     srv.serve_forever()

@@ -324,6 +324,82 @@ def test_judgment_answer_carries_per_agent_outlook_without_overall_conclusion(mo
     assert "전망[" in qa.summary_text(r)
 
 
-def test_qa_html_renders_outlook_cards_with_notice():
-    html = (qa.HERE / "qa.html").read_text(encoding="utf-8")
-    assert "showOutlook" in html and "h.notice" in html and "판정:" in html
+def test_demo_html_renders_outlook_cards_with_notice():
+    html = (qa.HERE.parent / "demo" / "template.html").read_text(encoding="utf-8")
+    assert "outlookCard" in html and "hitRate.notice" in html and "판정:" in html
+
+
+def test_public_view_masks_removed_conclusion_sentences_only():
+    r = {"trace": [{"kind": "답·검사", "removed": [{"문장": "{S1} 이므로 지금 사세요.", "이유": ["결론"]}, {"문장": "근거 없는 숫자 99가 있다", "이유": ["키 밖 숫자"]}]}]}
+    out = qa.public_view(r)["trace"][0]["removed"]
+    assert "사세요" not in out[0]["문장"] and "가림" in out[0]["문장"] and out[1]["문장"] == "근거 없는 숫자 99가 있다"
+
+
+def test_emitted_events_equal_result_trace(monkeypatch):
+    calls, tools = _judgment_setup(monkeypatch)
+    events = []
+    llm = FakeLLM(interp_json(intent="투자판단자료", domains=[]), ans={"답": [{"문장": "외국인 5일 순매수는 {S1}이다.", "구분": "사실", "방향": "부정", "근거": ["S1"]}], "미확보": []})
+    r = qa.answer("삼성전자 지금 사도 돼?", llm, emit=events.append, universe=UNI, today=TODAY, latest=LATEST, tools=tools)
+    assert events == r["trace"] and events[0]["kind"] == "해석" and events[-1]["kind"] == "종료"      # 화면에 흐르는 단계 = 저장되는 실행 기록
+
+
+def test_tool_node_agent_returns_nodetask_status_and_ledger_detail(monkeypatch):
+    from ch_agents import node_agents
+
+    report = {"nodes": [{"nodeId": "N07", "name": "수급 데이터 점검", "kind": "base", "state": "executed", "status": "SUCCESS", "reason": None, "missingInputs": []}],
+              "prediction_skipped_reason": None}
+    monkeypatch.setattr(node_agents, "run_nodes", lambda *a, **k: report)
+    monkeypatch.setattr(node_agents, "merge_facts", lambda rep: (_flow_facts(), []))
+    led = qa.Ledger()
+    ctx = {"interp": {"scenario": None}, "ticker": "005930", "as_of": "2026-11-04", "co": {}, "outlooks": {}}
+    res = qa.tool_node_agent({"agent_no": 4}, ctx, led)
+    d = res["detail"]
+    assert d["nodes"][0]["task"] == {"taskId": "4-N07-005930-2026-11-04", "asOf": "2026-11-04", "ticker": "005930", "parameters": {"extension": True}}
+    assert d["nodes"][0]["status"] == "SUCCESS" and d["ledger"][0]["key"] in led.items and d["ledgerTotal"] == 2
+
+
+def test_tool_docs_reports_query_numbers_scores_and_hides_private_posts(monkeypatch):
+    from ch_agents import rag
+
+    docs = [{"doc_id": 11, "source": "naver_news", "title": "공개 기사", "summary": "s", "published": "2026-11-01", "score": 3.5, "terms": ["수급"]},
+            {"doc_id": 12, "source": "naver_blog", "title": "비공개 글 제목", "summary": "블로그 본문", "published": "2026-11-02", "score": 2.0, "terms": ["비밀"]}]
+    monkeypatch.setattr(rag, "retrieve", lambda *a, **k: docs)
+    monkeypatch.setattr(qa, "rag_tech", lambda: {"임베딩 모델": "m (4차원)"})
+    res = qa.tool_docs({}, {"co": {"name": "삼성전자"}, "as_of": "2026-11-04"}, qa.Ledger())
+    f = {x["docNo"]: x for x in res["rag"]["found"]}
+    blob = json.dumps(res, ensure_ascii=False)
+    assert f[11]["hidden"] is False and f[11]["score"] == 3.5 and f[11]["matched"] == ["수급"]
+    assert f[12]["hidden"] is True and f[12]["matched"] == [] and "비공개 글 제목" not in blob and "블로그 본문" not in blob
+
+
+def test_server_streams_events_then_result_and_serves_single_demo_page(monkeypatch, tmp_path):
+    import threading
+    import urllib.request
+    from http.server import ThreadingHTTPServer
+
+    from qa import server
+
+    monkeypatch.setattr(server, "_llm", lambda: None)
+    monkeypatch.setattr(server, "_universe", lambda: [])
+    monkeypatch.setattr(server, "RUNS", tmp_path / "runs")
+
+    def fake(q, llm, emit=None, universe=None, **k):
+        evs = [{"kind": "해석", "t": 0.1, "result": {}}, {"kind": "종료", "t": 0.2, "status": "완료", "usage": {}}]
+        for e in evs:
+            emit(e)
+        return {"question": q, "trace": evs, "answer": [], "status": "완료"}
+
+    monkeypatch.setattr(server.agent, "answer", fake)
+    monkeypatch.setattr(server.agent, "summary_text", lambda r: "요약")
+    srv = ThreadingHTTPServer(("127.0.0.1", 0), server.Handler)
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    base = f"http://127.0.0.1:{srv.server_address[1]}"
+    try:
+        body = urllib.request.urlopen(urllib.request.Request(base + "/api/ask", data=json.dumps({"question": "질문"}).encode()), timeout=10).read().decode()
+        lines = [json.loads(x) for x in body.splitlines() if x.strip()]
+        assert [x["event"]["kind"] for x in lines[:-1]] == ["해석", "종료"] and lines[-1]["result"]["trace"] == [x["event"] for x in lines[:-1]]
+        assert json.loads(urllib.request.urlopen(base + "/api/status", timeout=10).read())["live"] is True
+        page = urllib.request.urlopen(base + "/", timeout=10).read().decode()
+        assert (qa.HERE.parent / "demo" / "demo.html").read_text(encoding="utf-8").replace("\r\n", "\n") == page.replace("\r\n", "\n") and not (qa.HERE / "qa.html").exists()
+    finally:
+        srv.shutdown()

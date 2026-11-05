@@ -261,9 +261,15 @@ def tool_node_agent(args: dict, ctx: dict, led: Ledger) -> dict:
     led.gaps += [g for g in facts.gaps if g not in led.gaps]
     nodes = [{"node": n["nodeId"], "state": n["state"], "status": n.get("status"), "reason": n.get("reason")} for n in report["nodes"]]
     skipped = report.get("prediction_skipped_reason")
+    detail = {"nodes": [{**n, "kind": nd["kind"], "name": nd["name"], "missing": nd.get("missingInputs") or [],
+                         "task": {"taskId": f"{no}-{n['node']}-{ctx['ticker']}-{ctx['as_of']}", "asOf": ctx["as_of"], "ticker": ctx["ticker"],
+                                  "parameters": {"extension": True, **({"scenario": scen} if scen else {})}}}
+                        for n, nd in zip(nodes, report["nodes"])],
+              "ledger": [{"key": mp[k], "label": v["label"], "text": v["text"], "asOf": str(v.get("as_of") or "")[:10], "source": v.get("source")}
+                         for k, v in list(facts.items.items())[:16]], "ledgerTotal": len(facts.items)}
     return {"summary": f"에이전트 {no}: 노드 {len(nodes)}개, 장부 {len(facts.items)}항목, 충돌 {len(conflicts)}건"
                        + (f", 예측 생략: {skipped}" if skipped else ""),
-            "nodes": nodes, "keys": sorted(mp.values()), "tech": "노드 실행(규칙·통계 계산, LLM 없음)"}
+            "nodes": nodes, "keys": sorted(mp.values()), "tech": "노드 실행(규칙·통계 계산, LLM 없음)", "detail": detail}
 
 
 def tool_price(args: dict, ctx: dict, led: Ledger) -> dict:
@@ -303,8 +309,16 @@ def tool_docs(args: dict, ctx: dict, led: Ledger) -> dict:
         shown.append(k)
         if len(shown) >= 6:
             break
+    found = [{"docNo": d.get("doc_id"), "source": str(d.get("source") or ""), "published": str(d.get("published") or "")[:10], "score": d.get("score"),
+              "matched": list(d.get("terms") or [])[:4],
+              "hidden": str(d.get("source") or "") in ("naver_blog", "naver_cafe", "youtube_comment") or bool(OPINION_HOST_RE.search(str(d.get("summary") or "") + str(d.get("url") or "")))}
+             for d in docs]
+    for f in found:      # 개인 작성 글은 번호·점수만, 출처 이름·내용·제목·주소·일치 단어는 두지 않음
+        if f["hidden"]:
+            f["matched"], f["source"] = [], "개인 작성 글"
     return {"summary": f"문서 {len(docs)}건 중 공개 보도·공시 {len(shown)}건 사용, 개인 작성 글 {hidden}건은 내용 비공개",
-            "keys": shown, "tech": rag_tech()}
+            "keys": shown, "tech": rag_tech(),
+            "rag": {"query": f"{ctx['co'].get('name')} · 관점 6(투자심리·뉴스) · 기준일 {ctx['as_of']} 이전 공개 문서", "found": found, "shown": shown}}
 
 
 TOOLS: dict[str, Callable[[dict, dict, Ledger], dict]] = {"run_node_agent": tool_node_agent, "price_summary": tool_price, "doc_search": tool_docs}
@@ -614,6 +628,16 @@ def answer(question: str, llm, emit: Callable[[dict], None] | None = None, unive
                        "문서": {k: d for k, d in led.docs.items() if any(k in c["근거"] for c in ok)}}
     step("답·검사", mode=mode, kept=len(ok), removed=removed, verifier=VERIFIER_TEXT, **check)
     return finish("완료" + ("" if mode == "LLM 답" else " (규칙 기반 대체)"))
+
+
+def public_view(r: dict) -> dict:
+    """화면·저장용: 검사에서 빠진 문장 중 결론·권유로 읽히는 것은 내용을 가린다(질문자가 결론 문구를 화면에서 보지 않게)."""
+    mask = "[결론·권유로 읽혀 검사에서 제거된 문장 — 내용 가림]"
+    for e in r.get("trace") or []:
+        for x in e.get("removed") or []:
+            if CONCLUSION_RE.search(x.get("문장", "")) or ADVICE_RE.search(x.get("문장", "")):
+                x["문장"] = mask
+    return r
 
 
 # ---------------------------------------------------------------- 사람이 읽는 요약 (콘솔·저장용)
