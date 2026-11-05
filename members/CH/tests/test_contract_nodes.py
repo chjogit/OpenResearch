@@ -25,12 +25,12 @@ def outs():
     return {1: _out(1), 3: _out(3)}
 
 
-def test_version_is_r4_1_3_and_old_versions_still_validate(outs):
-    assert contract.SCHEMA_VERSION == "r4-1.3"
+def test_version_is_r4_1_4_and_old_versions_still_validate(outs):
+    assert contract.SCHEMA_VERSION == "r4-1.4"
     for aid, out in outs.items():
         c = out["contract"]
         assert contract.validate(c) == [] and contract.link_errors(c) == []
-        for old in ("r4-1.0", "r4-1.1", "r4-1.2"):
+        for old in ("r4-1.0", "r4-1.1", "r4-1.2", "r4-1.3"):
             assert contract.validate(dict(c, schemaVersion=old)) == []       # 이전 버전 이름도 통과
     bad = dict(outs[1]["contract"], schemaVersion="r9")
     assert contract.validate(bad)                                          # 모르는 버전은 걸림

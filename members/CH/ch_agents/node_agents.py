@@ -181,6 +181,21 @@ def docs_from_report(report: dict, limit: int = 12) -> list[dict]:
     return docs
 
 
+def outlook_for(agent_no: int, facts: Facts, as_of: str, ticker: str, co: dict | None, inputs: dict | None,
+                validated: bool, fetch: bool = True) -> dict:
+    """20거래일 전망 결론 (#54). 서술용 노드 실행 결과는 바꾸지 않고, 규칙에 필요한 장부가 없을 때만 확장 노드를 따로 돌려 가져옴
+    (에이전트 4 의 순매수 강도는 확장 노드 N08 의 값). 장부만으로 정해지므로 같은 기준일이면 같은 결론."""
+    from . import outlook
+
+    items = facts.items
+    if fetch and agent_no == 4 and not any(v.get("label", "").endswith("순매수 강도(거래대금 대비)") for v in items.values()):
+        try:
+            items = {**merge_facts(run_nodes(4, ticker, as_of, True, None, None, co, inputs, validated))[0].items, **items}
+        except Exception:  # noqa: BLE001 — 전망 계산 실패가 서술 경로를 막지 않게 함. 결론은 '근거 부족'
+            items = facts.items
+    return outlook.compute(agent_no, items, as_of)
+
+
 def build_data(agent_no: int, ticker: str, as_of: str | None = None, extension: bool = False, scenario: str | None = None,
                focus: list[str] | None = None, co: dict | None = None, inputs: dict | None = None,
                report: dict | None = None, validated: bool = False) -> AgentData:
@@ -189,11 +204,13 @@ def build_data(agent_no: int, ticker: str, as_of: str | None = None, extension: 
 
     as_of = normalize_as_of(as_of)
     co = co or (db.company(ticker) if inputs is None else {"ticker": ticker, "name": ticker})
+    report_given = report
     report = report or run_nodes(agent_no, ticker, as_of, extension, scenario, focus, co, inputs, validated)
     facts, conflicts = merge_facts(report)
+    outlook_data = outlook_for(agent_no, facts, as_of, ticker, co, inputs, validated, fetch=inputs is not None or report_given is None)
     opts: dict[str, Any] = {k: v for k, v in {"extension": extension or None, "scenario": scenario, "focus": focus}.items() if v}
     extra = {"node_agent": True, "node_report": report, "opts": opts, "conflicts": conflicts,
-             "next_checks": [], "freshness": None}
+             "next_checks": [], "freshness": None, "outlook": outlook_data}
     return AgentData(agent_no, spec_for(agent_no).name, co, as_of, facts, docs_from_report(report), "노드 실행", extra,
                      spec=spec_for(agent_no))
 

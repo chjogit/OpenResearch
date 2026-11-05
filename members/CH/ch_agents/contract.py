@@ -28,7 +28,7 @@ from pathlib import Path
 from .availability import AVAILABILITY, availability
 from .nodes import legacy_agent_nos, legacy_tag
 
-SCHEMA_VERSION = "r4-1.3"   # r4-1.1: unverified[].availability, r4-1.2: evidence[].tier·resultType, p01·p03, r4-1.3: agent.agentNos·claims[].tag·nodes[]·conflicts (모두 선택 필드)
+SCHEMA_VERSION = "r4-1.4"   # r4-1.1: unverified[].availability, r4-1.2: evidence[].tier·resultType, p01·p03, r4-1.3: agent.agentNos·claims[].tag·nodes[]·conflicts, r4-1.4: outlook (모두 선택 필드)
 SCHEMA_PATH = Path(__file__).resolve().parent / "schema" / "agent_output.schema.json"
 KST = timezone(timedelta(hours=9))
 MODULES = {1: "agent1_macro", 3: "agent3_sentiment_flow"}
@@ -156,6 +156,24 @@ def claim_tag(c: dict, data) -> str:
     items = data.facts.items
     keys = [k for k in _keys_in(c.get("문장"), c.get("근거")) if k in items]
     return legacy_tag(c.get("구분"), computed_only=bool(keys) and all(items[k].get("kind") == "계산" for k in keys))
+
+
+def outlook_block(ol: dict, emap: dict[str, str]) -> dict:
+    """에이전트 전망 결론(20거래일 가격 방향)을 계약 필드로 (r4-1.4, 선택). 결론은 규칙(ruleVersion)으로 정해지고 LLM 이 만들지 않습니다.
+    positiveFactors·negativeFactors 의 evidenceKeys 는 outlook.ledger 의 키, 같은 키가 evidence[] 에 있으면 evidenceIds 도 답니다."""
+    from . import outlook as ol_mod
+
+    def factors(rows):
+        return [{"signalId": r["signalId"], "text": r["text"], "template": r["template"], "tag": r["tag"], "evidenceKeys": list(r["keys"]),
+                 "evidenceIds": evidence_ids(r["keys"], emap)} for r in rows]
+
+    hit = ol_mod.hit_rate(ol["agentNo"])
+    return {"direction": ol["direction"], "directionLabel": ol["directionLabel"], "horizonDays": ol["horizonDays"], "startAfter": ol["startAfter"],
+            "reasonCode": ol["reasonCode"], "reason": ol["reason"], "tag": ol["tag"],
+            "positiveFactors": factors(ol["positiveFactors"]), "negativeFactors": factors(ol["negativeFactors"]),
+            "signals": [{"id": s["id"], "name": s["name"], "state": s["state"], "text": s["text"], "evidenceKeys": list(s["keys"])} for s in ol["signals"]],
+            "ledger": ol["ledger"], "hitRate": {**hit, "text": ol_mod.hit_rate_text(hit)}, "ruleVersion": ol["ruleVersion"], "rule": ol["rule"],
+            "limit": ol["limit"], "note": ol_mod.ORCHESTRATOR_NOTE, "verification": ol["verification"]}
 
 
 def with_nodes(out: dict, report: dict) -> dict:
@@ -324,6 +342,8 @@ def build(run: dict, data, mode: str = "expert") -> dict:
                           "summary": {k: plain(v, data) for k, v in (px.get("summary") or {}).items()},
                           "tiers": px.get("tiers")}
     out["evidence"] = _evidence(data, emap, cited)
+    if data.extra.get("outlook"):       # r4-1.4 (선택): 분석 내용이 아니라 reportId 해시에는 넣지 않음
+        out["outlook"] = outlook_block(data.extra["outlook"], emap)
     # reportId 는 분석 내용의 해시: r4-1.3 에서 더한 선택 필드(agentNos·tag)는 넣지 않아 같은 입력이면 예전과 같은 ID 가 나옴
     ident = {"agent": {k: v for k, v in out["agent"].items() if k != "agentNos"}, "target": out["target"],
              "asOf": out["asOf"], "mode": out["mode"],
