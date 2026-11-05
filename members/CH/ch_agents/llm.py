@@ -383,7 +383,9 @@ def _texts(result: dict) -> list[str]:
 
 def label_terms(data: AgentData | None) -> set[str]:
     """장부 항목 이름에 들어 있는 숫자 표현(예: '52주 고점'의 '52주')은 값이 아니라 용어로 봅니다."""
-    terms = set(COMMON_TERMS)
+    from .thresholds import threshold_terms
+
+    terms = set(COMMON_TERMS) | threshold_terms()      # 판단 기준값(1배·전망 기준 등)은 코드 상수에서 모아 허용 (#63)
     if data is not None:
         for v in data.facts.items.values():
             terms.update(LOOSE_NUMBER.findall(v["label"]))
@@ -401,7 +403,9 @@ def sentence_problems(text: str, valid: set[str], allowed: set[str] | None = Non
     bad = [k for k in PLACEHOLDER.findall(text) if k not in valid]
     if bad:
         probs.append(f"없는 키 {bad}")
-    loose = [x for x in LOOSE_NUMBER.findall(PLACEHOLDER.sub("", text)) if x not in (allowed or COMMON_TERMS)]
+    from .thresholds import threshold_terms
+
+    loose = [x for x in LOOSE_NUMBER.findall(PLACEHOLDER.sub("", text)) if x not in (allowed or (COMMON_TERMS | threshold_terms()))]
     if loose:
         probs.append(f"키 밖 숫자 {loose}")
     banned = banned_terms(text)

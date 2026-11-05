@@ -421,7 +421,9 @@ def verify_answer(parsed: dict | None, led: Ledger, question: str, interp: dict)
     from ch_agents import llm as llm_mod
 
     valid = led.keys()
-    allowed = set(llm_mod.COMMON_TERMS) | set(llm_mod.LOOSE_NUMBER.findall(question)) | set(llm_mod.LOOSE_NUMBER.findall(interp.get("scenario") or ""))
+    from ch_agents.thresholds import threshold_terms
+
+    allowed = set(llm_mod.COMMON_TERMS) | threshold_terms() | set(llm_mod.LOOSE_NUMBER.findall(question)) | set(llm_mod.LOOSE_NUMBER.findall(interp.get("scenario") or ""))
     allowed |= {x.lstrip("+-") for x in allowed}
     ok, removed = [], []
     for c in (parsed or {}).get("답") or []:

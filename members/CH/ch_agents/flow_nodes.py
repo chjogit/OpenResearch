@@ -15,6 +15,7 @@ from statistics import mean, pstdev
 from .agent3_sentiment_flow import TV_JUMP, Z_ALERT, _intensity_z
 from .flow_core import SRC_FLOW, WHO, add_net_buy, add_streak
 from .asof import cut_future, require_as_of
+from .thresholds import REFERENCE_RATIO
 from .facts import MAX_DAILY_MOVE, Facts, series_points, streak
 from .nodes import Conflict, ConflictView, Finding, NodeResult, NodeTask, register
 
@@ -106,7 +107,7 @@ def n07(inp: dict, as_of: str) -> NodeResult:
     if len(rows) >= 65:
         m5, b60 = mean(r["tv"] for r in rows[:5]), mean(r["tv"] for r in rows[5:65])
         kr = f.add("거래대금 배율(최근 5일 ÷ 직전 60일)", m5 / b60 if b60 else None, "배", d0, SRC_PRICE, kind="calc",
-                   group="거래대금", note="1보다 크면 평소보다 거래대금이 많음")
+                   group="거래대금", note=f"{REFERENCE_RATIO:g}보다 크면 평소보다 거래대금이 많음")
         ratio = f.items[kr]["value"] if kr else None
         if kr and ratio >= TV_JUMP:
             finds.append(_find("conclusion", f"거래대금 급증: 최근 5일 평균이 직전 60일 평균의 {f.items[kr]['text']}", "Computation", [kr]))
