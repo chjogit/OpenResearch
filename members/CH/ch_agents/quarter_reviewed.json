@@ -1,0 +1,266 @@
+{
+ "checked": "2026-11-04",
+ "method": "DART fnlttSinglAcntAll 재조회 → quarterly.derive_dart 로 다시 계산한 단독분기 매출이 DB 값과 일치하는지 대조 (직전 분기 대비 ±100% 초과 32건, 국내 종목)",
+ "verdicts": {
+  "real": "원문과 일치 — 실제 변화(또는 4분기 차감 구조상 큰 값)로 '원문 대조 완료'",
+  "derivation": "원문 누적값은 일치하나 단독분기 값이 음수 — 계정 표시 차이로 차감값 신뢰 불가"
+ },
+ "rows": [
+  {
+   "company_id": 24,
+   "ticker": "042700",
+   "name": "한미반도체",
+   "period_end": "2026-06-30",
+   "change_pct": 393,
+   "verdict": "real"
+  },
+  {
+   "company_id": 27,
+   "ticker": "036930",
+   "name": "주성엔지니어링",
+   "period_end": "2023-09-30",
+   "change_pct": 172,
+   "verdict": "real"
+  },
+  {
+   "company_id": 137,
+   "ticker": "005290",
+   "name": "동진쎄미켐",
+   "period_end": "2025-12-31",
+   "change_pct": 121,
+   "verdict": "real"
+  },
+  {
+   "company_id": 219,
+   "ticker": "207940",
+   "name": "삼성바이오로직스",
+   "period_end": "2026-03-31",
+   "change_pct": 307,
+   "verdict": "real"
+  },
+  {
+   "company_id": 228,
+   "ticker": "012450",
+   "name": "한화에어로스페이스",
+   "period_end": "2022-12-31",
+   "change_pct": 159,
+   "verdict": "real"
+  },
+  {
+   "company_id": 228,
+   "ticker": "012450",
+   "name": "한화에어로스페이스",
+   "period_end": "2024-12-31",
+   "change_pct": 171,
+   "verdict": "real"
+  },
+  {
+   "company_id": 229,
+   "ticker": "034020",
+   "name": "두산에너빌리티",
+   "period_end": "2021-09-30",
+   "change_pct": 110,
+   "verdict": "real"
+  },
+  {
+   "company_id": 255,
+   "ticker": "003550",
+   "name": "LG",
+   "period_end": "2022-03-31",
+   "change_pct": 145,
+   "verdict": "real"
+  },
+  {
+   "company_id": 270,
+   "ticker": "047810",
+   "name": "한국항공우주",
+   "period_end": "2025-12-31",
+   "change_pct": 109,
+   "verdict": "real"
+  },
+  {
+   "company_id": 281,
+   "ticker": "071050",
+   "name": "한국금융지주",
+   "period_end": "2024-03-31",
+   "change_pct": 166,
+   "verdict": "real"
+  },
+  {
+   "company_id": 282,
+   "ticker": "180640",
+   "name": "한진칼",
+   "period_end": "2022-06-30",
+   "change_pct": -121,
+   "verdict": "derivation"
+  },
+  {
+   "company_id": 285,
+   "ticker": "352820",
+   "name": "하이브",
+   "period_end": "2026-06-30",
+   "change_pct": 108,
+   "verdict": "real"
+  },
+  {
+   "company_id": 296,
+   "ticker": "326030",
+   "name": "SK바이오팜",
+   "period_end": "2021-12-31",
+   "change_pct": 863,
+   "verdict": "real"
+  },
+  {
+   "company_id": 303,
+   "ticker": "241560",
+   "name": "두산밥캣",
+   "period_end": "2023-12-31",
+   "change_pct": -414,
+   "verdict": "derivation"
+  },
+  {
+   "company_id": 309,
+   "ticker": "267270",
+   "name": "HD건설기계",
+   "period_end": "2026-03-31",
+   "change_pct": 143,
+   "verdict": "real"
+  },
+  {
+   "company_id": 312,
+   "ticker": "011790",
+   "name": "SKC",
+   "period_end": "2022-12-31",
+   "change_pct": 329,
+   "verdict": "real"
+  },
+  {
+   "company_id": 312,
+   "ticker": "011790",
+   "name": "SKC",
+   "period_end": "2023-12-31",
+   "change_pct": -149,
+   "verdict": "derivation"
+  },
+  {
+   "company_id": 315,
+   "ticker": "454910",
+   "name": "두산로보틱스",
+   "period_end": "2025-09-30",
+   "change_pct": 124,
+   "verdict": "real"
+  },
+  {
+   "company_id": 322,
+   "ticker": "052690",
+   "name": "한전기술",
+   "period_end": "2021-12-31",
+   "change_pct": 115,
+   "verdict": "real"
+  },
+  {
+   "company_id": 331,
+   "ticker": "035250",
+   "name": "강원랜드",
+   "period_end": "2021-06-30",
+   "change_pct": 109,
+   "verdict": "real"
+  },
+  {
+   "company_id": 341,
+   "ticker": "302440",
+   "name": "SK바이오사이언스",
+   "period_end": "2021-12-31",
+   "change_pct": 104,
+   "verdict": "real"
+  },
+  {
+   "company_id": 341,
+   "ticker": "302440",
+   "name": "SK바이오사이언스",
+   "period_end": "2023-09-30",
+   "change_pct": 776,
+   "verdict": "real"
+  },
+  {
+   "company_id": 341,
+   "ticker": "302440",
+   "name": "SK바이오사이언스",
+   "period_end": "2024-09-30",
+   "change_pct": 130,
+   "verdict": "real"
+  },
+  {
+   "company_id": 341,
+   "ticker": "302440",
+   "name": "SK바이오사이언스",
+   "period_end": "2024-12-31",
+   "change_pct": 154,
+   "verdict": "real"
+  },
+  {
+   "company_id": 346,
+   "ticker": "007340",
+   "name": "DN오토모티브",
+   "period_end": "2022-03-31",
+   "change_pct": 168,
+   "verdict": "real"
+  },
+  {
+   "company_id": 367,
+   "ticker": "112610",
+   "name": "씨에스윈드",
+   "period_end": "2021-12-31",
+   "change_pct": 118,
+   "verdict": "real"
+  },
+  {
+   "company_id": 372,
+   "ticker": "006040",
+   "name": "동원산업",
+   "period_end": "2022-12-31",
+   "change_pct": 616,
+   "verdict": "real"
+  },
+  {
+   "company_id": 381,
+   "ticker": "071970",
+   "name": "HD현대마린엔진",
+   "period_end": "2022-06-30",
+   "change_pct": 164,
+   "verdict": "real"
+  },
+  {
+   "company_id": 381,
+   "ticker": "071970",
+   "name": "HD현대마린엔진",
+   "period_end": "2023-06-30",
+   "change_pct": 257,
+   "verdict": "real"
+  },
+  {
+   "company_id": 397,
+   "ticker": "071320",
+   "name": "지역난방공사",
+   "period_end": "2021-12-31",
+   "change_pct": 123,
+   "verdict": "real"
+  },
+  {
+   "company_id": 397,
+   "ticker": "071320",
+   "name": "지역난방공사",
+   "period_end": "2022-12-31",
+   "change_pct": 116,
+   "verdict": "real"
+  },
+  {
+   "company_id": 399,
+   "ticker": "137310",
+   "name": "에스디바이오센서",
+   "period_end": "2022-03-31",
+   "change_pct": 213,
+   "verdict": "real"
+  }
+ ]
+}

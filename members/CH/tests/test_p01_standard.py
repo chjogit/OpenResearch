@@ -249,3 +249,29 @@ def test_fsc_bond_floating_share_is_evidence_only():
     assert f.items[k]["value"] == 25.0
     debt = next(p for p in out["premises"] if p["item"].startswith("차입"))
     assert k in debt["keys"] and "고정·변동 구분은 확인" in debt["detail"]
+
+
+def _jump_bundle():
+    b = _bundle()
+    last = max((r for r in b["panel"]["rows"] if r["c"] == 1), key=lambda r: r["pe"])
+    last["v"] *= 3
+    return b, str(last["pe"])[:10]
+
+
+def test_reviewed_real_jump_is_not_flagged_but_derivation_one_stays(monkeypatch):
+    b, pe = _jump_bundle()
+    monkeypatch.setattr(p01, "_reviewed", lambda: {(1, pe): "real"})
+    out = macro.compute(b, CO, AS_OF)
+    assert not out["p01"]["quarter"]["review"] and out["p01"]["quarter"]["reviewed"] == 1
+    assert "QUARTER_REVIEW" not in out["p01"]["plan"]["status_codes"]
+    assert any("원문 대조 완료" in n for n in out["facts"].notes)
+    b2, pe2 = _jump_bundle()
+    monkeypatch.setattr(p01, "_reviewed", lambda: {(1, pe2): "derivation"})
+    assert macro.compute(b2, CO, AS_OF)["p01"]["quarter"]["review"]
+
+
+def test_quarter_reviewed_file_lists_32_checked_rows_with_two_verdicts():
+    import json
+    d = json.loads(p01.REVIEWED_PATH.read_text(encoding="utf-8"))
+    assert len(d["rows"]) == 32 and {r["verdict"] for r in d["rows"]} == {"real", "derivation"}
+    assert all(abs(r["change_pct"]) > 100 for r in d["rows"])
