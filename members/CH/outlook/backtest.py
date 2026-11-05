@@ -253,6 +253,13 @@ def main():
                            "note": "같은 날짜의 종목들은 시장 움직임을 공유해 서로 독립이 아니므로 신뢰구간은 실제보다 좁게 나옴" }
         csv_rows += nonov
     agents["6"] = {"unverified": "과거 자료 보관 14일 — 과거 기준일 재계산 불가. 앞으로 결과를 쌓아 사후 측정(docs/OUTLOOK_BACKTEST.md '앞으로 쌓기', python -m outlook.forward)"}
+    for no in ("4", "3"):
+        e = agents[no]
+        rates = {k: v.get("rate") for k, v in e["nonOverlapping"]["baselines"].items()}
+        e["verdict"] = outlook.judge(e["ci95"], rates, e["n"])
+        e["verdictLabel"] = outlook.VERDICT_LABEL[e["verdict"]]
+    agents["6"]["verdict"] = "unverified"
+    agents["6"]["verdictLabel"] = outlook.VERDICT_LABEL["unverified"]
     out = {"ruleVersion": outlook.RULE_VERSION, "generatedAt": time.strftime("%Y-%m-%d %H:%M"), "command": COMMAND, "horizonDays": HORIZON,
            "start": START, "basis": BASIS, "agents": agents, "seconds": round(time.time() - t0)}
     if not a.no_write:
@@ -264,7 +271,7 @@ def main():
             w.writerows(csv_rows)
     for no in ("4", "3"):
         e = agents[no]
-        print(no, "헤드라인", e["rate"], e["n"], e["ci95"], "| 중립", e["nonOverlapping"]["neutralShare"], "| 기준선", {k: v.get("rate") for k, v in e["nonOverlapping"]["baselines"].items()})
+        print(no, "판정", e["verdictLabel"], "| 헤드라인", e["rate"], e["n"], e["ci95"], "| 중립", e["nonOverlapping"]["neutralShare"], "| 기준선", {k: v.get("rate") for k, v in e["nonOverlapping"]["baselines"].items()})
         print("   전체", e["allDays"]["primary"], e["allDays"]["neutralShare"])
 
 

@@ -144,7 +144,10 @@ def _sections(c: dict) -> dict[str, list[dict]]:
             s["outlook"].append(_item(f"OUT-P{i}", "긍정 요인: " + f["text"], f.get("evidenceIds")))
         for i, f in enumerate(ol.get("negativeFactors") or [], 1):
             s["outlook"].append(_item(f"OUT-N{i}", "부정 요인: " + f["text"], f.get("evidenceIds")))
-        s["outlook"].append(_item("OUT-hit", ol["hitRate"]["text"]))
+        hr = ol["hitRate"]
+        s["outlook"].append(_item("OUT-hit", hr["text"] + (f" · 판정: {hr['verdictLabel']}" if hr.get("verdictLabel") else "")))
+        if hr.get("notice"):
+            s["outlook"].append(_item("OUT-verdict", hr["notice"]))
         s["outlook"].append(_item("OUT-note", f"{ol['limit']}. {ol['note']}"))
     for r in c.get("downsideRisks") or []:
         s["risks"].append(_item(r["riskId"], r["text"], r.get("evidenceIds")))

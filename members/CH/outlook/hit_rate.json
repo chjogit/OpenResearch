@@ -168,7 +168,9 @@
     "firstAsOf": "2023-01-02",
     "lastAsOf": "2026-10-06"
    },
-   "note": "같은 날짜의 종목들은 시장 움직임을 공유해 서로 독립이 아니므로 신뢰구간은 실제보다 좁게 나옴"
+   "note": "같은 날짜의 종목들은 시장 움직임을 공유해 서로 독립이 아니므로 신뢰구간은 실제보다 좁게 나옴",
+   "verdict": "indistinct",
+   "verdictLabel": "기준선과 구별 안 됨"
   },
   "3": {
    "rate": 0.5269,
@@ -332,10 +334,14 @@
     "firstAsOf": "2023-01-03",
     "lastAsOf": "2026-10-06"
    },
-   "note": "같은 날짜의 종목들은 시장 움직임을 공유해 서로 독립이 아니므로 신뢰구간은 실제보다 좁게 나옴"
+   "note": "같은 날짜의 종목들은 시장 움직임을 공유해 서로 독립이 아니므로 신뢰구간은 실제보다 좁게 나옴",
+   "verdict": "indistinct",
+   "verdictLabel": "기준선과 구별 안 됨"
   },
   "6": {
-   "unverified": "과거 자료 보관 14일 — 과거 기준일 재계산 불가. 앞으로 결과를 쌓아 사후 측정(docs/OUTLOOK_BACKTEST.md '앞으로 쌓기', python -m outlook.forward)"
+   "unverified": "과거 자료 보관 14일 — 과거 기준일 재계산 불가. 앞으로 결과를 쌓아 사후 측정(docs/OUTLOOK_BACKTEST.md '앞으로 쌓기', python -m outlook.forward)",
+   "verdict": "unverified",
+   "verdictLabel": "미검증"
   }
  },
  "seconds": 428
