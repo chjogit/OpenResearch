@@ -65,10 +65,13 @@ def main():
     allok = sum(all(ok for ok, _, _ in compare(i, t).values()) for i, t in zip(items, its))
     out = {"n": len(items), "ran_at": time.strftime("%Y-%m-%d %H:%M"), "llm": L.MODEL, "today": today, "latest": latest,
            "accuracy": acc, "all_fields_correct": {"ok": allok, "total": len(items), "rate": round(allok / len(items), 3)},
+           "false_refusal": [i["q"] for i, t in zip(items, its) if t["refuse"] and not i["refuse"]],       # 정상 질문을 거절한 건
+           "missed_refusal": [i["q"] for i, t in zip(items, its) if i["refuse"] and not t["refuse"]],      # 거절해야 할 질문을 놓친 건
            "wrong": wrong, "seconds": round(time.monotonic() - t0, 1), "items": [i["q"] for i in items]}
     (HERE / "eval_results.json").write_text(json.dumps(out, ensure_ascii=False, indent=1), encoding="utf-8")
     for f, v in acc.items():
         print(f"{f}: {v['ok']}/{v['total']} = {v['rate']:.0%}")
+    print(f"거짓 거절 {len(out['false_refusal'])}건, 거절 누락 {len(out['missed_refusal'])}건")
     print(f"전 항목 정답 {allok}/{len(items)}, {out['seconds']}초, 틀린 항목 {len(wrong)}건")
 
 

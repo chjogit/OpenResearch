@@ -21,7 +21,7 @@ table{border-collapse:collapse;width:100%;font-size:13px}td,th{border:1px solid 
 <nav><button id="t1" class="on">질문하기</button> <button id="t2">시험셋 결과</button></nav>
 <section id="p1">
  <div class="row" style="margin-top:10px"><input id="q" type="text" placeholder="예: 삼성전자 최근 외국인 수급은 어때?" maxlength="400"><button class="go" id="go">묻기</button></div>
- <div class="mut" style="margin-top:4px">예: "환율이 10% 오르면 SK하이닉스에 어떤 영향이 있어?" · "KB금융 최근 뉴스 분위기는?" · "삼성전자 지금 사도 돼?"(거절)</div>
+ <div class="mut" style="margin-top:4px">예: "환율이 10% 오르면 SK하이닉스에 어떤 영향이 있어?" · "KB금융 최근 뉴스 분위기는?" · "삼성전자 지금 사도 돼?"(결론 없이 판단 자료)</div>
  <h2>1. 해석 결과</h2><div id="interp" class="box mut">-</div>
  <h2>2. 단계별 실행 추적 (도구·이유·사용 기술·시간)</h2><div id="trace" class="mut">-</div>
  <h2>3. 답</h2><div id="ans" class="box mut">-</div>
@@ -44,13 +44,13 @@ function addStep(e){
  if(e.kind=="도구")h+=`${esc(e.tool)} <code>${esc(JSON.stringify(e.args))}</code> (${esc(e.origin)}, ${e.seconds}s)<br>이유: ${esc(e.reason)}<br>결과: ${esc(e.result.summary)}<br><span class="mut">기술: ${esc(typeof e.result.tech=="object"?JSON.stringify(e.result.tech):e.result.tech)}${e.result.keys?" · 키: "+esc(e.result.keys.slice(0,14).join(", ")):""}</span>`;
  else if(e.kind=="해석")h+=`<span class="mut">기술: ${esc(JSON.stringify(e.tech))}</span>`;
  else if(e.kind=="선택")h+=`${esc(e.action)} — ${esc(e.reason)}`;
- else if(e.kind=="답·검사")h+=`${esc(e.mode)} · 통과 ${e.kept}문장 · 제거 ${e.removed.length}문장${e.removed.map(r=>`<div class="bad">제거: ${esc(r.문장)} — ${esc(r.이유.join("; "))}</div>`).join("")}<div class="mut">검사: ${esc(e.verifier)}</div>`;
+ else if(e.kind=="답·검사")h+=`${esc(e.mode)} · 통과 ${e.kept}문장 · 제거 ${e.removed.length}문장${e.removed.map(r=>`<div class="bad">제거: ${esc(r.문장)} — ${esc(r.이유.join("; "))}</div>`).join("")}<div class="mut">검사: ${esc(e.verifier)}${e["결론 문장 검사"]?" · 결론 문장 검사: 걸린 "+e["결론 문장 검사"]["걸린 문장"]+"문장, 재작성 통과 "+e["결론 문장 검사"]["재작성 통과"]+"문장":""}</div>`;
  else if(e.kind=="시간 초과")h+=`<span class="bad">${esc(e.message)}</span>`;
  else if(e.kind=="종료")h+=`${esc(e.status)} · LLM ${e.usage.llm_calls}회 · 토큰 ${e.usage.input_tokens}/${e.usage.output_tokens} · 총 ${e.usage.total_seconds}s`;
  $("trace").insertAdjacentHTML("beforeend",h+"</div>");}
 function showResult(r){
  $("ans").className="box";
- $("ans").innerHTML=`<div><b>${esc(r.status)}</b>${r.message?" — "+esc(r.message):""}</div>`+r.answer.map(c=>`<p><span class="tag">${esc(c.구분)}</span>${esc(c.문장)} <span class="mut">[${esc(c.근거.join(", "))}]</span></p>`).join("");
+ $("ans").innerHTML=`<div><b>${esc(r.status)}</b>${r.message?" — "+esc(r.message):""}</div>`+r.answer.map(c=>`<p>${c.방향&&c.방향!="중립"?`<span class="tag ${c.방향=="긍정"?"ok":c.방향=="부정"?"bad":""}">${esc(c.방향)}</span>`:""}<span class="tag">${esc(c.구분)}</span>${esc(c.문장)} <span class="mut">${c.근거.length?"["+esc(c.근거.join(", "))+"]":""}</span></p>`).join("");
  const ev=r.evidence||{장부:{},문서:{}};
  let h="<table><tr><th>키</th><th>항목</th><th>값</th><th>기준일</th><th>출처</th></tr>"+Object.entries(ev.장부).map(([k,v])=>`<tr><td>${esc(k)}</td><td>${esc(v.항목)}</td><td>${esc(v.값)}</td><td>${esc(v.기준일)}</td><td>${esc(v.출처)}</td></tr>`).join("")+Object.entries(ev.문서).map(([k,v])=>`<tr><td>${esc(k)}</td><td colspan=2>${esc(v.title)}</td><td>${esc(v.published)}</td><td>${esc(v.source)}</td></tr>`).join("")+"</table>";
  h+="<h2>미확보</h2>"+(r.gaps.length?r.gaps.map(g=>`<div class="box">${esc(g.label)} — ${esc(g.reason)}</div>`).join(""):"없음");
@@ -70,6 +70,7 @@ async function loadEval(){
  const r=await (await fetch("/api/eval")).json();if(!r.items){$("evalbox").textContent="아직 시험셋 결과가 없습니다 (python -m qa.eval_interp).";return;}
  let h=`<div>${esc(r.n)}문항 · 실행 ${esc(r.ran_at)} · LLM ${esc(r.llm)} · 기준일 ${esc(r.latest)}</div><h2>항목별 정확도</h2><table><tr><th>항목</th><th>정답/전체</th><th>정확도</th></tr>`+
   Object.entries(r.accuracy).map(([k,v])=>`<tr><td>${esc(k)}</td><td>${v.ok}/${v.total}</td><td class="${v.rate<0.8?"bad":"ok"}">${(v.rate*100).toFixed(0)}%</td></tr>`).join("")+"</table>";
+ if(r.false_refusal)h+=`<div class="${r.false_refusal.length?"bad":"ok"}">거짓 거절 ${r.false_refusal.length}건 · 거절 누락 ${r.missed_refusal.length}건</div>`;
  h+="<h2>틀린 사례</h2>"+(r.wrong.length?"<table><tr><th>질문</th><th>항목</th><th>정답</th><th>실제</th></tr>"+r.wrong.map(w=>`<tr><td>${esc(w.q)}</td><td>${esc(w.field)}</td><td>${esc(w.expected)}</td><td>${esc(w.got)}</td></tr>`).join("")+"</table>":"없음");
  $("evalbox").innerHTML=h;}
 </script></body></html>
