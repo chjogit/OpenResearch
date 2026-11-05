@@ -550,6 +550,35 @@ def collect_questions(cache: Path = QCACHE, runner=run_question) -> dict:
     return data
 
 
+def fix_notation_all(obj):
+    """저장된 실행 기록·예시 질문 답의 값 표기(부호 중복·조사)를 한 번 더 바로잡는다(숫자·키는 그대로, 멱등)."""
+    from qa import agent
+
+    if isinstance(obj, str):
+        return agent.fix_notation(obj) if any(ch.isdigit() for ch in obj) else obj
+    if isinstance(obj, list):
+        return [fix_notation_all(x) for x in obj]
+    if isinstance(obj, dict):
+        return {k: fix_notation_all(v) for k, v in obj.items()}
+    return obj
+
+
+def notation_hits(obj, path="") -> list[str]:
+    """화면에 나가는 모든 문자열의 표기 오류(부호 중복·같은 단위 연속·조사 불일치) 위치."""
+    from qa import agent
+
+    hits = []
+    if isinstance(obj, str):
+        hits += [f"{path}: {p}" for p in agent.notation_problems(obj)] if any(ch.isdigit() for ch in obj) else []
+    elif isinstance(obj, list):
+        for i, x in enumerate(obj):
+            hits += notation_hits(x, f"{path}[{i}]")
+    elif isinstance(obj, dict):
+        for k, v in obj.items():
+            hits += notation_hits(v, f"{path}.{k}")
+    return hits
+
+
 def question_problems(items: list[dict]) -> list[str]:
     """저장 전 검사: 답 문장의 결론·권유·'목표주가', 개인 작성 글 주소, 투자 판단 안내 문장 빠짐."""
     from qa import agent
@@ -634,7 +663,12 @@ def main(argv: list[str]) -> int:
         if shown:
             print("화면 표시 검사 실패(JSON 원문·내부 코드·0건 항목), 저장하지 않음:", shown[:10])
             return 1
-        qs = json.loads(QCACHE.read_text(encoding="utf-8")) if QCACHE.exists() else None
+        qs = fix_notation_all(json.loads(QCACHE.read_text(encoding="utf-8"))) if QCACHE.exists() else None
+        runs = fix_notation_all(runs)
+        nbad = notation_hits(runs) + (notation_hits(qs) if qs else [])
+        if nbad:
+            print("값 표기 오류(부호 중복·같은 단위 연속·조사 불일치)가 남음, 저장하지 않음:", nbad[:10])
+            return 1
         qbad = question_problems(qs["items"]) if qs else []
         if qbad:
             print("예시 질문 기록 검사 실패, 저장하지 않음:", qbad[:10])

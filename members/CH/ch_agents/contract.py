@@ -127,7 +127,9 @@ def plain(text: str, data) -> str:
             return items[k]["text"]
         return f"[{emap.get(k, k)}]"
 
-    return KEY.sub(sub, str(text or ""))
+    from .notation import fix_notation
+
+    return fix_notation(KEY.sub(sub, str(text or "")))      # 값 표기(부호 중복·같은 단위 연속·조사)는 한 곳에서 바로잡음 (#60)
 
 
 def _keys_in(text: str, refs=None) -> list[str]:

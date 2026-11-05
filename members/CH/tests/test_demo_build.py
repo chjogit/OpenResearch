@@ -316,3 +316,11 @@ def test_template_has_live_and_replay_flow_with_all_stages():
                   "data-k", "evl", "근거 (장부 값·문서)", "outlookCard", "오케스트레이터(SW) 담당", "python -m qa.eval_interp", "questions"):
         assert token in t, token
     assert "목표주가" not in t.replace("목표주가가 아닙니다", "")
+
+
+def test_notation_hits_and_fix_all_cover_runs_and_questions():
+    bad = {"runs": {"k": {"contract": {"nextChecks": ["금통위 8일일 후"], "claims": [{"text": "평균 감성 +-0.250"}]}}}, "questions": [{"result": {"answer": [{"문장": "일수 1일가 1일로"}]}}]}
+    assert len(bd.notation_hits(bad)) == 3
+    fixed = bd.fix_notation_all(bad)
+    assert bd.notation_hits(fixed) == [] and fixed["runs"]["k"]["contract"]["nextChecks"] == ["금통위 8일 후"]
+    assert bd.fix_notation_all({"a": 1, "b": "날짜 2026-11-04"}) == {"a": 1, "b": "날짜 2026-11-04"}
