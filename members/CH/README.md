@@ -5,6 +5,9 @@ CH 의 개인 작업 공간입니다. 실험 노트북, 스크립트, 메모를 
 - 팀이 함께 쓸 코드가 되면 `agent/` 로 옮겨 PR 로 올립니다.
 - `.env`, API 키, DB 접속 주소는 여기에도 커밋하지 않습니다.
 
+## 시연 HTML 하나 (#59)
+`cd members\CH && python -m qa.server` 후 http://127.0.0.1:8765 — 질문 입력 → 해석·도구·노드·RAG·생성·검사·전망 → 자연어 답이 실제 DB·LLM 으로 동작합니다(성능·구조 탭 포함). 파일(`demo\demo.html`)로 열면 저장된 예시 질문 기록을 재생합니다. 다시 만들기: `python demouild_demo.py questions` → `python demouild_demo.py html 2026-10-30`.
+
 ## 파일
 
 번호는 교재 8~9장·기초기획서 R4 기준입니다: 에이전트 1 거시경제, 에이전트 3 투자심리·수급 (이전 A1/A4 표기는 쓰지 않음).
