@@ -163,7 +163,7 @@ def test_judgment_answer_has_notice_both_sides_and_no_conclusion(monkeypatch):
     assert all(e["origin"] == "고정 구성(투자 판단 자료)" for e in r["trace"] if e["kind"] == "도구")
     check = [e for e in r["trace"] if e["kind"] == "답·검사"][0]["결론 문장 검사"]
     assert check["걸린 문장"] == 1 and any("결론" in " ".join(x["이유"]) for x in [e for e in r["trace"] if e["kind"] == "답·검사"][0]["removed"])
-    assert any(g["label"] == "감성 판정 한계" and "56.6%" in g["reason"] for g in r["gaps"])
+    assert any(g["label"] == "감성 판정 정확도" and g["group"] == "limit" and "56.6%" in g["reason"] for g in r["gaps"])
     assert llm.calls.count("당신은 한국 상장사 '") >= 0 and "목표주가" not in qa.JUDGMENT_SYSTEM + qa.REWRITE_SYSTEM
 
 
@@ -171,7 +171,7 @@ def test_judgment_one_sided_evidence_is_reported_not_invented(monkeypatch):
     calls, tools = _judgment_setup(monkeypatch)
     ans = {"답": [{"문장": "외국인 5일 순매수는 {S1}이다.", "구분": "사실", "방향": "부정", "근거": ["S1"]}], "미확보": []}
     r = qa.answer("삼성전자 팔아야 할까?", FakeLLM(interp_json(intent="투자판단자료", domains=[]), ans=ans), universe=UNI, today=TODAY, latest=LATEST, tools=tools)
-    assert any(g["label"] == "긍정 요인" for g in r["gaps"]) and not any(g["label"] == "부정·위험 요인" for g in r["gaps"])
+    assert any(g["label"].startswith("긍정 요인") and g["group"] == "limit" for g in r["gaps"]) and not any(g["label"] == "부정·위험 요인" for g in r["gaps"])
 
 
 def test_answer_out_of_universe_and_ambiguous():
@@ -205,7 +205,7 @@ def test_answer_full_path_with_fake_tool(monkeypatch):
     assert [e["kind"] for e in r["trace"]] == ["해석", "도구", "선택", "답·검사", "종료"] and len(events) == len(r["trace"])
     assert r["trace"][1]["reason"] == "수급 질문" and r["trace"][1]["origin"] == "LLM 선택"
     assert r["usage"]["llm_calls"] == 4 and r["usage"]["input_tokens"] == 40
-    assert any(g["label"] == "세부 주체 수급" for g in r["gaps"])
+    assert any(g["label"].startswith("세부 투자 주체") and g["group"] == "out_of_scope" for g in r["gaps"])
     assert "UPSTAGE" not in json.dumps(r, ensure_ascii=False) and "postgres" not in json.dumps(r)
     assert "해석:" in qa.summary_text(r)
 

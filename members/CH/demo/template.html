@@ -144,6 +144,15 @@ function claimTable(r) {
     `<tr><td>${esc(c.claimId)}</td><td><span class="badge b-mute">${esc(c.tag || c.typeLabel || c.type)}</span>${esc(c.typeLabel || "")}</td><td>${esc(c.text)}</td>
      <td>${(c.evidenceIds || []).map(evLabel).join(", ")}</td><td>${esc((c.verification || {}).status || "")}</td></tr>`).join("") + "</table></div>";
 }
+const GAP_ORDER = ["미확보", "범위 밖", "수집 중", "기준일 차이", "한계"];
+function gapsHtml(items) {
+  if (!items || !items.length) return '<p class="note">없음</p>';
+  const by = {};
+  items.forEach(x => { (by[x.groupLabel || "미확보"] = by[x.groupLabel || "미확보"] || []).push(x); });
+  const generic = /에이전트가 판단에 필요하다고 본 미확인 항목|무자료/;
+  return GAP_ORDER.concat(Object.keys(by).filter(k => !GAP_ORDER.includes(k))).filter(k => by[k]).map(k =>
+    `<h3>${esc(k)} (${by[k].length})</h3><ul>${by[k].map(x => { const d = x.detail || x.reason || ""; return `<li>${esc(x.label || x.item || "")}${d && !generic.test(d) && d !== k ? ` <span class="note">— ${esc(d)}</span>` : ""}${(x.sources || []).map(s => ` <span class="badge b-mute">${esc(s)}</span>`).join("")}</li>`; }).join("")}</ul>`).join("");
+}
 function listBlock(title, items, map) {
   if (!items || !items.length) return `<h3>${title}</h3><p class="note">없음</p>`;
   return `<h3>${title} (${items.length})</h3><ul>${items.map(map).join("")}</ul>`;
@@ -174,7 +183,7 @@ function demoView() {
   else if (st.view === "nodes") body = nodeTable(r) + (c.predictionSkippedReason ? `<p class="note">예측 생략 이유: ${esc(c.predictionSkippedReason)}</p>` : "");
   else if (st.view === "claims") body = claimTable(r);
   else if (st.view === "conflict") body = conflictBlock(cf)
-    + listBlock("미확보·미확인", un, x => `<li>${esc(typeof x === "string" ? x : x.item || x.text || "")}${x.reason ? ' <span class="note">(' + esc(x.reason) + ")</span>" : ""}</li>`)
+    + "<h3>미확보·미확인</h3>" + gapsHtml(un)
     + ((c.processing || []).length ? `<h3>처리 기록</h3><p class="note">${esc(c.processing.join(" · "))} (빠진 자료가 아니라 처리 통계입니다)</p>` : "")
     + listBlock("반대 근거·하방 위험", c.downsideRisks, x => `<li>${esc(typeof x === "string" ? x : x.text || "")}</li>`);
   else body = evidenceTable(r);
@@ -310,9 +319,9 @@ function evidenceHtml(r) {
   const ev = r.evidence || {"장부": {}, "문서": {}};
   const rows = Object.entries(ev["장부"]).map(([k, v]) => `<tr id="ev-${esc(k)}"><td>${esc(k)}</td><td>${esc(v["항목"])}</td><td>${esc(v["값"])}</td><td>${esc(v["기준일"])}</td><td>${esc(v["출처"])}</td></tr>`)
     .concat(Object.entries(ev["문서"]).map(([k, d]) => `<tr id="ev-${esc(k)}"><td>${esc(k)}</td><td>문서</td><td>${esc(d.title)}</td><td>${esc(d.published)}</td><td>${esc(d.source)}</td></tr>`));
-  const gaps = (r.gaps || []).map(g => `<li>${esc(g.label)} <span class="note">— ${esc(g.reason)}</span></li>`).join("");
+  const gaps = gapsHtml(r.gaps) + ((r.processing || []).length ? `<h3>처리 기록</h3><p class="note">${esc(r.processing.join(" · "))} (빠진 자료가 아니라 처리 통계입니다)</p>` : "");
   return `<div class="card"><h2>근거 (장부 값·문서)</h2>${rows.length ? '<div class="tw"><table><tr><th>키</th><th>항목</th><th>값</th><th>기준일</th><th>출처</th></tr>' + rows.join("") + "</table></div>" : '<p class="note">없음</p>'}</div>
-    <div class="card"><h2>미확보 · 한계</h2>${gaps ? "<ul>" + gaps + "</ul>" : '<p class="note">없음</p>'}</div>`;
+    <div class="card"><h2>미확보 · 한계</h2>${gaps}</div>`;
 }
 function genHtml(r) {
   const u = r.usage || {}, t = r.tech || {};

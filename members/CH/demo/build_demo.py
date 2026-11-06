@@ -253,6 +253,20 @@ def _replace_keys(text: str) -> str:
     return text
 
 
+def gap_hits(runs: dict, qs: dict | None) -> list[str]:
+    """저장 전 검사(#62): 질의응답 미확보 목록과 에이전트 미확인 목록의 중복·날것 내부 코드·0건 통계·한계 항목 혼입."""
+    from ch_agents.gaps import gap_problems
+
+    bad = []
+    for k, r in runs["runs"].items():
+        items = [{"group": u.get("group"), "label": u.get("item", ""), "detail": u.get("reason", "")} for u in r["contract"].get("unverified") or []]
+        bad += [f"{k}: {p}" for p in gap_problems(items)]
+    for i, it in enumerate((qs or {}).get("items") or []):
+        res = it.get("result") or it
+        bad += [f"질문 {i + 1}: {p}" for p in gap_problems(res.get("gaps") or [])]
+    return bad
+
+
 def brief_hits(runs: dict, qs: dict | None) -> list[str]:
     """저장 전 검사(#64): 200자 요약이 비어 있거나 200자를 넘거나 내부 코드가 보이면 목록으로."""
     from ch_agents.brief import INTERNAL_CODE_RE, MAX_CHARS
@@ -301,26 +315,13 @@ def mask_target_price(runs: dict) -> dict:
 
 
 # ---- #48 표시 정리: 내부 코드를 한국어로, 충돌을 카드로, 처리 통계를 미확보에서 분리 (시연 렌더러만, 에이전트 출력은 그대로)
-NODE_KO = {"N05": "거시 데이터 점검", "N06": "거시 해석", "N07": "수급 데이터 점검", "N08": "수급 해석",
-           "N11": "심리·뉴스 데이터 점검", "N12": "심리·뉴스 해석"}
-PHRASE_KO = (("확장 노드 입력 요건 미충족", "추가 분석에 필요한 자료 부족"), ("D1 사후 탐색 등급", "사후 탐색 단계(검증 전)"),
-             ("CAR", "사건 뒤 주가 반응(초과수익)"))
 TAG_KO = {"Fact": "사실", "Computation": "계산", "Prediction": "예측", "Interpretation": "해석"}
 KEEP_KEYS = {"nodeId", "claimId", "evidenceIds", "evidenceId", "evidenceLinks", "id", "reportId", "ticker", "agent", "schemaVersion", "tag"}
-STAT_RE = re.compile(r"문서 \d+건")
 
 
-_L, _R = r"(?<![A-Za-z0-9_])", r"(?![A-Za-z0-9_])"   # 한글 조사('E10에서')가 붙어도 코드 경계로 인식 ( 는 한글을 단어 문자로 봄)
-
-
-def ko_text(t: str) -> str:
-    """내부 코드(N05 등)·약어(CAR)·사건/근거 번호를 사람이 읽는 말로. 원 코드는 화면의 title 이나 표 ID 칸에만 남음."""
-    for a, b in PHRASE_KO:
-        t = re.sub(rf"{_L}{re.escape(a)}{_R}" if a.isascii() else re.escape(a), b, t)
-    t = re.sub(rf"{_L}N(05|06|07|08|11|12){_R}", lambda m: NODE_KO[f"N{m.group(1)}"], t)
-    t = re.sub(rf"사건 E0*\d+(?:\s*(?:[·,、]|과|와)\s*E0*\d+)*", lambda m: "사건 " + re.sub(r"E0*(\d+)", r"\1", m.group(0)[3:]), t)   # '사건 E6·E7' → '사건 6·7'
-    t = re.sub(r"근거 E0*(\d+)", r"근거 \1", t)
-    return re.sub(rf"{_L}E0*(\d+){_R}", r"근거 \1", t)
+# 용어표·분류·정리는 ch_agents/gaps.py 한 곳 (에이전트 계약·질의응답·시연 공통, #62)
+from ch_agents.gaps import tidy as gaps_tidy  # noqa: E402
+from ch_agents.gaps import (NODE_KO, PHRASE_KO, RAW_CODE_RE, STAT_RE, _L, _R, ko_text, organize, split_stat)  # noqa: E402,F401
 
 
 def _ko_all(v, key=None):
@@ -331,13 +332,6 @@ def _ko_all(v, key=None):
     if isinstance(v, dict):
         return {k: _ko_all(x, k) for k, x in v.items()}
     return v
-
-
-def split_stat(item: str) -> tuple[str, list[str]]:
-    """'…문서 0건, …문서 43건' 같은 처리 통계 문장을 (빠진 자료 문구, 처리 기록 조각) 으로. 0건 조각은 버림."""
-    if not STAT_RE.search(item):
-        return item, []
-    return "", [c.strip() for c in item.split(",") if STAT_RE.search(c) and not re.search(r"(?<!\d)0건", c)]
 
 
 def conflict_card(cf: dict) -> dict:
@@ -363,7 +357,7 @@ def localize(runs: dict) -> dict:
         c = r["contract"]
         proc: list[str] = []
         un = []
-        for u in c.get("unverified") or []:
+        for u in gaps_tidy(c.get("unverified") or []):
             item = u.get("item", "") if isinstance(u, dict) else str(u)
             rest, st = split_stat(item)
             proc += st
@@ -387,7 +381,6 @@ def localize(runs: dict) -> dict:
 
 
 JSON_RE = re.compile(r'^\s*[\[{]\s*"')
-RAW_CODE_RE = re.compile(rf"{_L}N(05|06|07|08|11|12){_R}|{_L}CAR{_R}|{_L}D1 사후|확장 노드 입력 요건 미충족|{_L}E\d+{_R}")
 
 
 def display_hits(runs: dict) -> list[str]:
@@ -696,6 +689,10 @@ def main(argv: list[str]) -> int:
         nbad = notation_hits(runs) + (notation_hits(qs) if qs else [])
         if nbad:
             print("값 표기 오류(부호 중복·같은 단위 연속·조사 불일치)가 남음, 저장하지 않음:", nbad[:10])
+            return 1
+        gbad = gap_hits(runs, qs)
+        if gbad:
+            print("미확보 목록 검사 실패(중복·내부 코드·0건·한계 혼입), 저장하지 않음:", gbad[:10])
             return 1
         bbad = brief_hits(runs, qs)
         if bbad:
