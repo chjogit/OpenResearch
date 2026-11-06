@@ -43,6 +43,7 @@ JUDGMENT_PLAN = ({"tool": "price_summary", "args": {}, "reason": "투자 판단 
                  {"tool": "run_node_agent", "args": {"agent_no": 4}, "reason": "투자 판단 자료 — 수급(에이전트 4)"},
                  {"tool": "run_node_agent", "args": {"agent_no": 6}, "reason": "투자 판단 자료 — 심리·뉴스·사건(에이전트 6)"},
                  {"tool": "run_node_agent", "args": {"agent_no": 3}, "reason": "투자 판단 자료 — 거시 노출(에이전트 3)"})
+OUTLOOK_QA_NOTE = "전망은 정해진 규칙이 낸 20거래일 방향이며 매수·매도 판단이나 가격 수준이 아닙니다. 세 결론의 종합은 오케스트레이터(SW) 담당이라 여기서 만들지 않습니다."
 OPINION_RE = re.compile(r"https?://|blog\.naver|cafe\.naver|youtube\.com|youtu\.be", re.I)         # 답 문장: 주소는 모두 금지
 OPINION_HOST_RE = re.compile(r"blog\.naver|cafe\.naver|youtube\.com|youtu\.be", re.I)               # 문서: 개인 작성 글 주소만
 
@@ -237,6 +238,57 @@ def _remap(text: str, mapping: dict[str, str]) -> str:
     return re.sub(r"\{([A-Z]\d+)\}", lambda m: "{" + mapping.get(m.group(1), m.group(1)) + "}", text)
 
 
+def outlook_block(no: int, facts, ctx: dict) -> dict:
+    """에이전트 3·4·6 의 20거래일 전망 결론(#54) — 계약 r4-1.4 outlook 블록과 같은 모양·같은 판정 문구(#58). 규칙 계산이라 LLM 이 쓰지 않는다."""
+    from ch_agents import contract, node_agents
+
+    ol = node_agents.outlook_for(no, facts, ctx["as_of"], ctx["ticker"], ctx["co"], None, False, fetch=False)
+    return {"agent": no, "agentName": {3: "거시경제", 4: "수급", 6: "투자심리·뉴스"}[no], **contract.outlook_block(ol, {})}
+
+
+def agent_brief(no: int, facts, ol: dict) -> dict:
+    """질의응답 경로의 에이전트별 200자 요약(#64). 이 경로는 노드만 실행해 LLM 요약이 없으므로 코드가 만든다:
+    노드가 낸 판정 문장 1개(장부 값을 채운 것) + 전망·과거 검증 판정. 계약 summary200 과 같은 길이 규칙(공백 포함 200자)."""
+    from ch_agents import brief as brief_mod, outlook as outlook_mod
+    from ch_agents.notation import fix_notation
+
+    tail = brief_mod.outlook_tail({"outlook": ol})
+    budget = brief_mod.MAX_CHARS - (len(tail) + 1 if tail else 0)
+    fill = lambda s: re.sub(r"\{([A-Z]\d+)\}", lambda m: facts.items[m.group(1)]["text"] if m.group(1) in facts.items else m.group(0), s)
+    driver = brief_mod.driver_text(ol, budget)           # 전망에 쓴 신호(에이전트 4=외국인·기관 순매수 강도, 6=감성 변화, 3=환율·금리)
+    rest = budget - len(driver) - 1
+    cands = [fill(s) for s in [*facts.flags, *facts.notes] if "방향어 규칙" not in s]
+    obs = next((fix_notation(c.strip()) for c in cands if c.strip() and len(c.strip()) <= rest and not re.search(r"\{[^{}]*\}", c)
+                and not re.search(r"노드 산출물 참조|^\[|공표 전|사용하지 않음|처리 메모", c.strip())
+                and not brief_mod.INTERNAL_CODE_RE.search(c) and not outlook_mod.problems(c)), "") if rest >= 20 else ""
+    if obs and obs[-1] not in ".!?다요":
+        obs += "."                                       # 전망 문장이 마침표 없이 붙지 않게
+    text = f"{driver} {obs} {tail}".replace("  ", " ").strip() or "요약에 쓸 수 있는 핵심 관찰을 확보하지 못했습니다."
+    hr = ol.get("hitRate") or {}
+    return {"agent": no, "agentName": ol["agentName"], "text": text, "chars": len(text), "method": "node-rule", "methodLabel": brief_mod.METHOD_LABEL["node-rule"],
+            "direction": ol["direction"], "directionLabel": ol["directionLabel"], "verdict": hr.get("verdict"), "verdictLabel": hr.get("verdictLabel")}
+
+
+def answer_brief(rendered: list[dict]) -> dict:
+    """최종 답의 첫 문단을 200자 이내로(#64): 안내 문장을 뺀 앞 문장부터 200자 안에 들어가는 만큼. 첫 문장이 길면 잘라 '…' 표시."""
+    from ch_agents.brief import INTERNAL_CODE_RE, MAX_CHARS, strip_codes
+
+    allsents = [c["문장"].strip() for c in rendered if c.get("구분") != "안내" and c.get("문장")]
+    sents = [s for s in allsents if not INTERNAL_CODE_RE.search(s)]
+    if not sents:                         # 모든 문장에 장부 키가 보이면 키 표기만 지우고 쓴다(값은 이미 채워져 있음)
+        sents = [t for t in (strip_codes(s) for s in allsents) if t]
+    text = ""
+    for s in sents:
+        nxt = f"{text} {s}".strip()
+        if len(nxt) > MAX_CHARS:
+            break
+        text = nxt
+    cut = not text and bool(sents)
+    if cut:
+        text = sents[0][:MAX_CHARS - 1].rstrip() + "…"
+    return {"text": text, "chars": len(text), "method": "첫 문장 잘라냄" if cut else "앞 문장 모음"}
+
+
 def tool_node_agent(args: dict, ctx: dict, led: Ledger) -> dict:
     from ch_agents import node_agents
 
@@ -246,14 +298,22 @@ def tool_node_agent(args: dict, ctx: dict, led: Ledger) -> dict:
     scen = ctx["interp"]["scenario"] if no == 3 else None
     report = node_agents.run_nodes(no, ctx["ticker"], ctx["as_of"], extension=True, scenario=scen, co=ctx["co"])
     facts, conflicts = node_agents.merge_facts(report)
+    ctx.setdefault("outlooks", {})[no] = outlook_block(no, facts, ctx)
+    ctx.setdefault("briefs", {})[no] = agent_brief(no, facts, ctx["outlooks"][no])
     mp = led.add_facts(facts.items)
     led.statements += [_remap(s, mp) for s in [*facts.flags, *facts.notes] if "방향어 규칙" not in s]
     led.gaps += [g for g in facts.gaps if g not in led.gaps]
     nodes = [{"node": n["nodeId"], "state": n["state"], "status": n.get("status"), "reason": n.get("reason")} for n in report["nodes"]]
     skipped = report.get("prediction_skipped_reason")
+    detail = {"nodes": [{**n, "kind": nd["kind"], "name": nd["name"], "missing": nd.get("missingInputs") or [],
+                         "task": {"taskId": f"{no}-{n['node']}-{ctx['ticker']}-{ctx['as_of']}", "asOf": ctx["as_of"], "ticker": ctx["ticker"],
+                                  "parameters": {"extension": True, **({"scenario": scen} if scen else {})}}}
+                        for n, nd in zip(nodes, report["nodes"])],
+              "ledger": [{"key": mp[k], "label": v["label"], "text": v["text"], "asOf": str(v.get("as_of") or "")[:10], "source": v.get("source")}
+                         for k, v in list(facts.items.items())[:16]], "ledgerTotal": len(facts.items)}
     return {"summary": f"에이전트 {no}: 노드 {len(nodes)}개, 장부 {len(facts.items)}항목, 충돌 {len(conflicts)}건"
                        + (f", 예측 생략: {skipped}" if skipped else ""),
-            "nodes": nodes, "keys": sorted(mp.values()), "tech": "노드 실행(규칙·통계 계산, LLM 없음)"}
+            "nodes": nodes, "keys": sorted(mp.values()), "tech": "노드 실행(규칙·통계 계산, LLM 없음)", "detail": detail}
 
 
 def tool_price(args: dict, ctx: dict, led: Ledger) -> dict:
@@ -293,8 +353,16 @@ def tool_docs(args: dict, ctx: dict, led: Ledger) -> dict:
         shown.append(k)
         if len(shown) >= 6:
             break
+    found = [{"docNo": d.get("doc_id"), "source": str(d.get("source") or ""), "published": str(d.get("published") or "")[:10], "score": d.get("score"),
+              "matched": list(d.get("terms") or [])[:4],
+              "hidden": str(d.get("source") or "") in ("naver_blog", "naver_cafe", "youtube_comment") or bool(OPINION_HOST_RE.search(str(d.get("summary") or "") + str(d.get("url") or "")))}
+             for d in docs]
+    for f in found:      # 개인 작성 글은 번호·점수만, 출처 이름·내용·제목·주소·일치 단어는 두지 않음
+        if f["hidden"]:
+            f["matched"], f["source"] = [], "개인 작성 글"
     return {"summary": f"문서 {len(docs)}건 중 공개 보도·공시 {len(shown)}건 사용, 개인 작성 글 {hidden}건은 내용 비공개",
-            "keys": shown, "tech": rag_tech()}
+            "keys": shown, "tech": rag_tech(),
+            "rag": {"query": f"{ctx['co'].get('name')} · 관점 6(투자심리·뉴스) · 기준일 {ctx['as_of']} 이전 공개 문서", "found": found, "shown": shown}}
 
 
 TOOLS: dict[str, Callable[[dict, dict, Ledger], dict]] = {"run_node_agent": tool_node_agent, "price_summary": tool_price, "doc_search": tool_docs}
@@ -397,7 +465,9 @@ def verify_answer(parsed: dict | None, led: Ledger, question: str, interp: dict)
     from ch_agents import llm as llm_mod
 
     valid = led.keys()
-    allowed = set(llm_mod.COMMON_TERMS) | set(llm_mod.LOOSE_NUMBER.findall(question)) | set(llm_mod.LOOSE_NUMBER.findall(interp.get("scenario") or ""))
+    from ch_agents.thresholds import threshold_terms
+
+    allowed = set(llm_mod.COMMON_TERMS) | threshold_terms() | set(llm_mod.LOOSE_NUMBER.findall(question)) | set(llm_mod.LOOSE_NUMBER.findall(interp.get("scenario") or ""))
     allowed |= {x.lstrip("+-") for x in allowed}
     ok, removed = [], []
     for c in (parsed or {}).get("답") or []:
@@ -425,8 +495,11 @@ def verify_answer(parsed: dict | None, led: Ledger, question: str, interp: dict)
 UNIT_SUFFIX = ("백분위", "배", "%p", "%", "조원", "억원", "원", "주", "일")
 
 
+from ch_agents.notation import fix_notation, notation_problems  # noqa: E402,F401  값 표기 바로잡기(#60)
+
+
 def render(text: str, led: Ledger) -> str:
-    """{키} 를 장부 표기로. LLM 이 값과 키를 겹쳐 쓴 경우('{M1} {M1}', '{M1}배')는 한 번만 보이게 한다."""
+    """{키} 를 장부 표기로. LLM 이 값과 키를 겹쳐 쓴 경우('{M1} {M1}', '{M1}배')는 한 번만 보이게 한다. 부호 중복·조사는 fix_notation 으로 바로잡는다."""
     text = re.sub(r"(\{[A-Z]\d+\})(?:\s*[·,]?\s*\1)+", r"\1", text)
     out, pos = [], 0
     for m in re.finditer(r"\{([A-Z]\d+)\}", text):
@@ -439,7 +512,7 @@ def render(text: str, led: Ledger) -> str:
                 pos += len(u)
                 break
     out.append(text[pos:])
-    return "".join(out)
+    return fix_notation("".join(out))
 
 
 def fallback_answer(led: Ledger) -> list[dict]:
@@ -516,7 +589,7 @@ def answer(question: str, llm, emit: Callable[[dict], None] | None = None, unive
 
     co = db.company(comp["ticker"])
     days = interp["period"]["days"]
-    ctx = {"co": co, "ticker": comp["ticker"], "as_of": interp["period"]["as_of"], "days": days, "interp": interp}
+    ctx = {"co": co, "ticker": comp["ticker"], "as_of": interp["period"]["as_of"], "days": days, "interp": interp, "outlooks": {}}
     led = Ledger()
     done: list[dict] = []
     seen: set[str] = set()
@@ -559,6 +632,10 @@ def answer(question: str, llm, emit: Callable[[dict], None] | None = None, unive
         done.append({"tool": choice["tool"], "args": choice.get("args") or {}, "result": res})
         step("도구", tool=choice["tool"], args=choice.get("args") or {}, reason=str(choice.get("reason") or ""), origin=origin,
              result=res, seconds=round(time.monotonic() - ts, 1))
+    if ctx.get("briefs"):        # 에이전트별 200자 요약(#64)
+        out["agentBriefs"] = [ctx["briefs"][k] for k in sorted(ctx["briefs"])]
+    if ctx["outlooks"]:      # 에이전트별 전망 결론(종합은 오케스트레이터 몫이라 만들지 않음)
+        out["outlook"] = {"cards": [ctx["outlooks"][k] for k in sorted(ctx["outlooks"])], "note": OUTLOOK_QA_NOTE}
     if not led.items and not led.docs and not led.statements:
         out["gaps"] = led.gaps or [{"label": "근거", "reason": "도구가 가져온 근거가 없음"}]
         return finish("미확보", "근거로 쓸 수 있는 자료를 가져오지 못해 '미확보'로 답합니다.")
@@ -597,11 +674,22 @@ def answer(question: str, llm, emit: Callable[[dict], None] | None = None, unive
         rendered = [{"문장": JUDGMENT_NOTICE, "구분": "안내", "방향": "안내", "근거": []}, *rendered,
                     {"문장": JUDGMENT_SELF_CHECK, "구분": "안내", "방향": "안내", "근거": []}]
     out["answer"] = rendered
+    out["brief"] = answer_brief(rendered)
     out["evidence"] = {"장부": {k: {"항목": v["label"], "값": v["text"], "기준일": v.get("as_of"), "출처": v.get("source")} for k, v in led.items.items()
                                if any(k in c["근거"] or "{" + k + "}" in c["문장"] for c in ok)},
                        "문서": {k: d for k, d in led.docs.items() if any(k in c["근거"] for c in ok)}}
     step("답·검사", mode=mode, kept=len(ok), removed=removed, verifier=VERIFIER_TEXT, **check)
     return finish("완료" + ("" if mode == "LLM 답" else " (규칙 기반 대체)"))
+
+
+def public_view(r: dict) -> dict:
+    """화면·저장용: 검사에서 빠진 문장 중 결론·권유로 읽히는 것은 내용을 가린다(질문자가 결론 문구를 화면에서 보지 않게)."""
+    mask = "[결론·권유로 읽혀 검사에서 제거된 문장 — 내용 가림]"
+    for e in r.get("trace") or []:
+        for x in e.get("removed") or []:
+            if CONCLUSION_RE.search(x.get("문장", "")) or ADVICE_RE.search(x.get("문장", "")):
+                x["문장"] = mask
+    return r
 
 
 # ---------------------------------------------------------------- 사람이 읽는 요약 (콘솔·저장용)
@@ -620,6 +708,8 @@ def summary_text(r: dict) -> str:
             lines.append(f"[{e['t']}s] 답·검사: {e['mode']}, 통과 {e['kept']}문장, 제거 {len(e['removed'])}문장")
     lines.append(f"상태: {r['status']}" + (f" — {r['message']}" if r.get("message") else ""))
     lines += [f"  ({c['구분']}) {c['문장']}  ← {', '.join(c['근거'])}" for c in r["answer"]]
+    lines += [f"  전망[{o['agentName']}] {o['directionLabel']}" + (f"({o['reason']})" if o.get("reason") else "") + f" · {o['hitRate']['verdictLabel']}"
+              + (f" — {o['hitRate']['notice']}" if o["hitRate"].get("notice") else "") for o in (r.get("outlook") or {}).get("cards", [])]
     lines += [f"  미확보: {g['label']} — {g['reason']}" for g in r["gaps"][:6]]
     u = r["usage"]
     lines.append(f"LLM {u['llm_calls']}회 · 토큰 입력 {u['input_tokens']}/출력 {u['output_tokens']} · {u['total_seconds']}초")

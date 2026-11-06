@@ -181,10 +181,29 @@ def _factor_tag(keys: list[str], items: dict[str, dict]) -> str:
 
 # ---------------------------------------------------------------- 적중률 (#55 결과 파일 읽기)
 
+VERDICT_LABEL = {"edge": "기준선 대비 우위 있음", "indistinct": "기준선과 구별 안 됨", "unverified": "미검증"}
+VERDICT_NOTICE = {      # 화면·계약·질의응답·시연이 같은 문구를 씀 (한 곳 상수)
+    "indistinct": "이 결론은 과거 검증에서 우연과 구별되지 않았습니다 — 판단 근거로 쓰기 어렵습니다.",
+    "unverified": "이 결론은 과거 검증을 하지 못했습니다(미검증) — 판단 근거로 쓰기 어렵습니다.",
+}
+
+
+def judge(ci95, rates, n) -> str:
+    """판정 규칙(docs/OUTLOOK_BACKTEST.md 5-1): 95% 구간 하한이 기준선 셋(항상 긍정·모멘텀·무작위 50%) 중 최고값보다 커야 '우위 있음'."""
+    if not ci95 or not isinstance(n, int) or n < MIN_HIT_N:
+        return "unverified"
+    best = max([0.5] + [r for r in (rates or {}).values() if isinstance(r, (int, float))])
+    return "edge" if ci95[0] > best else "indistinct"
+
+
+def _verdict_fields(v: str) -> dict:
+    return {"verdict": v, "verdictLabel": VERDICT_LABEL[v], "notice": VERDICT_NOTICE.get(v)}
+
+
 def hit_rate(agent_no: int, path: Path | None = None) -> dict:
     """#55 결과 파일에서 에이전트별 적중률을 읽음. 파일·항목이 없거나 규칙 버전이 다르거나 표본이 적으면 '미검증'."""
     p = path or HIT_RATE_PATH
-    base = {"status": "unverified", "rate": None, "n": None, "period": None, "basis": None, "ci95": None}
+    base = {"status": "unverified", "rate": None, "n": None, "period": None, "basis": None, "ci95": None, "neutralShare": None, "baselines": None, **_verdict_fields("unverified")}
     if not p.exists():
         return {**base, "reason": "측정 전 (적중률 결과 파일 없음 — #55)"}
     try:
@@ -201,12 +220,22 @@ def hit_rate(agent_no: int, path: Path | None = None) -> dict:
     n = ent.get("n")
     if not isinstance(n, int) or n < MIN_HIT_N:
         return {**base, "reason": f"표본 {n}건으로 부족(최소 {MIN_HIT_N}건)"}
+    non = ent.get("nonOverlapping") or {}
+    rates = {k: v.get("rate") for k, v in (non.get("baselines") or {}).items()} or None
     return {"status": "measured", "rate": ent.get("rate"), "n": n, "period": ent.get("period"), "basis": ent.get("basis"),
-            "ci95": ent.get("ci95"), "reason": None}
+            "ci95": ent.get("ci95"), "reason": None, "neutralShare": non.get("neutralShare"), "baselines": rates,
+            **_verdict_fields(judge(ent.get("ci95"), rates, n))}
 
 
 def hit_rate_text(h: dict) -> str:
     if h["status"] != "measured":
         return f"과거 적중률: 미검증 ({h['reason']})"
+    # 판정(verdict)은 별도 필드·문구(notice)로 함께 표시
     ci = f", 95% 신뢰구간 {h['ci95'][0]:.0%}~{h['ci95'][1]:.0%}" if h.get("ci95") else ""
-    return f"과거 적중률 {h['rate']:.1%} ({h['n']}건, {h['period']}, 기준: {h['basis']}{ci})"
+    extra = ""
+    if h.get("neutralShare") is not None:
+        extra += f" · 중립 결론 {h['neutralShare']:.0%}(적중률에서 제외)"
+    if h.get("baselines"):
+        b = h["baselines"]
+        extra += f" · 같은 표본 기준선: 항상 긍정 {b['alwaysPositive']:.1%}, 모멘텀 {b['momentum']:.1%}, 무작위 {b['random']:.0%}"
+    return f"과거 적중률 {h['rate']:.1%} ({h['n']}건, {h['period']}, 기준: {h['basis']}{ci}){extra}"

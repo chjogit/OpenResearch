@@ -81,7 +81,7 @@ def test_collect_runs_discards_cache_for_other_as_of(tmp_path):
 
 def test_template_has_four_sections_and_level_switch():
     t = (Path(bd.HERE) / "template.html").read_text(encoding="utf-8")
-    for token in ("1 개요", "2 에이전트 시연", "3 데이터 현황", "4 검증 기록", "L1 입문", "L2 일반", "L3 전문", "확장 노드", "overflow-x:auto"):
+    for token in ("1 질문하고 답 보기", "2 성능", "3 구조·데이터", "4 저장된 4종목 결과", "L1 입문", "L2 일반", "L3 전문", "확장 노드", "overflow-x:auto"):
         assert token in t
 
 
@@ -231,3 +231,96 @@ def test_display_hits_catches_json_raw_code_and_zero_items():
     run["render"]["L1"] = "N05 점검"
     hits = bd.display_hits({"runs": {"k": run}})
     assert any("JSON" in h for h in hits) and any("내부 코드" in h for h in hits) and any("0건" in h for h in hits)
+
+
+def _ol_block(direction="neutral", text="x"):
+    return {"direction": direction, "directionLabel": "중립", "positiveFactors": [], "negativeFactors": [], "signals": [{"text": text}], "limit": "한계", "note": "참고"}
+
+
+def test_collect_outlook_covers_all_tickers_agents_and_uses_contract_block(monkeypatch):
+    from ch_agents import contract
+
+    monkeypatch.setattr(contract, "outlook_block", lambda ol, _c: _ol_block(text=ol["t"]))
+    out = bd.collect_outlook("2026-10-30", builder=lambda as_of, t, no: {"t": f"{t}-{no}"})
+    assert set(out) == {t for t, _ in bd.TICKERS} and all(set(v) == {"3", "4", "6"} for v in out.values())
+
+
+def test_collect_outlook_rejects_advice_text(monkeypatch):
+    from ch_agents import contract
+
+    monkeypatch.setattr(contract, "outlook_block", lambda ol, _c: _ol_block(text="지금이 매수 적기"))
+    with pytest.raises(ValueError):
+        bd.collect_outlook("2026-10-30", builder=lambda *a: {})
+
+
+def test_payload_and_template_carry_outlook_and_r41_and_validation():
+    p = bd.build_payload(_runs(), _status(), outlook={"005930": {"4": _ol_block()}})
+    assert p["meta"]["contract"] == "r4-1.5" and p["outlook"]["005930"]["4"]["direction"] == "neutral" and "outlookNote" in p["meta"]
+    v = p["outlookValidation"]
+    assert v["status"] in ("measured", "none")
+    if v["status"] == "measured":
+        by = {r["agent"]: r for r in v["rows"]}
+        assert "unverified" in by[6] and by[4]["baselines"]["random"] == 0.5 and by[4]["ci95"]
+    tpl = (Path(bd.HERE) / "template.html").read_text(encoding="utf-8")
+    assert "outlookBlock()" in tpl and "outlookValid()" in tpl and "오케스트레이터(SW) 담당" in tpl
+
+
+def test_outlook_validation_none_without_results_file(monkeypatch, tmp_path):
+    monkeypatch.setattr(bd, "HERE", tmp_path / "demo")
+    assert bd.load_outlook_validation()["status"] == "none"
+
+
+# ---- #59 시연 HTML 하나 (질문 → 에이전트 작동 → 답)
+
+def _q_item(typ="수급", sentences=None, intent="현황", removed=None):
+    ans = sentences or [{"문장": "외국인 순매수는 {S1}이다.", "구분": "사실", "방향": "중립", "근거": ["S1"]}]
+    return {"type": typ, "question": "삼성전자 수급?", "result": {
+        "answer": ans, "evidence": {"장부": {"S1": {"항목": "x", "값": "1", "기준일": "d", "출처": "s"}}, "문서": {}},
+        "interpretation": {"intent": intent}, "trace": [{"kind": "답·검사", "removed": removed or []}], "usage": {"llm_calls": 1}}}
+
+
+def test_question_problems_flags_conclusions_urls_and_missing_notice():
+    from qa import agent
+
+    assert bd.question_problems([_q_item()]) == []
+    assert bd.question_problems([_q_item(sentences=[{"문장": "지금 사세요", "구분": "해석", "방향": "긍정", "근거": []}])])
+    assert bd.question_problems([_q_item(sentences=[{"문장": "목표주가 상향", "구분": "해석", "방향": "긍정", "근거": []}])])
+    judg = _q_item(intent="투자판단자료")
+    notice = [{"문장": agent.JUDGMENT_NOTICE, "구분": "안내", "방향": "안내", "근거": []}]
+    assert bd.question_problems([judg]) and bd.question_problems([{**judg, "result": {**judg["result"], "answer": notice}}]) == []
+    bad = _q_item()
+    bad["result"]["evidence"]["문서"] = {"D1": {"title": "t", "source": "s", "url": "https://blog.naver.com/x"}}
+    assert bd.question_problems([bad])
+
+
+def test_collect_questions_resumes_and_payload_embeds_them(tmp_path):
+    calls = []
+
+    def runner(q):
+        calls.append(q)
+        return {"answer": []}
+
+    cache = tmp_path / "q.json"
+    first = bd.collect_questions(cache, runner)
+    assert [it["question"] for it in first["items"]] == [q for _, q in bd.QUESTIONS] and len(calls) == len(bd.QUESTIONS) >= 10
+    assert {"수급", "거시", "심리·뉴스", "투자 판단", "데이터 없음", "거절"} <= {t for t, _ in bd.QUESTIONS}
+    bd.collect_questions(cache, runner)
+    assert len(calls) == len(bd.QUESTIONS)                       # 이어서 하기: 이미 있는 질문은 다시 실행하지 않음
+    p = bd.build_payload(_runs(), _status(), questions=first)
+    assert len(p["questions"]["items"]) == len(bd.QUESTIONS) and "interpEval" in p
+
+
+def test_template_has_live_and_replay_flow_with_all_stages():
+    t = (Path(bd.HERE) / "template.html").read_text(encoding="utf-8")
+    for token in ("/api/status", "/api/ask", "실시간 모드 꺼짐", "저장된 기록 재생", "askReplay", "NodeTask", "ragBlock", "생성·검사 요약", "제거된 문장",
+                  "data-k", "evl", "근거 (장부 값·문서)", "outlookCard", "오케스트레이터(SW) 담당", "python -m qa.eval_interp", "questions"):
+        assert token in t, token
+    assert "목표주가" not in t.replace("목표주가가 아닙니다", "")
+
+
+def test_notation_hits_and_fix_all_cover_runs_and_questions():
+    bad = {"runs": {"k": {"contract": {"nextChecks": ["금통위 8일일 후"], "claims": [{"text": "평균 감성 +-0.250"}]}}}, "questions": [{"result": {"answer": [{"문장": "일수 1일가 1일로"}]}}]}
+    assert len(bd.notation_hits(bad)) == 4
+    fixed = bd.fix_notation_all(bad)
+    assert bd.notation_hits(fixed) == [] and fixed["runs"]["k"]["contract"]["nextChecks"] == ["금통위 8일 후"]
+    assert bd.fix_notation_all({"a": 1, "b": "날짜 2026-11-04"}) == {"a": 1, "b": "날짜 2026-11-04"}

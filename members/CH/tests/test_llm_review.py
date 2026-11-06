@@ -60,6 +60,13 @@ def test_run_agent_success_renders_values():
     assert out["source"].startswith("Neon ")
 
 
+def analysis_calls(llm):
+    """분석 호출만(200자 요약 호출 #64 제외)."""
+    from ch_agents import brief
+
+    return [c for c in llm.calls if c[0].content != brief.SYSTEM]
+
+
 def test_run_agent_repairs_once():
     d = _a2()
     bad = _good(d)
@@ -67,7 +74,8 @@ def test_run_agent_repairs_once():
     llm = FakeLLM(bad, _good(d))
     out = run_agent(7, data=d, llm=llm)
     assert out["status"] == "완료 (수정 1회)"
-    assert len(llm.calls) == 2 and "문제" in llm.calls[1][-1].content
+    calls = analysis_calls(llm)
+    assert len(calls) == 2 and "문제" in calls[1][-1].content
 
 
 def test_run_agent_removes_unverified_sentences_after_failed_repair():
@@ -307,4 +315,4 @@ def test_run_agent_passes_first_try_when_values_copied_exactly():
     out_json["주장"][0]["문장"] = "분기 매출 증가율은 +130.00%이다."
     llm = FakeLLM(out_json)
     out = run_agent(7, data=d, llm=llm)
-    assert out["status"] == "완료" and len(llm.calls) == 1 and "+130.00%" in out["analysis"]
+    assert out["status"] == "완료" and len(analysis_calls(llm)) == 1 and "+130.00%" in out["analysis"]

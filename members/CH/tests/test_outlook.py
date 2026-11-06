@@ -107,13 +107,14 @@ def test_hit_rate_unverified_until_results_exist(tmp_path):
 
 
 @pytest.mark.parametrize("no,make", ALL)
-def test_contract_carries_outlook_and_validates(no, make):
+def test_contract_carries_outlook_and_validates(no, make, monkeypatch, tmp_path):
+    monkeypatch.setattr(outlook, "HIT_RATE_PATH", tmp_path / "none.json")                      # 실제 측정 결과 파일(#55)과 무관하게 '측정 전' 경로를 시험
     d = make()
     assert d.extra["outlook"]["agentNo"] == no
     out = run_node_agent(no, "005930", llm=FakeLLM(good_json(d)), data=d)
     c = out["contract"]
     ol = c["outlook"]
-    assert contract.validate(c) == [] and contract.link_errors(c) == [] and c["schemaVersion"] == "r4-1.4"
+    assert contract.validate(c) == [] and contract.link_errors(c) == [] and c["schemaVersion"] == "r4-1.5"
     assert ol["direction"] in ("positive", "neutral", "negative") and ol["horizonDays"] == 20 and ol["tag"] == "Prediction"
     assert ol["hitRate"]["status"] == "unverified" and "미검증" in ol["hitRate"]["text"]           # #55 결과 전
     assert ol["direction"] == "neutral" or (ol["positiveFactors"] or ol["negativeFactors"])
@@ -130,9 +131,10 @@ def test_outlook_does_not_change_existing_contract_fields(no, make):
     d2.extra.pop("outlook")
     without = run_node_agent(no, "005930", llm=FakeLLM(good_json(d2)), data=d2)["contract"]
     assert "outlook" not in without
-    a = {k: v for k, v in with_ol.items() if k not in ("outlook", "generatedAt")}
-    b = {k: v for k, v in without.items() if k not in ("generatedAt",)}
+    a = {k: v for k, v in with_ol.items() if k not in ("outlook", "generatedAt", "summary200", "summary200Method")}
+    b = {k: v for k, v in without.items() if k not in ("generatedAt", "summary200", "summary200Method")}
     assert a == b
+    assert "20거래일 전망" in with_ol["summary200"] and "20거래일 전망" not in without["summary200"]       # 200자 요약만 전망 문장이 붙음 (#64)
 
 
 def test_old_results_without_outlook_still_validate_and_render():
@@ -161,3 +163,31 @@ def test_schema_rejects_bad_outlook_direction():
     bad = copy.deepcopy(c)
     bad["outlook"]["direction"] = "buy"
     assert contract.validate(bad)
+
+
+def test_judge_requires_ci_lower_bound_above_best_baseline():
+    base = {"alwaysPositive": 0.43, "momentum": 0.50, "random": 0.5}
+    assert outlook.judge([0.484, 0.513], base, 4667) == "indistinct"
+    assert outlook.judge([0.52, 0.58], base, 400) == "edge"
+    assert outlook.judge([0.52, 0.58], {**base, "momentum": 0.56}, 400) == "indistinct"       # 가장 높은 기준선보다 커야 함
+    assert outlook.judge([0.52, 0.58], base, 10) == "unverified" and outlook.judge(None, base, 400) == "unverified"
+
+
+def test_verdict_in_hit_rate_contract_and_renderer_notice(tmp_path):
+    p = tmp_path / "hit.json"
+    ent = lambda lo, hi: {"rate": 0.5, "n": 300, "period": "p", "basis": "b", "ci95": [lo, hi],
+                          "nonOverlapping": {"neutralShare": 0.5, "baselines": {"alwaysPositive": {"rate": 0.4}, "momentum": {"rate": 0.5}, "random": {"rate": 0.5}}}}
+    p.write_text(json.dumps({"ruleVersion": outlook.RULE_VERSION, "agents": {"4": ent(0.45, 0.55), "3": ent(0.55, 0.65), "6": {"unverified": "보관 14일"}}}), encoding="utf-8")
+    h4, h3, h6 = (outlook.hit_rate(n, p) for n in (4, 3, 6))
+    assert (h4["verdict"], h3["verdict"], h6["verdict"]) == ("indistinct", "edge", "unverified")
+    assert h4["notice"] == outlook.VERDICT_NOTICE["indistinct"] and h3["notice"] is None and "미검증" in h6["notice"]
+
+
+@pytest.mark.parametrize("no,make", ALL)
+def test_notice_shown_in_every_profile_when_not_edge(no, make, monkeypatch, tmp_path):
+    monkeypatch.setattr(outlook, "HIT_RATE_PATH", tmp_path / "missing.json")
+    d = make()
+    c = run_node_agent(no, "005930", llm=FakeLLM(good_json(d)), data=d)["contract"]
+    assert c["outlook"]["hitRate"]["verdict"] == "unverified" and contract.validate(c) == []
+    for rend in renderer.render_all(c).values():
+        assert "판단 근거로 쓰기 어렵습니다" in rend["markdown"]

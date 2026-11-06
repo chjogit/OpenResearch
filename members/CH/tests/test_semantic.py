@@ -81,7 +81,8 @@ def test_pipeline_repairs_then_removes_direction_errors():
     assert "방향" in check_output(bad, d)
     llm = FakeLLM(bad, bad)
     out = run_agent(3, data=d, llm=llm)
-    assert len(llm.calls) == 2 and "판정 방향 불일치" in llm.calls[1][-1].content  # 수정 요청에 이유 포함
+    calls = [c for c in llm.calls if "200자" not in c[0].content and "요약을 쓰는 보조자" not in c[0].content]
+    assert len(calls) == 2 and "판정 방향 불일치" in calls[1][-1].content  # 수정 요청에 이유 포함
     assert out["status"] == "완료 (수정 1회) (일부 문장 제외)"
     assert out["removed"] == ["코스피 대비 초과 손실은 {S1}로 제한적이다."]
     assert [c["문장"] for c in out["result"]["주장"]] == ["외국인은 {S2}로 순매도했다."]

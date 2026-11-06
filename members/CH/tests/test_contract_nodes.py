@@ -26,7 +26,7 @@ def outs():
 
 
 def test_version_is_r4_1_4_and_old_versions_still_validate(outs):
-    assert contract.SCHEMA_VERSION == "r4-1.4"
+    assert contract.SCHEMA_VERSION == "r4-1.5"
     for aid, out in outs.items():
         c = out["contract"]
         assert contract.validate(c) == [] and contract.link_errors(c) == []

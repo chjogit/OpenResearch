@@ -1,0 +1,348 @@
+{
+ "ruleVersion": "outlook-r1",
+ "generatedAt": "2026-11-05 12:56",
+ "command": "cd members\\CH && python -m outlook.backtest",
+ "horizonDays": 20,
+ "start": "2023-01-02",
+ "basis": "20거래일 KOSPI 대비 초과수익률 부호(긍정 >0, 부정 <0)",
+ "agents": {
+  "4": {
+   "rate": 0.4986,
+   "n": 4667,
+   "ci95": [
+    0.4843,
+    0.5129
+   ],
+   "basis": "20거래일 KOSPI 대비 초과수익률 부호(긍정 >0, 부정 <0)",
+   "period": "2023-01-06~2026-10-06 기준일, 종목 210개, 20거래일 간격(겹치지 않음)",
+   "headline": "겹치지 않는 20거래일 간격 표본",
+   "nonOverlapping": {
+    "samples": 9437,
+    "calls": 4667,
+    "positive": 2580,
+    "negative": 2087,
+    "neutral": 4770,
+    "neutralShare": 0.5055,
+    "neutralByReason": {
+     "신호 미약": 215,
+     "혼재": 4151,
+     "근거 부족": 404
+    },
+    "primary": {
+     "hits": 2327,
+     "n": 4667,
+     "rate": 0.4986,
+     "ci95": [
+      0.4843,
+      0.5129
+     ]
+    },
+    "absolute": {
+     "hits": 2311,
+     "n": 4667,
+     "rate": 0.4952,
+     "ci95": [
+      0.4808,
+      0.5095
+     ]
+    },
+    "positiveCalls": {
+     "hits": 1122,
+     "n": 2580,
+     "rate": 0.4349,
+     "ci95": [
+      0.4159,
+      0.4541
+     ]
+    },
+    "negativeCalls": {
+     "hits": 1205,
+     "n": 2087,
+     "rate": 0.5774,
+     "ci95": [
+      0.5561,
+      0.5984
+     ]
+    },
+    "baselines": {
+     "alwaysPositive": {
+      "hits": 2004,
+      "n": 4667,
+      "rate": 0.4294,
+      "ci95": [
+       0.4153,
+       0.4437
+      ]
+     },
+     "momentum": {
+      "hits": 2340,
+      "n": 4667,
+      "rate": 0.5014,
+      "ci95": [
+       0.4871,
+       0.5157
+      ]
+     },
+     "random": {
+      "rate": 0.5,
+      "note": "무작위 50%"
+     }
+    },
+    "tickers": 210,
+    "firstAsOf": "2023-01-06",
+    "lastAsOf": "2026-10-06"
+   },
+   "allDays": {
+    "samples": 187463,
+    "calls": 93173,
+    "positive": 51288,
+    "negative": 41885,
+    "neutral": 94290,
+    "neutralShare": 0.503,
+    "neutralByReason": {
+     "혼재": 82426,
+     "신호 미약": 4137,
+     "근거 부족": 7727
+    },
+    "primary": {
+     "hits": 46742,
+     "n": 93173,
+     "rate": 0.5017,
+     "ci95": [
+      0.4985,
+      0.5049
+     ]
+    },
+    "absolute": {
+     "hits": 45565,
+     "n": 93173,
+     "rate": 0.489,
+     "ci95": [
+      0.4858,
+      0.4922
+     ]
+    },
+    "positiveCalls": {
+     "hits": 22287,
+     "n": 51288,
+     "rate": 0.4345,
+     "ci95": [
+      0.4303,
+      0.4388
+     ]
+    },
+    "negativeCalls": {
+     "hits": 24455,
+     "n": 41885,
+     "rate": 0.5839,
+     "ci95": [
+      0.5791,
+      0.5886
+     ]
+    },
+    "baselines": {
+     "alwaysPositive": {
+      "hits": 39717,
+      "n": 93173,
+      "rate": 0.4263,
+      "ci95": [
+       0.4231,
+       0.4295
+      ]
+     },
+     "momentum": {
+      "hits": 48079,
+      "n": 93173,
+      "rate": 0.516,
+      "ci95": [
+       0.5128,
+       0.5192
+      ]
+     },
+     "random": {
+      "rate": 0.5,
+      "note": "무작위 50%"
+     }
+    },
+    "tickers": 210,
+    "firstAsOf": "2023-01-02",
+    "lastAsOf": "2026-10-06"
+   },
+   "note": "같은 날짜의 종목들은 시장 움직임을 공유해 서로 독립이 아니므로 신뢰구간은 실제보다 좁게 나옴",
+   "verdict": "indistinct",
+   "verdictLabel": "기준선과 구별 안 됨"
+  },
+  "3": {
+   "rate": 0.5269,
+   "n": 334,
+   "ci95": [
+    0.4734,
+    0.5799
+   ],
+   "basis": "20거래일 KOSPI 대비 초과수익률 부호(긍정 >0, 부정 <0)",
+   "period": "2023-01-06~2026-10-06 기준일, 종목 210개, 20거래일 간격(겹치지 않음)",
+   "headline": "겹치지 않는 20거래일 간격 표본",
+   "nonOverlapping": {
+    "samples": 9437,
+    "calls": 334,
+    "positive": 181,
+    "negative": 153,
+    "neutral": 9103,
+    "neutralShare": 0.9646,
+    "neutralByReason": {
+     "신호 미약": 9091,
+     "근거 부족": 11,
+     "혼재": 1
+    },
+    "primary": {
+     "hits": 176,
+     "n": 334,
+     "rate": 0.5269,
+     "ci95": [
+      0.4734,
+      0.5799
+     ]
+    },
+    "absolute": {
+     "hits": 174,
+     "n": 334,
+     "rate": 0.521,
+     "ci95": [
+      0.4674,
+      0.574
+     ]
+    },
+    "positiveCalls": {
+     "hits": 96,
+     "n": 181,
+     "rate": 0.5304,
+     "ci95": [
+      0.4578,
+      0.6017
+     ]
+    },
+    "negativeCalls": {
+     "hits": 80,
+     "n": 153,
+     "rate": 0.5229,
+     "ci95": [
+      0.4441,
+      0.6005
+     ]
+    },
+    "baselines": {
+     "alwaysPositive": {
+      "hits": 169,
+      "n": 334,
+      "rate": 0.506,
+      "ci95": [
+       0.4526,
+       0.5592
+      ]
+     },
+     "momentum": {
+      "hits": 178,
+      "n": 334,
+      "rate": 0.5329,
+      "ci95": [
+       0.4794,
+       0.5858
+      ]
+     },
+     "random": {
+      "rate": 0.5,
+      "note": "무작위 50%"
+     }
+    },
+    "tickers": 210,
+    "firstAsOf": "2023-01-06",
+    "lastAsOf": "2026-10-06"
+   },
+   "allDays": {
+    "samples": 37533,
+    "calls": 1356,
+    "positive": 747,
+    "negative": 609,
+    "neutral": 36177,
+    "neutralShare": 0.9639,
+    "neutralByReason": {
+     "신호 미약": 36153,
+     "근거 부족": 22,
+     "혼재": 2
+    },
+    "primary": {
+     "hits": 740,
+     "n": 1356,
+     "rate": 0.5457,
+     "ci95": [
+      0.5191,
+      0.5721
+     ]
+    },
+    "absolute": {
+     "hits": 654,
+     "n": 1356,
+     "rate": 0.4823,
+     "ci95": [
+      0.4558,
+      0.5089
+     ]
+    },
+    "positiveCalls": {
+     "hits": 381,
+     "n": 747,
+     "rate": 0.51,
+     "ci95": [
+      0.4742,
+      0.5457
+     ]
+    },
+    "negativeCalls": {
+     "hits": 359,
+     "n": 609,
+     "rate": 0.5895,
+     "ci95": [
+      0.55,
+      0.6279
+     ]
+    },
+    "baselines": {
+     "alwaysPositive": {
+      "hits": 631,
+      "n": 1356,
+      "rate": 0.4653,
+      "ci95": [
+       0.4389,
+       0.4919
+      ]
+     },
+     "momentum": {
+      "hits": 715,
+      "n": 1356,
+      "rate": 0.5273,
+      "ci95": [
+       0.5007,
+       0.5537
+      ]
+     },
+     "random": {
+      "rate": 0.5,
+      "note": "무작위 50%"
+     }
+    },
+    "tickers": 210,
+    "firstAsOf": "2023-01-03",
+    "lastAsOf": "2026-10-06"
+   },
+   "note": "같은 날짜의 종목들은 시장 움직임을 공유해 서로 독립이 아니므로 신뢰구간은 실제보다 좁게 나옴",
+   "verdict": "indistinct",
+   "verdictLabel": "기준선과 구별 안 됨"
+  },
+  "6": {
+   "unverified": "과거 자료 보관 14일 — 과거 기준일 재계산 불가. 앞으로 결과를 쌓아 사후 측정(docs/OUTLOOK_BACKTEST.md '앞으로 쌓기', python -m outlook.forward)",
+   "verdict": "unverified",
+   "verdictLabel": "미검증"
+  }
+ },
+ "seconds": 428
+}

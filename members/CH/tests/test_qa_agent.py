@@ -286,3 +286,167 @@ def test_comma_key_lists_are_split_before_checks():
     led = make_ledger()
     ok, removed = qa.verify_answer({"답": [{"문장": "외국인 순매수 {S1, S2} 를 함께 본다.", "구분": "사실", "근거": ["S1"]}]}, led, "q", {"scenario": None})
     assert len(ok) == 1 and qa.render(ok[0]["문장"], led) == "외국인 순매수 -507,069주, 0.23% 를 함께 본다."
+
+
+def _flow_facts():
+    from ch_agents.facts import Facts
+
+    f = Facts("S")
+    f.add("외국인 20일 순매수 강도(거래대금 대비)", 2.0, "%", "2026-11-04", "t", kind="계산")
+    f.add("기관 20일 순매수 강도(거래대금 대비)", 0.5, "%", "2026-11-04", "t", kind="계산")
+    return f
+
+
+def test_outlook_block_has_direction_hit_verdict_and_notice(monkeypatch, tmp_path):
+    from ch_agents import outlook
+
+    monkeypatch.setattr(outlook, "HIT_RATE_PATH", tmp_path / "none.json")
+    b = qa.outlook_block(4, _flow_facts(), {"as_of": "2026-11-04", "ticker": "005930", "co": {}})
+    assert b["agent"] == 4 and b["direction"] == "positive" and b["horizonDays"] == 20 and b["ruleVersion"] == outlook.RULE_VERSION
+    assert b["hitRate"]["verdict"] == "unverified" and b["hitRate"]["notice"] == outlook.VERDICT_NOTICE["unverified"]
+    assert outlook.problems(" ".join(f["text"] for f in b["positiveFactors"] + b["negativeFactors"])) == []
+
+
+def test_judgment_answer_carries_per_agent_outlook_without_overall_conclusion(monkeypatch):
+    calls, tools = _judgment_setup(monkeypatch)
+
+    def node_tool(args, ctx, led):
+        ctx["outlooks"][args["agent_no"]] = qa.outlook_block(4, _flow_facts(), ctx) | {"agent": args["agent_no"]}
+        return tools["price_summary"](args, ctx, led)
+
+    llm = FakeLLM(interp_json(intent="투자판단자료", domains=[]), ans={"답": [{"문장": "외국인 5일 순매수는 {S1}이다.", "구분": "사실", "방향": "부정", "근거": ["S1"]}], "미확보": []})
+    r = qa.answer("삼성전자 지금 사도 돼?", llm, universe=UNI, today=TODAY, latest=LATEST, tools={**tools, "run_node_agent": node_tool})
+    cards = r["outlook"]["cards"]
+    assert [c["agent"] for c in cards] == [3, 4, 6] and "종합" in r["outlook"]["note"] and "overall" not in r["outlook"]
+    assert all(c["hitRate"]["verdict"] in ("edge", "indistinct", "unverified") for c in cards)
+    text = json.dumps(r["outlook"], ensure_ascii=False)
+    assert not qa.CONCLUSION_RE.search(text.replace("순매수", "")) and "목표주가" not in text
+    assert "전망[" in qa.summary_text(r)
+    assert 0 < r["brief"]["chars"] <= 200                      # 최종 답 200자 요약 (#64)
+
+
+def test_demo_html_renders_outlook_cards_with_notice():
+    html = (qa.HERE.parent / "demo" / "template.html").read_text(encoding="utf-8")
+    assert "outlookCard" in html and "hitRate.notice" in html and "판정:" in html
+
+
+def test_public_view_masks_removed_conclusion_sentences_only():
+    r = {"trace": [{"kind": "답·검사", "removed": [{"문장": "{S1} 이므로 지금 사세요.", "이유": ["결론"]}, {"문장": "근거 없는 숫자 99가 있다", "이유": ["키 밖 숫자"]}]}]}
+    out = qa.public_view(r)["trace"][0]["removed"]
+    assert "사세요" not in out[0]["문장"] and "가림" in out[0]["문장"] and out[1]["문장"] == "근거 없는 숫자 99가 있다"
+
+
+def test_emitted_events_equal_result_trace(monkeypatch):
+    calls, tools = _judgment_setup(monkeypatch)
+    events = []
+    llm = FakeLLM(interp_json(intent="투자판단자료", domains=[]), ans={"답": [{"문장": "외국인 5일 순매수는 {S1}이다.", "구분": "사실", "방향": "부정", "근거": ["S1"]}], "미확보": []})
+    r = qa.answer("삼성전자 지금 사도 돼?", llm, emit=events.append, universe=UNI, today=TODAY, latest=LATEST, tools=tools)
+    assert events == r["trace"] and events[0]["kind"] == "해석" and events[-1]["kind"] == "종료"      # 화면에 흐르는 단계 = 저장되는 실행 기록
+
+
+def test_tool_node_agent_returns_nodetask_status_and_ledger_detail(monkeypatch):
+    from ch_agents import node_agents
+
+    report = {"nodes": [{"nodeId": "N07", "name": "수급 데이터 점검", "kind": "base", "state": "executed", "status": "SUCCESS", "reason": None, "missingInputs": []}],
+              "prediction_skipped_reason": None}
+    monkeypatch.setattr(node_agents, "run_nodes", lambda *a, **k: report)
+    monkeypatch.setattr(node_agents, "merge_facts", lambda rep: (_flow_facts(), []))
+    led = qa.Ledger()
+    ctx = {"interp": {"scenario": None}, "ticker": "005930", "as_of": "2026-11-04", "co": {}, "outlooks": {}}
+    res = qa.tool_node_agent({"agent_no": 4}, ctx, led)
+    d = res["detail"]
+    assert d["nodes"][0]["task"] == {"taskId": "4-N07-005930-2026-11-04", "asOf": "2026-11-04", "ticker": "005930", "parameters": {"extension": True}}
+    assert d["nodes"][0]["status"] == "SUCCESS" and d["ledger"][0]["key"] in led.items and d["ledgerTotal"] == 2
+
+
+def test_tool_docs_reports_query_numbers_scores_and_hides_private_posts(monkeypatch):
+    from ch_agents import rag
+
+    docs = [{"doc_id": 11, "source": "naver_news", "title": "공개 기사", "summary": "s", "published": "2026-11-01", "score": 3.5, "terms": ["수급"]},
+            {"doc_id": 12, "source": "naver_blog", "title": "비공개 글 제목", "summary": "블로그 본문", "published": "2026-11-02", "score": 2.0, "terms": ["비밀"]}]
+    monkeypatch.setattr(rag, "retrieve", lambda *a, **k: docs)
+    monkeypatch.setattr(qa, "rag_tech", lambda: {"임베딩 모델": "m (4차원)"})
+    res = qa.tool_docs({}, {"co": {"name": "삼성전자"}, "as_of": "2026-11-04"}, qa.Ledger())
+    f = {x["docNo"]: x for x in res["rag"]["found"]}
+    blob = json.dumps(res, ensure_ascii=False)
+    assert f[11]["hidden"] is False and f[11]["score"] == 3.5 and f[11]["matched"] == ["수급"]
+    assert f[12]["hidden"] is True and f[12]["matched"] == [] and "비공개 글 제목" not in blob and "블로그 본문" not in blob
+
+
+def test_server_streams_events_then_result_and_serves_single_demo_page(monkeypatch, tmp_path):
+    import threading
+    import urllib.request
+    from http.server import ThreadingHTTPServer
+
+    from qa import server
+
+    monkeypatch.setattr(server, "_llm", lambda: None)
+    monkeypatch.setattr(server, "_universe", lambda: [])
+    monkeypatch.setattr(server, "RUNS", tmp_path / "runs")
+
+    def fake(q, llm, emit=None, universe=None, **k):
+        evs = [{"kind": "해석", "t": 0.1, "result": {}}, {"kind": "종료", "t": 0.2, "status": "완료", "usage": {}}]
+        for e in evs:
+            emit(e)
+        return {"question": q, "trace": evs, "answer": [], "status": "완료"}
+
+    monkeypatch.setattr(server.agent, "answer", fake)
+    monkeypatch.setattr(server.agent, "summary_text", lambda r: "요약")
+    srv = ThreadingHTTPServer(("127.0.0.1", 0), server.Handler)
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    base = f"http://127.0.0.1:{srv.server_address[1]}"
+    try:
+        body = urllib.request.urlopen(urllib.request.Request(base + "/api/ask", data=json.dumps({"question": "질문"}).encode()), timeout=10).read().decode()
+        lines = [json.loads(x) for x in body.splitlines() if x.strip()]
+        assert [x["event"]["kind"] for x in lines[:-1]] == ["해석", "종료"] and lines[-1]["result"]["trace"] == [x["event"] for x in lines[:-1]]
+        assert json.loads(urllib.request.urlopen(base + "/api/status", timeout=10).read())["live"] is True
+        page = urllib.request.urlopen(base + "/", timeout=10).read().decode()
+        assert (qa.HERE.parent / "demo" / "demo.html").read_text(encoding="utf-8").replace("\r\n", "\n") == page.replace("\r\n", "\n") and not (qa.HERE / "qa.html").exists()
+    finally:
+        srv.shutdown()
+
+
+def test_agent_brief_is_within_200_chars_with_outlook_tail_and_no_internal_code(monkeypatch, tmp_path):
+    """#64: 질의응답 경로의 에이전트별 200자 요약 — 노드 문장 1개 + 전망·과거 검증 판정."""
+    from ch_agents import brief, outlook
+
+    monkeypatch.setattr(outlook, "HIT_RATE_PATH", tmp_path / "none.json")
+    f = _flow_facts()
+    f.flags.append("외국인 20일 순매수 강도 {S1}: 순매수 우세. " + "근거 설명 " * 60)              # 너무 긴 문장은 건너뜀
+    f.flags.append("기관 20일 순매수 강도 {S2}로 기준 미달이다.")
+    ol = qa.outlook_block(4, f, {"as_of": "2026-11-04", "ticker": "005930", "co": {}})
+    b = qa.agent_brief(4, f, ol)
+    assert 0 < b["chars"] <= 200 == brief.MAX_CHARS and b["text"].endswith(brief.outlook_tail({"outlook": ol})) and "{" not in b["text"]
+    assert "0.50%" in b["text"] and brief.INTERNAL_CODE_RE.search(b["text"]) is None and b["method"] == "node-rule"
+
+
+def test_answer_brief_takes_leading_sentences_within_200_and_skips_notices():
+    from ch_agents.brief import MAX_CHARS
+
+    rendered = [{"문장": "안내 문장", "구분": "안내"}, {"문장": "가" * 90 + ".", "구분": "사실"}, {"문장": "나" * 90 + ".", "구분": "사실"}, {"문장": "다" * 50, "구분": "사실"}]
+    b = qa.answer_brief(rendered)
+    assert b["chars"] <= MAX_CHARS and b["text"].startswith("가") and "안내" not in b["text"] and "다" not in b["text"]
+    cut = qa.answer_brief([{"문장": "라" * 500, "구분": "사실"}])
+    assert cut["chars"] == MAX_CHARS and cut["text"].endswith("…") and cut["method"] == "첫 문장 잘라냄"
+
+
+def test_demo_html_renders_200_char_brief_cards_above_details():
+    html = (qa.HERE.parent / "demo" / "template.html").read_text(encoding="utf-8")
+    assert "briefCard" in html and "briefsHtml(r) + genHtml(r)" in html and "/ 200자" in html and "summary200" in html
+    assert html.index("briefsHtml(r)") < html.index("answerHtml(r)", html.index("briefsHtml(r)"))
+
+
+def test_answer_brief_skips_sentences_with_internal_codes():
+    b = qa.answer_brief([{"문장": "사건 E4의 실적 경신이 있다.", "구분": "사실"}, {"문장": "순매도가 이어졌다.", "구분": "사실"}])
+    assert b["text"] == "순매도가 이어졌다."
+
+
+def test_answer_brief_never_shows_ledger_keys_even_when_every_sentence_has_them():
+    from ch_agents.brief import INTERNAL_CODE_RE
+
+    only_keys = qa.answer_brief([{"문장": "뉴스 감성(T1081)은 +0.168로 기준선(T1082) +0.312보다 낮다.", "구분": "사실"}])
+    assert only_keys["chars"] > 0 and not INTERNAL_CODE_RE.search(only_keys["text"]) and "+0.168" in only_keys["text"]
+    mixed = qa.answer_brief([{"문장": "변화(T1083)는 -0.144이다.", "구분": "사실"}, {"문장": "순매도가 이어졌다.", "구분": "사실"}])
+    assert mixed["text"] == "순매도가 이어졌다."
+    card = qa.agent_brief(4, __import__("ch_agents.facts", fromlist=["Facts"]).Facts("S"), {"agentName": "수급", "direction": "neutral", "directionLabel": "중립", "reason": "혼재", "hitRate": {}, "ledger": {}})
+    assert card["chars"] > 0

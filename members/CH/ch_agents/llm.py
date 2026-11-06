@@ -13,6 +13,7 @@ from typing import Any
 
 from .agents import AGENTS, MY_AGENTS, AgentData, family, fetch_agent_data, spec_of
 from .availability import AVAIL_SHORT, availability
+from . import brief as brief_mod
 from . import contract as contract_mod
 from . import exposure as exposure_mod
 from . import verify as verifier
@@ -383,7 +384,9 @@ def _texts(result: dict) -> list[str]:
 
 def label_terms(data: AgentData | None) -> set[str]:
     """장부 항목 이름에 들어 있는 숫자 표현(예: '52주 고점'의 '52주')은 값이 아니라 용어로 봅니다."""
-    terms = set(COMMON_TERMS)
+    from .thresholds import threshold_terms
+
+    terms = set(COMMON_TERMS) | threshold_terms()      # 판단 기준값(1배·전망 기준 등)은 코드 상수에서 모아 허용 (#63)
     if data is not None:
         for v in data.facts.items.values():
             terms.update(LOOSE_NUMBER.findall(v["label"]))
@@ -401,7 +404,9 @@ def sentence_problems(text: str, valid: set[str], allowed: set[str] | None = Non
     bad = [k for k in PLACEHOLDER.findall(text) if k not in valid]
     if bad:
         probs.append(f"없는 키 {bad}")
-    loose = [x for x in LOOSE_NUMBER.findall(PLACEHOLDER.sub("", text)) if x not in (allowed or COMMON_TERMS)]
+    from .thresholds import threshold_terms
+
+    loose = [x for x in LOOSE_NUMBER.findall(PLACEHOLDER.sub("", text)) if x not in (allowed or (COMMON_TERMS | threshold_terms()))]
     if loose:
         probs.append(f"키 밖 숫자 {loose}")
     banned = banned_terms(text)
@@ -870,6 +875,7 @@ def run_agent(agent_id: int, ticker: str | None = None, mode: str = "expert", ll
     attempts: list[dict] = []
     result, checks, status, best_at, best_n = None, {}, "실패", -1, None
     t0 = time.monotonic()
+    model = None
     try:
         from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 
@@ -930,6 +936,7 @@ def run_agent(agent_id: int, ticker: str | None = None, mode: str = "expert", ll
         out["rag_chunks"] = data.extra["rag_chunks"]
     # 데이터 계약 (R4 3장): reportId·claimId·evidenceId·사실/해석/예측·반대 근거·미확인·기준일/공개시각·출처 태그
     out["contract"] = contract_mod.build(out, data, mode)
+    out["contract"].update(brief_mod.make_brief(out, data, None if (status.startswith("규칙 기반") or any("error" in a for a in attempts)) else model))   # r4-1.5: 200자 요약 (#64)
     if data.extra.get("node_report"):   # 노드 기반 에이전트: 노드 목록·스킵 이유·충돌 구역·예측 생략 사유 (r4-1.3 선택 필드)
         out["contract"] = contract_mod.with_nodes(out["contract"], data.extra["node_report"])
         out["node_report"] = {k: v for k, v in data.extra["node_report"].items() if k != "results"}
