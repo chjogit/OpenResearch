@@ -617,6 +617,19 @@ def question_problems(items: list[dict]) -> list[str]:
     return bad
 
 
+def static_pipeline() -> dict:
+    """처음 여는 화면의 파이프라인 그림: 시연 서버 기본 설정(벡터 검색 켜짐, 환경변수로 끈 경우는 그 값)으로 설명을 만든다. 질문을 실행하면 그 실행의 값으로 바뀜."""
+    from qa import pipeline
+
+    prev = os.environ.get("CH_RAG_HYBRID")
+    os.environ.setdefault("CH_RAG_HYBRID", "on")
+    try:
+        return pipeline.describe(None)
+    finally:
+        if prev is None:
+            os.environ.pop("CH_RAG_HYBRID", None)
+
+
 def build_payload(runs: dict, status: dict, generated_at: str | None = None, outlook: dict | None = None, questions: dict | None = None) -> dict:
     rs = runs["runs"]
     return {
@@ -625,7 +638,7 @@ def build_payload(runs: dict, status: dict, generated_at: str | None = None, out
         "tickers": [{"ticker": t, "name": n} for t, n in TICKERS], "agents": {str(k): v for k, v in AGENTS.items()},
         "runs": rs, "status": status, "validation": VALIDATION, "sentimentEval": load_sentiment_eval(), "overview": OVERVIEW,
         "outlook": outlook or {}, "outlookValidation": load_outlook_validation(),
-        "questions": questions or {"ranAt": None, "items": []},
+        "questions": questions or {"ranAt": None, "items": []}, "pipeline": static_pipeline(),
         "interpEval": json.loads(QA_EVAL.read_text(encoding="utf-8")) if QA_EVAL.exists() else None,
     }
 
@@ -658,6 +671,7 @@ def env_secrets() -> list[str]:
 
 def main(argv: list[str]) -> int:
     if argv and argv[0] == "questions":
+        os.environ.setdefault("CH_RAG_HYBRID", "on")      # 예시 질문은 시연 서버와 같은 설정(벡터 검색 켜짐)으로 기록 (#61)
         data = collect_questions()
         print(f"예시 질문 {len(data['items'])}개 기록 → {QCACHE}")
         return 0

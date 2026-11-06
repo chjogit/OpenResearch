@@ -341,7 +341,7 @@ def tool_price(args: dict, ctx: dict, led: Ledger) -> dict:
 def tool_docs(args: dict, ctx: dict, led: Ledger) -> dict:
     from ch_agents import rag
 
-    docs = rag.retrieve(6, ctx["co"], ctx["as_of"])
+    docs, hyb = retrieve_docs(ctx["co"], ctx["as_of"])
     shown, hidden = [], 0
     for d in docs:
         src = str(d.get("source") or "")
@@ -362,7 +362,31 @@ def tool_docs(args: dict, ctx: dict, led: Ledger) -> dict:
             f["matched"], f["source"] = [], "개인 작성 글"
     return {"summary": f"문서 {len(docs)}건 중 공개 보도·공시 {len(shown)}건 사용, 개인 작성 글 {hidden}건은 내용 비공개",
             "keys": shown, "tech": rag_tech(),
-            "rag": {"query": f"{ctx['co'].get('name')} · 관점 6(투자심리·뉴스) · 기준일 {ctx['as_of']} 이전 공개 문서", "found": found, "shown": shown}}
+            "rag": {"query": f"{ctx['co'].get('name')} · 관점 3(투자심리·수급) 문서 프리셋 · 기준일 {ctx['as_of']} 이전 공개 문서", "found": found, "shown": shown, "hybrid": hyb}}
+
+
+# 문서 검색 프리셋 번호. rag.PRESETS 는 옛 7관점 번호라 새 에이전트 6(투자심리·뉴스)에 해당하는 것은 3(투자심리·수급).
+# 이전 코드는 6 을 넘겨 모든 문서 검색이 KeyError 로 실패했음(#61 에서 발견·수정)
+RAG_PRESET = 3
+
+
+def retrieve_docs(co: dict, as_of: str) -> tuple[list[dict], dict]:
+    """문서 검색(관점 6). 벡터 검색이 켜져 있으면(CH_RAG_HYBRID=on) 질의 임베딩 → HNSW 벡터 검색 → 키워드와 합산, 실패하면 키워드 검색으로 대체하고 이유를 남긴다.
+    두 번째 값은 실행 기록: {mode, modeLabel, embedModel, dim, vectorHits, seconds, fallback}."""
+    from ch_agents import rag, rag_hybrid
+    from ch_agents.agents import normalize_as_of
+
+    as_of = normalize_as_of(as_of)
+    raw = rag.fetch(RAG_PRESET, co, as_of)
+    if not rag_hybrid.enabled():
+        return rag.select(RAG_PRESET, raw, co, as_of), {"mode": "keyword", "modeLabel": "키워드 검색(벡터 검색 꺼짐)", "fallback": None}
+    t = time.monotonic()
+    raw["hybrid"] = rag_hybrid.fetch_hybrid(RAG_PRESET, co, as_of, raw)
+    docs, status = rag_hybrid.select_hybrid(RAG_PRESET, raw, co, as_of)
+    hits = len((raw["hybrid"] or {}).get("hits") or [])
+    return docs, {"mode": status["mode"], "embedModel": rag_hybrid.QUERY_MODEL, "dim": rag_hybrid.EMBED_DIM, "vectorHits": hits,
+                  "seconds": round(time.monotonic() - t, 2), "fallback": status.get("fallback"),
+                  "modeLabel": "하이브리드 검색(키워드 + 벡터)" if status["mode"] == "hybrid" else "키워드 검색(벡터 검색 실패로 대체)"}
 
 
 TOOLS: dict[str, Callable[[dict, dict, Ledger], dict]] = {"run_node_agent": tool_node_agent, "price_summary": tool_price, "doc_search": tool_docs}
@@ -562,6 +586,7 @@ def answer(question: str, llm, emit: Callable[[dict], None] | None = None, unive
 
     def finish(status: str, text: str | None = None) -> dict:
         from ch_agents.gaps import organize
+        from qa import pipeline as pipeline_mod
 
         out["gaps"], proc = organize(out.get("gaps") or [])         # 중복 합침·묶음·내부 코드 한국어화·처리 통계는 처리 기록으로 (#62)
         if proc:
@@ -574,6 +599,7 @@ def answer(question: str, llm, emit: Callable[[dict], None] | None = None, unive
         out["tech"] = {"LLM": llm_mod.MODEL, "도구 호출 방식": "LLM 이 JSON 행동(도구·인자·이유)을 고르는 자체 루프(함수호출 API 미사용)",
                        "도구 호출 상한": MAX_TOOL_CALLS, "시간 목표(초)": TIME_BUDGET_S, "검사": VERIFIER_TEXT,
                        "RAG": rag_tech()}
+        out["pipeline"] = pipeline_mod.describe(out)      # 파이프라인 그림·번호별 설명 (#61)
         step("종료", status=status, usage=out["usage"])
         return out
 
