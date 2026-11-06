@@ -90,7 +90,7 @@ def test_still_too_long_after_retry_keeps_only_leading_sentences_that_pass():
     k = _first_key(d)
     long = f"첫 관찰은 {{{k}}}이다. " + "둘째 문장 " * 60 + ". N05 점검이 있다. 마지막 문장이다."
     _, c, _ = _run(no, make, {"요약": long}, {"요약": long})
-    assert c["summary200Method"] == "llm-trim" and len(c["summary200"]) <= 200 and c["summary200"].startswith("첫 관찰은")
+    assert c["summary200Method"] == "llm-trim" and len(c["summary200"]) <= 200 and "첫 관찰은" in c["summary200"]
     assert "N05" not in c["summary200"] and contract.validate(c) == []
 
 
@@ -127,9 +127,26 @@ def test_problems_rejects_text_with_visible_keys_and_strip_codes_removes_them():
     assert brief.strip_codes("뉴스 감성(T1081)은 +0.168로 기준선(T1082·T1083)보다 낮다") == "뉴스 감성은 +0.168로 기준선보다 낮다"
 
 
-def test_material_includes_outlook_factors_so_the_reason_for_direction_is_summarized():
+def test_summary_starts_with_the_signal_sentence_behind_the_direction():
     no, make = ALL[1]
     d = make()
     c = run_node_agent(no, "005930", llm=FakeLLM(good_json(d)), data=d)["contract"]
-    mat, _ = brief.material({"주장": [{"문장": "관찰 {L1}"}]}, d, c)
-    assert (not c["outlook"]["positiveFactors"] + c["outlook"]["negativeFactors"]) or "전망 근거" in mat
+    sig = [s for s in c["outlook"]["signals"] if s["state"] != "missing"]
+    assert not sig or all(s["text"].rstrip(".") in c["summary200"] for s in sig[:1])      # 전망에 쓴 신호 문장이 요약에 들어감
+
+
+OL = {"signals": [{"id": "a", "name": "외국인 20일 순매수 강도", "state": "neutral", "text": "외국인 20일 순매수 강도 0.5%: 규칙 기준 미달"},
+                  {"id": "b", "name": "기관 20일 순매수 강도", "state": "negative", "text": "기관 20일 순매수 강도 -2.1%: 순매도 우세(규칙 기준 초과)"}],
+      "rule": {"signals": [{"name": "외국인 20일 순매수 강도"}, {"name": "기관 20일 순매수 강도"}]}}
+
+
+def test_driver_text_puts_signals_over_threshold_first_and_fits_budget():
+    t = brief.driver_text(OL, 150)
+    assert t.startswith("기관 20일 순매수 강도 -2.1%") and "외국인 20일 순매수 강도 0.5%" in t and len(t) <= 150
+    assert brief.driver_text(OL, 150, reserve=100).count("강도") == 1      # LLM 문장 자리를 남기려고 둘째 신호는 생략
+
+
+def test_driver_text_says_so_when_no_signal_was_computed():
+    ol = {"signals": [{"id": "a", "name": "뉴스 감성 변화", "state": "missing", "text": "x"}], "rule": {"signals": [{"name": "뉴스 감성 변화"}, {"name": "유튜브 댓글 감성 변화"}]}}
+    t = brief.driver_text(ol, 150)
+    assert "뉴스 감성 변화·유튜브 댓글 감성 변화" in t and "확보하지 못" in t and brief.driver_text(None, 150) == ""
