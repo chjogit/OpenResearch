@@ -1,0 +1,1683 @@
+{
+ "asOf": "2026-11-04",
+ "ranAt": "2026-11-06 13:02",
+ "model": "solar-embedding-2-passage",
+ "dim": 1024,
+ "index": "정확 검색(종목·출처·기준일로 거른 뒤 코사인 거리 정렬, HNSW 인덱스 삭제 #69)",
+ "vectorShare": 0.5,
+ "candidates": 20,
+ "dbSize": "617 MB",
+ "dbLimit": "800MB",
+ "coverage": [
+  {
+   "source": "naver_news",
+   "docs": 61404,
+   "embedded": 61404,
+   "first": "2026-10-23",
+   "last": "2026-11-06",
+   "db": "메인"
+  },
+  {
+   "source": "youtube_comment",
+   "docs": 12559,
+   "embedded": 12559,
+   "first": "2026-10-23",
+   "last": "2026-11-05",
+   "db": "메인"
+  },
+  {
+   "source": "finnhub_news",
+   "docs": 8797,
+   "embedded": 8797,
+   "first": "2026-10-23",
+   "last": "2026-11-06",
+   "db": "메인"
+  },
+  {
+   "source": "naver_news_backfill",
+   "docs": 6306,
+   "embedded": 6306,
+   "first": "2026-01-01",
+   "last": "2026-10-27",
+   "db": "메인"
+  },
+  {
+   "source": "dart_report",
+   "docs": 578,
+   "embedded": 578,
+   "first": "2026-03-05",
+   "last": "2026-10-07",
+   "db": "메인"
+  },
+  {
+   "source": "naver_blog",
+   "docs": 282927,
+   "embedded": 0,
+   "first": "2026-10-23",
+   "last": "2026-11-06",
+   "db": "kic-opinion(청크·임베딩 테이블 없음)"
+  },
+  {
+   "source": "naver_cafe",
+   "docs": 99390,
+   "embedded": 0,
+   "first": "2026-10-26",
+   "last": "2026-11-06",
+   "db": "kic-opinion(청크·임베딩 테이블 없음)"
+  }
+ ],
+ "summary": {
+  "questions": 12,
+  "keywordSeconds": 3.46,
+  "embeddingSeconds": 4.47,
+  "embeddingChunks": 4.3,
+  "changedDocs": 2.6,
+  "fallbacks": 0
+ },
+ "items": [
+  {
+   "question": "삼성전자 최근 외국인 수급은 어때?",
+   "company": "삼성전자",
+   "keyword": {
+    "seconds": 3.48,
+    "mode": "keyword",
+    "fallback": null,
+    "vectorHits": null,
+    "docs": 8,
+    "chunks": 0,
+    "ids": [
+     null,
+     1530384,
+     1523875,
+     1069250,
+     1438618,
+     1420450,
+     1473366,
+     198979
+    ],
+    "top5": [
+     {
+      "docNo": null,
+      "source": "dart",
+      "title": "풍문또는보도에대한해명(미확정)",
+      "origin": "키워드",
+      "score": null,
+      "sim": null,
+      "chunks": 0
+     },
+     {
+      "docNo": 1530384,
+      "source": "naver_news",
+      "title": "삼성전자우 3.05% 하락…외국인은 53억원 순매수",
+      "origin": "키워드",
+      "score": 15.0,
+      "sim": null,
+      "chunks": 0
+     },
+     {
+      "docNo": 1523875,
+      "source": "naver_news",
+      "title": "삼성전자·SK하이닉스 거래대금 12.6% 감소…외국인 순매도",
+      "origin": "키워드",
+      "score": 14.467,
+      "sim": null,
+      "chunks": 0
+     },
+     {
+      "docNo": 1069250,
+      "source": "naver_news",
+      "title": "외국인 삼성E&A·기관 SK하이닉스 순매수 1위…개인은 삼성전자 8197억 팔...",
+      "origin": "키워드",
+      "score": 14.389,
+      "sim": null,
+      "chunks": 0
+     },
+     {
+      "docNo": 1438618,
+      "source": "naver_news",
+      "title": "[특징주] 외국인, 삼성중공업·대한해운 매수 상위…기관, 삼성전자 순...",
+      "origin": "키워드",
+      "score": 13.125,
+      "sim": null,
+      "chunks": 0
+     }
+    ]
+   },
+   "embedding": {
+    "seconds": 4.61,
+    "mode": "hybrid",
+    "fallback": null,
+    "vectorHits": 40,
+    "docs": 8,
+    "chunks": 7,
+    "ids": [
+     null,
+     1473366,
+     82887,
+     1530384,
+     1523875,
+     1438618,
+     1420450,
+     198979
+    ],
+    "top5": [
+     {
+      "docNo": null,
+      "source": "dart",
+      "title": "풍문또는보도에대한해명(미확정)",
+      "origin": "키워드",
+      "score": null,
+      "sim": null,
+      "chunks": 0
+     },
+     {
+      "docNo": 1473366,
+      "source": "naver_news",
+      "title": "삼성전자·SK하이닉스 자사주 매입 46조…외국인 매도 방어",
+      "origin": "둘 다",
+      "score": 0.738,
+      "sim": 0.697,
+      "chunks": 1
+     },
+     {
+      "docNo": 82887,
+      "source": "naver_news",
+      "title": "[특징주] 외국인·기관, 루닛 동반 순매수…삼성전자·빅텍은 매매 엇갈...",
+      "origin": "둘 다",
+      "score": 0.661,
+      "sim": 0.673,
+      "chunks": 1
+     },
+     {
+      "docNo": 1530384,
+      "source": "naver_news",
+      "title": "삼성전자우 3.05% 하락…외국인은 53억원 순매수",
+      "origin": "둘 다",
+      "score": 0.823,
+      "sim": 0.646,
+      "chunks": 1
+     },
+     {
+      "docNo": 1523875,
+      "source": "naver_news",
+      "title": "삼성전자·SK하이닉스 거래대금 12.6% 감소…외국인 순매도",
+      "origin": "둘 다",
+      "score": 0.794,
+      "sim": 0.623,
+      "chunks": 1
+     }
+    ]
+   }
+  },
+  {
+   "question": "삼성전자 최근 이슈가 뭐야?",
+   "company": "삼성전자",
+   "keyword": {
+    "seconds": 3.39,
+    "mode": "keyword",
+    "fallback": null,
+    "vectorHits": null,
+    "docs": 8,
+    "chunks": 0,
+    "ids": [
+     null,
+     1530384,
+     1523875,
+     1069250,
+     1438618,
+     1420450,
+     1473366,
+     198979
+    ],
+    "top5": [
+     {
+      "docNo": null,
+      "source": "dart",
+      "title": "풍문또는보도에대한해명(미확정)",
+      "origin": "키워드",
+      "score": null,
+      "sim": null,
+      "chunks": 0
+     },
+     {
+      "docNo": 1530384,
+      "source": "naver_news",
+      "title": "삼성전자우 3.05% 하락…외국인은 53억원 순매수",
+      "origin": "키워드",
+      "score": 15.0,
+      "sim": null,
+      "chunks": 0
+     },
+     {
+      "docNo": 1523875,
+      "source": "naver_news",
+      "title": "삼성전자·SK하이닉스 거래대금 12.6% 감소…외국인 순매도",
+      "origin": "키워드",
+      "score": 14.467,
+      "sim": null,
+      "chunks": 0
+     },
+     {
+      "docNo": 1069250,
+      "source": "naver_news",
+      "title": "외국인 삼성E&A·기관 SK하이닉스 순매수 1위…개인은 삼성전자 8197억 팔...",
+      "origin": "키워드",
+      "score": 14.389,
+      "sim": null,
+      "chunks": 0
+     },
+     {
+      "docNo": 1438618,
+      "source": "naver_news",
+      "title": "[특징주] 외국인, 삼성중공업·대한해운 매수 상위…기관, 삼성전자 순...",
+      "origin": "키워드",
+      "score": 13.125,
+      "sim": null,
+      "chunks": 0
+     }
+    ]
+   },
+   "embedding": {
+    "seconds": 4.31,
+    "mode": "hybrid",
+    "fallback": null,
+    "vectorHits": 40,
+    "docs": 8,
+    "chunks": 7,
+    "ids": [
+     null,
+     1473366,
+     1530384,
+     1438618,
+     1420450,
+     198979,
+     82887,
+     1511470
+    ],
+    "top5": [
+     {
+      "docNo": null,
+      "source": "dart",
+      "title": "풍문또는보도에대한해명(미확정)",
+      "origin": "키워드",
+      "score": null,
+      "sim": null,
+      "chunks": 0
+     },
+     {
+      "docNo": 1473366,
+      "source": "naver_news",
+      "title": "삼성전자·SK하이닉스 자사주 매입 46조…외국인 매도 방어",
+      "origin": "둘 다",
+      "score": 0.728,
+      "sim": 0.678,
+      "chunks": 1
+     },
+     {
+      "docNo": 1530384,
+      "source": "naver_news",
+      "title": "삼성전자우 3.05% 하락…외국인은 53억원 순매수",
+      "origin": "둘 다",
+      "score": 0.826,
+      "sim": 0.653,
+      "chunks": 1
+     },
+     {
+      "docNo": 1438618,
+      "source": "naver_news",
+      "title": "[특징주] 외국인, 삼성중공업·대한해운 매수 상위…기관, 삼성전자 순...",
+      "origin": "둘 다",
+      "score": 0.763,
+      "sim": 0.651,
+      "chunks": 1
+     },
+     {
+      "docNo": 1420450,
+      "source": "naver_news",
+      "title": "[주간수급리포트] 삼성전자·SK하이닉스 1.8조 판 개인…외국인은 막판...",
+      "origin": "둘 다",
+      "score": 0.744,
+      "sim": 0.642,
+      "chunks": 1
+     }
+    ]
+   }
+  },
+  {
+   "question": "삼성전자 반도체 실적 전망 기사 있어?",
+   "company": "삼성전자",
+   "keyword": {
+    "seconds": 4.47,
+    "mode": "keyword",
+    "fallback": null,
+    "vectorHits": null,
+    "docs": 8,
+    "chunks": 0,
+    "ids": [
+     null,
+     1530384,
+     1523875,
+     1069250,
+     1438618,
+     1420450,
+     1473366,
+     198979
+    ],
+    "top5": [
+     {
+      "docNo": null,
+      "source": "dart",
+      "title": "풍문또는보도에대한해명(미확정)",
+      "origin": "키워드",
+      "score": null,
+      "sim": null,
+      "chunks": 0
+     },
+     {
+      "docNo": 1530384,
+      "source": "naver_news",
+      "title": "삼성전자우 3.05% 하락…외국인은 53억원 순매수",
+      "origin": "키워드",
+      "score": 15.0,
+      "sim": null,
+      "chunks": 0
+     },
+     {
+      "docNo": 1523875,
+      "source": "naver_news",
+      "title": "삼성전자·SK하이닉스 거래대금 12.6% 감소…외국인 순매도",
+      "origin": "키워드",
+      "score": 14.467,
+      "sim": null,
+      "chunks": 0
+     },
+     {
+      "docNo": 1069250,
+      "source": "naver_news",
+      "title": "외국인 삼성E&A·기관 SK하이닉스 순매수 1위…개인은 삼성전자 8197억 팔...",
+      "origin": "키워드",
+      "score": 14.389,
+      "sim": null,
+      "chunks": 0
+     },
+     {
+      "docNo": 1438618,
+      "source": "naver_news",
+      "title": "[특징주] 외국인, 삼성중공업·대한해운 매수 상위…기관, 삼성전자 순...",
+      "origin": "키워드",
+      "score": 13.125,
+      "sim": null,
+      "chunks": 0
+     }
+    ]
+   },
+   "embedding": {
+    "seconds": 4.78,
+    "mode": "hybrid",
+    "fallback": null,
+    "vectorHits": 40,
+    "docs": 8,
+    "chunks": 7,
+    "ids": [
+     null,
+     1511471,
+     1473366,
+     673939,
+     724468,
+     1069250,
+     82887,
+     1511470
+    ],
+    "top5": [
+     {
+      "docNo": null,
+      "source": "dart",
+      "title": "풍문또는보도에대한해명(미확정)",
+      "origin": "키워드",
+      "score": null,
+      "sim": null,
+      "chunks": 0
+     },
+     {
+      "docNo": 1511471,
+      "source": "naver_news",
+      "title": "삼성전자, 실적 전망치 상향 불구…주가 지지 부진 이유는",
+      "origin": "벡터",
+      "score": 0.335,
+      "sim": 0.669,
+      "chunks": 1
+     },
+     {
+      "docNo": 1473366,
+      "source": "naver_news",
+      "title": "삼성전자·SK하이닉스 자사주 매입 46조…외국인 매도 방어",
+      "origin": "둘 다",
+      "score": 0.722,
+      "sim": 0.667,
+      "chunks": 1
+     },
+     {
+      "docNo": 673939,
+      "source": "naver_news",
+      "title": "\"반도체만 110조 전망\" 삼성전자, 오늘 성적표 공개…'통 큰 선물' 있을...",
+      "origin": "벡터",
+      "score": 0.33,
+      "sim": 0.66,
+      "chunks": 1
+     },
+     {
+      "docNo": 724468,
+      "source": "naver_news",
+      "title": "[실적분석] 삼성전자 3분기 영업이익 107조, 분기배당 30조 글로벌급 신...",
+      "origin": "벡터",
+      "score": 0.329,
+      "sim": 0.658,
+      "chunks": 1
+     }
+    ]
+   }
+  },
+  {
+   "question": "SK하이닉스 기관 순매수 흐름 알려줘",
+   "company": "SK하이닉스",
+   "keyword": {
+    "seconds": 3.48,
+    "mode": "keyword",
+    "fallback": null,
+    "vectorHits": null,
+    "docs": 10,
+    "chunks": 0,
+    "ids": [
+     null,
+     null,
+     null,
+     1065226,
+     1521890,
+     1418429,
+     1470406,
+     1508514,
+     1001695927,
+     51979
+    ],
+    "top5": [
+     {
+      "docNo": null,
+      "source": "dart",
+      "title": "풍문또는보도에대한해명(미확정)",
+      "origin": "키워드",
+      "score": null,
+      "sim": null,
+      "chunks": 0
+     },
+     {
+      "docNo": null,
+      "source": "dart",
+      "title": "조회공시요구(풍문또는보도)에대한답변(미확정)",
+      "origin": "키워드",
+      "score": null,
+      "sim": null,
+      "chunks": 0
+     },
+     {
+      "docNo": null,
+      "source": "dart",
+      "title": "조회공시요구(풍문또는보도)",
+      "origin": "키워드",
+      "score": null,
+      "sim": null,
+      "chunks": 0
+     },
+     {
+      "docNo": 1065226,
+      "source": "naver_news",
+      "title": "외국인 삼성E&A·기관 SK하이닉스 순매수 1위…개인은 삼성전자 8197억 팔...",
+      "origin": "키워드",
+      "score": 13.611,
+      "sim": null,
+      "chunks": 0
+     },
+     {
+      "docNo": 1521890,
+      "source": "naver_news",
+      "title": "삼성전자·SK하이닉스 거래대금 12.6% 감소…외국인 순매도",
+      "origin": "키워드",
+      "score": 13.533,
+      "sim": null,
+      "chunks": 0
+     }
+    ]
+   },
+   "embedding": {
+    "seconds": 4.45,
+    "mode": "hybrid",
+    "fallback": null,
+    "vectorHits": 40,
+    "docs": 10,
+    "chunks": 7,
+    "ids": [
+     null,
+     null,
+     null,
+     1418429,
+     1470406,
+     1508514,
+     51979,
+     1065226,
+     1521890,
+     1328665
+    ],
+    "top5": [
+     {
+      "docNo": null,
+      "source": "dart",
+      "title": "풍문또는보도에대한해명(미확정)",
+      "origin": "키워드",
+      "score": null,
+      "sim": null,
+      "chunks": 0
+     },
+     {
+      "docNo": null,
+      "source": "dart",
+      "title": "조회공시요구(풍문또는보도)에대한답변(미확정)",
+      "origin": "키워드",
+      "score": null,
+      "sim": null,
+      "chunks": 0
+     },
+     {
+      "docNo": null,
+      "source": "dart",
+      "title": "조회공시요구(풍문또는보도)",
+      "origin": "키워드",
+      "score": null,
+      "sim": null,
+      "chunks": 0
+     },
+     {
+      "docNo": 1418429,
+      "source": "naver_news",
+      "title": "[주간수급리포트] 삼성전자·SK하이닉스 1.8조 판 개인…외국인은 막판...",
+      "origin": "둘 다",
+      "score": 0.816,
+      "sim": 0.701,
+      "chunks": 1
+     },
+     {
+      "docNo": 1470406,
+      "source": "naver_news",
+      "title": "삼성전자·SK하이닉스 자사주 매입 46조…외국인 매도 방어",
+      "origin": "둘 다",
+      "score": 0.709,
+      "sim": 0.699,
+      "chunks": 1
+     }
+    ]
+   }
+  },
+  {
+   "question": "SK하이닉스 HBM 관련 최근 소식은?",
+   "company": "SK하이닉스",
+   "keyword": {
+    "seconds": 3.34,
+    "mode": "keyword",
+    "fallback": null,
+    "vectorHits": null,
+    "docs": 10,
+    "chunks": 0,
+    "ids": [
+     null,
+     null,
+     null,
+     1065226,
+     1521890,
+     1418429,
+     1470406,
+     1508514,
+     1001695927,
+     51979
+    ],
+    "top5": [
+     {
+      "docNo": null,
+      "source": "dart",
+      "title": "풍문또는보도에대한해명(미확정)",
+      "origin": "키워드",
+      "score": null,
+      "sim": null,
+      "chunks": 0
+     },
+     {
+      "docNo": null,
+      "source": "dart",
+      "title": "조회공시요구(풍문또는보도)에대한답변(미확정)",
+      "origin": "키워드",
+      "score": null,
+      "sim": null,
+      "chunks": 0
+     },
+     {
+      "docNo": null,
+      "source": "dart",
+      "title": "조회공시요구(풍문또는보도)",
+      "origin": "키워드",
+      "score": null,
+      "sim": null,
+      "chunks": 0
+     },
+     {
+      "docNo": 1065226,
+      "source": "naver_news",
+      "title": "외국인 삼성E&A·기관 SK하이닉스 순매수 1위…개인은 삼성전자 8197억 팔...",
+      "origin": "키워드",
+      "score": 13.611,
+      "sim": null,
+      "chunks": 0
+     },
+     {
+      "docNo": 1521890,
+      "source": "naver_news",
+      "title": "삼성전자·SK하이닉스 거래대금 12.6% 감소…외국인 순매도",
+      "origin": "키워드",
+      "score": 13.533,
+      "sim": null,
+      "chunks": 0
+     }
+    ]
+   },
+   "embedding": {
+    "seconds": 4.33,
+    "mode": "hybrid",
+    "fallback": null,
+    "vectorHits": 40,
+    "docs": 10,
+    "chunks": 4,
+    "ids": [
+     null,
+     null,
+     null,
+     525033,
+     1176029,
+     400383,
+     400473,
+     1065226,
+     1521890,
+     1418429
+    ],
+    "top5": [
+     {
+      "docNo": null,
+      "source": "dart",
+      "title": "풍문또는보도에대한해명(미확정)",
+      "origin": "키워드",
+      "score": null,
+      "sim": null,
+      "chunks": 0
+     },
+     {
+      "docNo": null,
+      "source": "dart",
+      "title": "조회공시요구(풍문또는보도)에대한답변(미확정)",
+      "origin": "키워드",
+      "score": null,
+      "sim": null,
+      "chunks": 0
+     },
+     {
+      "docNo": null,
+      "source": "dart",
+      "title": "조회공시요구(풍문또는보도)",
+      "origin": "키워드",
+      "score": null,
+      "sim": null,
+      "chunks": 0
+     },
+     {
+      "docNo": 525033,
+      "source": "naver_news",
+      "title": "HBM 수요 '공급의 2배' 넘어···SK하이닉스, 매출 '100조' 찍고 증산 속...",
+      "origin": "벡터",
+      "score": 0.357,
+      "sim": 0.713,
+      "chunks": 1
+     },
+     {
+      "docNo": 1176029,
+      "source": "naver_news",
+      "title": "샘 올트먼, 삼성전자·SK하이닉스 동시 접촉…HBM 공급 확대될까, AI 반도...",
+      "origin": "벡터",
+      "score": 0.354,
+      "sim": 0.709,
+      "chunks": 1
+     }
+    ]
+   }
+  },
+  {
+   "question": "현대차는 금리 변화에 얼마나 민감해?",
+   "company": "현대차",
+   "keyword": {
+    "seconds": 3.28,
+    "mode": "keyword",
+    "fallback": null,
+    "vectorHits": null,
+    "docs": 8,
+    "chunks": 0,
+    "ids": [
+     null,
+     1511270,
+     1456289,
+     1592817,
+     1567955,
+     1567930,
+     1567915,
+     1523821
+    ],
+    "top5": [
+     {
+      "docNo": null,
+      "source": "dart",
+      "title": "풍문또는보도에대한해명(미확정)",
+      "origin": "키워드",
+      "score": null,
+      "sim": null,
+      "chunks": 0
+     },
+     {
+      "docNo": 1511270,
+      "source": "naver_news",
+      "title": "'현대차' 주가, 바닥 찍었다? 유가 급락 영향 美자동차주 급등",
+      "origin": "키워드",
+      "score": 13.533,
+      "sim": null,
+      "chunks": 0
+     },
+     {
+      "docNo": 1456289,
+      "source": "naver_news",
+      "title": "현대차 첫 외국인 CEO 무뇨스 사장, 실적 부신 속 연말인사 '시험대'",
+      "origin": "키워드",
+      "score": 11.375,
+      "sim": null,
+      "chunks": 0
+     },
+     {
+      "docNo": 1592817,
+      "source": "naver_news",
+      "title": "[특징주] 포스코퓨처엠, 현대차 1000억 투자 검토 소식에 10%대 '급등'",
+      "origin": "키워드",
+      "score": 10.0,
+      "sim": null,
+      "chunks": 0
+     },
+     {
+      "docNo": 1567955,
+      "source": "naver_news",
+      "title": "‘현대차 효과?’… 대동기어 상한가·대동 10%대 급등",
+      "origin": "키워드",
+      "score": 10.0,
+      "sim": null,
+      "chunks": 0
+     }
+    ]
+   },
+   "embedding": {
+    "seconds": 4.25,
+    "mode": "hybrid",
+    "fallback": null,
+    "vectorHits": 40,
+    "docs": 8,
+    "chunks": 1,
+    "ids": [
+     null,
+     270204,
+     1511270,
+     1456289,
+     1592817,
+     1567955,
+     1567930,
+     1567915
+    ],
+    "top5": [
+     {
+      "docNo": null,
+      "source": "dart",
+      "title": "풍문또는보도에대한해명(미확정)",
+      "origin": "키워드",
+      "score": null,
+      "sim": null,
+      "chunks": 0
+     },
+     {
+      "docNo": 270204,
+      "source": "naver_news",
+      "title": "현대차證 \"외국인, 美 중간선거 이후 수급 개선 기대…11월 중하순 주목...",
+      "origin": "벡터",
+      "score": 0.319,
+      "sim": 0.639,
+      "chunks": 1
+     },
+     {
+      "docNo": 1511270,
+      "source": "naver_news",
+      "title": "'현대차' 주가, 바닥 찍었다? 유가 급락 영향 美자동차주 급등",
+      "origin": "키워드",
+      "score": 0.5,
+      "sim": 0.0,
+      "chunks": 0
+     },
+     {
+      "docNo": 1456289,
+      "source": "naver_news",
+      "title": "현대차 첫 외국인 CEO 무뇨스 사장, 실적 부신 속 연말인사 '시험대'",
+      "origin": "키워드",
+      "score": 0.42,
+      "sim": 0.0,
+      "chunks": 0
+     },
+     {
+      "docNo": 1592817,
+      "source": "naver_news",
+      "title": "[특징주] 포스코퓨처엠, 현대차 1000억 투자 검토 소식에 10%대 '급등'",
+      "origin": "키워드",
+      "score": 0.369,
+      "sim": 0.0,
+      "chunks": 0
+     }
+    ]
+   }
+  },
+  {
+   "question": "현대차 관세 영향 뉴스가 있어?",
+   "company": "현대차",
+   "keyword": {
+    "seconds": 3.31,
+    "mode": "keyword",
+    "fallback": null,
+    "vectorHits": null,
+    "docs": 8,
+    "chunks": 0,
+    "ids": [
+     null,
+     1511270,
+     1456289,
+     1592817,
+     1567955,
+     1567930,
+     1567915,
+     1523821
+    ],
+    "top5": [
+     {
+      "docNo": null,
+      "source": "dart",
+      "title": "풍문또는보도에대한해명(미확정)",
+      "origin": "키워드",
+      "score": null,
+      "sim": null,
+      "chunks": 0
+     },
+     {
+      "docNo": 1511270,
+      "source": "naver_news",
+      "title": "'현대차' 주가, 바닥 찍었다? 유가 급락 영향 美자동차주 급등",
+      "origin": "키워드",
+      "score": 13.533,
+      "sim": null,
+      "chunks": 0
+     },
+     {
+      "docNo": 1456289,
+      "source": "naver_news",
+      "title": "현대차 첫 외국인 CEO 무뇨스 사장, 실적 부신 속 연말인사 '시험대'",
+      "origin": "키워드",
+      "score": 11.375,
+      "sim": null,
+      "chunks": 0
+     },
+     {
+      "docNo": 1592817,
+      "source": "naver_news",
+      "title": "[특징주] 포스코퓨처엠, 현대차 1000억 투자 검토 소식에 10%대 '급등'",
+      "origin": "키워드",
+      "score": 10.0,
+      "sim": null,
+      "chunks": 0
+     },
+     {
+      "docNo": 1567955,
+      "source": "naver_news",
+      "title": "‘현대차 효과?’… 대동기어 상한가·대동 10%대 급등",
+      "origin": "키워드",
+      "score": 10.0,
+      "sim": null,
+      "chunks": 0
+     }
+    ]
+   },
+   "embedding": {
+    "seconds": 6.09,
+    "mode": "hybrid",
+    "fallback": null,
+    "vectorHits": 40,
+    "docs": 8,
+    "chunks": 1,
+    "ids": [
+     null,
+     843093,
+     1511270,
+     1456289,
+     1592817,
+     1567955,
+     1567930,
+     1567915
+    ],
+    "top5": [
+     {
+      "docNo": null,
+      "source": "dart",
+      "title": "풍문또는보도에대한해명(미확정)",
+      "origin": "키워드",
+      "score": null,
+      "sim": null,
+      "chunks": 0
+     },
+     {
+      "docNo": 843093,
+      "source": "naver_news",
+      "title": "현대차 인도법인, 순이익 24% 감소에도 주가 5.6% 급등",
+      "origin": "둘 다",
+      "score": 0.586,
+      "sim": 0.627,
+      "chunks": 1
+     },
+     {
+      "docNo": 1511270,
+      "source": "naver_news",
+      "title": "'현대차' 주가, 바닥 찍었다? 유가 급락 영향 美자동차주 급등",
+      "origin": "키워드",
+      "score": 0.5,
+      "sim": 0.0,
+      "chunks": 0
+     },
+     {
+      "docNo": 1456289,
+      "source": "naver_news",
+      "title": "현대차 첫 외국인 CEO 무뇨스 사장, 실적 부신 속 연말인사 '시험대'",
+      "origin": "키워드",
+      "score": 0.42,
+      "sim": 0.0,
+      "chunks": 0
+     },
+     {
+      "docNo": 1592817,
+      "source": "naver_news",
+      "title": "[특징주] 포스코퓨처엠, 현대차 1000억 투자 검토 소식에 10%대 '급등'",
+      "origin": "키워드",
+      "score": 0.369,
+      "sim": 0.0,
+      "chunks": 0
+     }
+    ]
+   }
+  },
+  {
+   "question": "현대차 지금 사도 될까?",
+   "company": "현대차",
+   "keyword": {
+    "seconds": 3.27,
+    "mode": "keyword",
+    "fallback": null,
+    "vectorHits": null,
+    "docs": 8,
+    "chunks": 0,
+    "ids": [
+     null,
+     1511270,
+     1456289,
+     1592817,
+     1567955,
+     1567930,
+     1567915,
+     1523821
+    ],
+    "top5": [
+     {
+      "docNo": null,
+      "source": "dart",
+      "title": "풍문또는보도에대한해명(미확정)",
+      "origin": "키워드",
+      "score": null,
+      "sim": null,
+      "chunks": 0
+     },
+     {
+      "docNo": 1511270,
+      "source": "naver_news",
+      "title": "'현대차' 주가, 바닥 찍었다? 유가 급락 영향 美자동차주 급등",
+      "origin": "키워드",
+      "score": 13.533,
+      "sim": null,
+      "chunks": 0
+     },
+     {
+      "docNo": 1456289,
+      "source": "naver_news",
+      "title": "현대차 첫 외국인 CEO 무뇨스 사장, 실적 부신 속 연말인사 '시험대'",
+      "origin": "키워드",
+      "score": 11.375,
+      "sim": null,
+      "chunks": 0
+     },
+     {
+      "docNo": 1592817,
+      "source": "naver_news",
+      "title": "[특징주] 포스코퓨처엠, 현대차 1000억 투자 검토 소식에 10%대 '급등'",
+      "origin": "키워드",
+      "score": 10.0,
+      "sim": null,
+      "chunks": 0
+     },
+     {
+      "docNo": 1567955,
+      "source": "naver_news",
+      "title": "‘현대차 효과?’… 대동기어 상한가·대동 10%대 급등",
+      "origin": "키워드",
+      "score": 10.0,
+      "sim": null,
+      "chunks": 0
+     }
+    ]
+   },
+   "embedding": {
+    "seconds": 4.59,
+    "mode": "hybrid",
+    "fallback": null,
+    "vectorHits": 40,
+    "docs": 8,
+    "chunks": 1,
+    "ids": [
+     null,
+     843093,
+     1511270,
+     1456289,
+     1592817,
+     1567955,
+     1567930,
+     1567915
+    ],
+    "top5": [
+     {
+      "docNo": null,
+      "source": "dart",
+      "title": "풍문또는보도에대한해명(미확정)",
+      "origin": "키워드",
+      "score": null,
+      "sim": null,
+      "chunks": 0
+     },
+     {
+      "docNo": 843093,
+      "source": "naver_news",
+      "title": "현대차 인도법인, 순이익 24% 감소에도 주가 5.6% 급등",
+      "origin": "둘 다",
+      "score": 0.596,
+      "sim": 0.647,
+      "chunks": 1
+     },
+     {
+      "docNo": 1511270,
+      "source": "naver_news",
+      "title": "'현대차' 주가, 바닥 찍었다? 유가 급락 영향 美자동차주 급등",
+      "origin": "키워드",
+      "score": 0.5,
+      "sim": 0.0,
+      "chunks": 0
+     },
+     {
+      "docNo": 1456289,
+      "source": "naver_news",
+      "title": "현대차 첫 외국인 CEO 무뇨스 사장, 실적 부신 속 연말인사 '시험대'",
+      "origin": "키워드",
+      "score": 0.42,
+      "sim": 0.0,
+      "chunks": 0
+     },
+     {
+      "docNo": 1592817,
+      "source": "naver_news",
+      "title": "[특징주] 포스코퓨처엠, 현대차 1000억 투자 검토 소식에 10%대 '급등'",
+      "origin": "키워드",
+      "score": 0.369,
+      "sim": 0.0,
+      "chunks": 0
+     }
+    ]
+   }
+  },
+  {
+   "question": "KB금융 최근 뉴스 분위기는?",
+   "company": "KB금융",
+   "keyword": {
+    "seconds": 3.03,
+    "mode": "keyword",
+    "fallback": null,
+    "vectorHits": null,
+    "docs": 5,
+    "chunks": 0,
+    "ids": [
+     1048724,
+     308118,
+     1001578820,
+     1001713379,
+     136922
+    ],
+    "top5": [
+     {
+      "docNo": 1048724,
+      "source": "개인 작성 글",
+      "title": "",
+      "origin": "키워드",
+      "score": 4.789,
+      "sim": null,
+      "chunks": 0
+     },
+     {
+      "docNo": 308118,
+      "source": "naver_news",
+      "title": "[거래소 기관] SK하이닉스·삼성전기 집중 매수…KB금융은 팔았다",
+      "origin": "키워드",
+      "score": 4.773,
+      "sim": null,
+      "chunks": 0
+     },
+     {
+      "docNo": 1001578820,
+      "source": "개인 작성 글",
+      "title": "",
+      "origin": "키워드",
+      "score": 4.013,
+      "sim": null,
+      "chunks": 0
+     },
+     {
+      "docNo": 1001713379,
+      "source": "개인 작성 글",
+      "title": "",
+      "origin": "키워드",
+      "score": 2.7,
+      "sim": null,
+      "chunks": 0
+     },
+     {
+      "docNo": 136922,
+      "source": "개인 작성 글",
+      "title": "",
+      "origin": "키워드",
+      "score": 2.534,
+      "sim": null,
+      "chunks": 0
+     }
+    ]
+   },
+   "embedding": {
+    "seconds": 3.73,
+    "mode": "hybrid",
+    "fallback": null,
+    "vectorHits": 40,
+    "docs": 7,
+    "chunks": 4,
+    "ids": [
+     577276,
+     794523,
+     1048724,
+     308118,
+     1001578820,
+     1533452,
+     1021564
+    ],
+    "top5": [
+     {
+      "docNo": 577276,
+      "source": "naver_news",
+      "title": "KB금융 주가, 10월 28일 애프터마켓 154,400원 4.61% 상승",
+      "origin": "벡터",
+      "score": 0.327,
+      "sim": 0.654,
+      "chunks": 1
+     },
+     {
+      "docNo": 794523,
+      "source": "naver_news",
+      "title": "KB금융, 3분기 누적 순익 5.8조원…6조 클럽 눈앞",
+      "origin": "벡터",
+      "score": 0.317,
+      "sim": 0.635,
+      "chunks": 1
+     },
+     {
+      "docNo": 1048724,
+      "source": "개인 작성 글",
+      "title": "",
+      "origin": "키워드",
+      "score": 0.5,
+      "sim": 0.0,
+      "chunks": 0
+     },
+     {
+      "docNo": 308118,
+      "source": "naver_news",
+      "title": "[거래소 기관] SK하이닉스·삼성전기 집중 매수…KB금융은 팔았다",
+      "origin": "키워드",
+      "score": 0.498,
+      "sim": 0.0,
+      "chunks": 0
+     },
+     {
+      "docNo": 1001578820,
+      "source": "개인 작성 글",
+      "title": "",
+      "origin": "키워드",
+      "score": 0.419,
+      "sim": 0.0,
+      "chunks": 0
+     }
+    ]
+   }
+  },
+  {
+   "question": "KB금융 배당·주주환원 관련 소식은?",
+   "company": "KB금융",
+   "keyword": {
+    "seconds": 2.97,
+    "mode": "keyword",
+    "fallback": null,
+    "vectorHits": null,
+    "docs": 5,
+    "chunks": 0,
+    "ids": [
+     1048724,
+     308118,
+     1001578820,
+     1001713379,
+     136922
+    ],
+    "top5": [
+     {
+      "docNo": 1048724,
+      "source": "개인 작성 글",
+      "title": "",
+      "origin": "키워드",
+      "score": 4.789,
+      "sim": null,
+      "chunks": 0
+     },
+     {
+      "docNo": 308118,
+      "source": "naver_news",
+      "title": "[거래소 기관] SK하이닉스·삼성전기 집중 매수…KB금융은 팔았다",
+      "origin": "키워드",
+      "score": 4.773,
+      "sim": null,
+      "chunks": 0
+     },
+     {
+      "docNo": 1001578820,
+      "source": "개인 작성 글",
+      "title": "",
+      "origin": "키워드",
+      "score": 4.013,
+      "sim": null,
+      "chunks": 0
+     },
+     {
+      "docNo": 1001713379,
+      "source": "개인 작성 글",
+      "title": "",
+      "origin": "키워드",
+      "score": 2.7,
+      "sim": null,
+      "chunks": 0
+     },
+     {
+      "docNo": 136922,
+      "source": "개인 작성 글",
+      "title": "",
+      "origin": "키워드",
+      "score": 2.534,
+      "sim": null,
+      "chunks": 0
+     }
+    ]
+   },
+   "embedding": {
+    "seconds": 3.78,
+    "mode": "hybrid",
+    "fallback": null,
+    "vectorHits": 40,
+    "docs": 7,
+    "chunks": 4,
+    "ids": [
+     847995,
+     794511,
+     794483,
+     794461,
+     1048724,
+     308118,
+     1001578820
+    ],
+    "top5": [
+     {
+      "docNo": 847995,
+      "source": "naver_news",
+      "title": "KB금융, 3분기 순이익 1조9천억원…누적 순익 5조8천억원 달성",
+      "origin": "벡터",
+      "score": 0.35,
+      "sim": 0.699,
+      "chunks": 1
+     },
+     {
+      "docNo": 794511,
+      "source": "naver_news",
+      "title": "KB금융, 3분기 누적 순익 5.8조 '역대 최대'…\"증권 급성장\"",
+      "origin": "벡터",
+      "score": 0.342,
+      "sim": 0.684,
+      "chunks": 1
+     },
+     {
+      "docNo": 794483,
+      "source": "naver_news",
+      "title": "KB금융, 3분기 만에 작년 순익 육박…누적 5.8조 달성",
+      "origin": "벡터",
+      "score": 0.341,
+      "sim": 0.682,
+      "chunks": 1
+     },
+     {
+      "docNo": 794461,
+      "source": "naver_news",
+      "title": "KB금융, 배당 예측 가능성 높인다…4분기 NIM 반등 총력 [컨콜]",
+      "origin": "벡터",
+      "score": 0.34,
+      "sim": 0.679,
+      "chunks": 1
+     },
+     {
+      "docNo": 1048724,
+      "source": "개인 작성 글",
+      "title": "",
+      "origin": "키워드",
+      "score": 0.5,
+      "sim": 0.0,
+      "chunks": 0
+     }
+    ]
+   }
+  },
+  {
+   "question": "KB금융 환율 영향은?",
+   "company": "KB금융",
+   "keyword": {
+    "seconds": 3.12,
+    "mode": "keyword",
+    "fallback": null,
+    "vectorHits": null,
+    "docs": 5,
+    "chunks": 0,
+    "ids": [
+     1048724,
+     308118,
+     1001578820,
+     1001713379,
+     136922
+    ],
+    "top5": [
+     {
+      "docNo": 1048724,
+      "source": "개인 작성 글",
+      "title": "",
+      "origin": "키워드",
+      "score": 4.789,
+      "sim": null,
+      "chunks": 0
+     },
+     {
+      "docNo": 308118,
+      "source": "naver_news",
+      "title": "[거래소 기관] SK하이닉스·삼성전기 집중 매수…KB금융은 팔았다",
+      "origin": "키워드",
+      "score": 4.773,
+      "sim": null,
+      "chunks": 0
+     },
+     {
+      "docNo": 1001578820,
+      "source": "개인 작성 글",
+      "title": "",
+      "origin": "키워드",
+      "score": 4.013,
+      "sim": null,
+      "chunks": 0
+     },
+     {
+      "docNo": 1001713379,
+      "source": "개인 작성 글",
+      "title": "",
+      "origin": "키워드",
+      "score": 2.7,
+      "sim": null,
+      "chunks": 0
+     },
+     {
+      "docNo": 136922,
+      "source": "개인 작성 글",
+      "title": "",
+      "origin": "키워드",
+      "score": 2.534,
+      "sim": null,
+      "chunks": 0
+     }
+    ]
+   },
+   "embedding": {
+    "seconds": 3.98,
+    "mode": "hybrid",
+    "fallback": null,
+    "vectorHits": 40,
+    "docs": 7,
+    "chunks": 4,
+    "ids": [
+     577276,
+     529960,
+     1048724,
+     308118,
+     1001578820,
+     273522,
+     794514
+    ],
+    "top5": [
+     {
+      "docNo": 577276,
+      "source": "naver_news",
+      "title": "KB금융 주가, 10월 28일 애프터마켓 154,400원 4.61% 상승",
+      "origin": "벡터",
+      "score": 0.32,
+      "sim": 0.639,
+      "chunks": 1
+     },
+     {
+      "docNo": 529960,
+      "source": "naver_news",
+      "title": "KB금융 15만4800원으로 4.88% 상승…이익 체력과 주주환원 부각",
+      "origin": "벡터",
+      "score": 0.304,
+      "sim": 0.608,
+      "chunks": 1
+     },
+     {
+      "docNo": 1048724,
+      "source": "개인 작성 글",
+      "title": "",
+      "origin": "키워드",
+      "score": 0.5,
+      "sim": 0.0,
+      "chunks": 0
+     },
+     {
+      "docNo": 308118,
+      "source": "naver_news",
+      "title": "[거래소 기관] SK하이닉스·삼성전기 집중 매수…KB금융은 팔았다",
+      "origin": "키워드",
+      "score": 0.498,
+      "sim": 0.0,
+      "chunks": 0
+     },
+     {
+      "docNo": 1001578820,
+      "source": "개인 작성 글",
+      "title": "",
+      "origin": "키워드",
+      "score": 0.419,
+      "sim": 0.0,
+      "chunks": 0
+     }
+    ]
+   }
+  },
+  {
+   "question": "삼성전자 지금 팔아야 할까?",
+   "company": "삼성전자",
+   "keyword": {
+    "seconds": 4.41,
+    "mode": "keyword",
+    "fallback": null,
+    "vectorHits": null,
+    "docs": 8,
+    "chunks": 0,
+    "ids": [
+     null,
+     1530384,
+     1523875,
+     1069250,
+     1438618,
+     1420450,
+     1473366,
+     198979
+    ],
+    "top5": [
+     {
+      "docNo": null,
+      "source": "dart",
+      "title": "풍문또는보도에대한해명(미확정)",
+      "origin": "키워드",
+      "score": null,
+      "sim": null,
+      "chunks": 0
+     },
+     {
+      "docNo": 1530384,
+      "source": "naver_news",
+      "title": "삼성전자우 3.05% 하락…외국인은 53억원 순매수",
+      "origin": "키워드",
+      "score": 15.0,
+      "sim": null,
+      "chunks": 0
+     },
+     {
+      "docNo": 1523875,
+      "source": "naver_news",
+      "title": "삼성전자·SK하이닉스 거래대금 12.6% 감소…외국인 순매도",
+      "origin": "키워드",
+      "score": 14.467,
+      "sim": null,
+      "chunks": 0
+     },
+     {
+      "docNo": 1069250,
+      "source": "naver_news",
+      "title": "외국인 삼성E&A·기관 SK하이닉스 순매수 1위…개인은 삼성전자 8197억 팔...",
+      "origin": "키워드",
+      "score": 14.389,
+      "sim": null,
+      "chunks": 0
+     },
+     {
+      "docNo": 1438618,
+      "source": "naver_news",
+      "title": "[특징주] 외국인, 삼성중공업·대한해운 매수 상위…기관, 삼성전자 순...",
+      "origin": "키워드",
+      "score": 13.125,
+      "sim": null,
+      "chunks": 0
+     }
+    ]
+   },
+   "embedding": {
+    "seconds": 4.69,
+    "mode": "hybrid",
+    "fallback": null,
+    "vectorHits": 40,
+    "docs": 8,
+    "chunks": 5,
+    "ids": [
+     null,
+     1530384,
+     1473366,
+     82887,
+     843388,
+     843387,
+     1523875,
+     1069250
+    ],
+    "top5": [
+     {
+      "docNo": null,
+      "source": "dart",
+      "title": "풍문또는보도에대한해명(미확정)",
+      "origin": "키워드",
+      "score": null,
+      "sim": null,
+      "chunks": 0
+     },
+     {
+      "docNo": 1530384,
+      "source": "naver_news",
+      "title": "삼성전자우 3.05% 하락…외국인은 53억원 순매수",
+      "origin": "둘 다",
+      "score": 0.817,
+      "sim": 0.635,
+      "chunks": 1
+     },
+     {
+      "docNo": 1473366,
+      "source": "naver_news",
+      "title": "삼성전자·SK하이닉스 자사주 매입 46조…외국인 매도 방어",
+      "origin": "둘 다",
+      "score": 0.722,
+      "sim": 0.667,
+      "chunks": 1
+     },
+     {
+      "docNo": 82887,
+      "source": "naver_news",
+      "title": "[특징주] 외국인·기관, 루닛 동반 순매수…삼성전자·빅텍은 매매 엇갈...",
+      "origin": "둘 다",
+      "score": 0.654,
+      "sim": 0.659,
+      "chunks": 1
+     },
+     {
+      "docNo": 843388,
+      "source": "naver_news",
+      "title": "\"외국인이 1조원 이상 사야 의미 달라진다\"…삼성전자 반등 열쇠는 수급",
+      "origin": "둘 다",
+      "score": 0.625,
+      "sim": 0.637,
+      "chunks": 1
+     }
+    ]
+   }
+  }
+ ]
+}

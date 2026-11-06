@@ -341,7 +341,7 @@ def tool_price(args: dict, ctx: dict, led: Ledger) -> dict:
 def tool_docs(args: dict, ctx: dict, led: Ledger) -> dict:
     from ch_agents import rag
 
-    docs, hyb = retrieve_docs(ctx["co"], ctx["as_of"])
+    docs, hyb = retrieve_docs(ctx["co"], ctx["as_of"], ctx.get("question"))
     shown, hidden = [], 0
     for d in docs:
         src = str(d.get("source") or "")
@@ -354,12 +354,13 @@ def tool_docs(args: dict, ctx: dict, led: Ledger) -> dict:
         if len(shown) >= 6:
             break
     found = [{"docNo": d.get("doc_id"), "source": str(d.get("source") or ""), "published": str(d.get("published") or "")[:10], "score": d.get("score"),
+              "origin": d.get("origin"), "sim": d.get("sim"), "chunks": [{k: c.get(k) for k in ("chunkId", "chunkIdx", "sim")} for c in d.get("chunks") or []],
               "matched": list(d.get("terms") or [])[:4],
               "hidden": str(d.get("source") or "") in ("naver_blog", "naver_cafe", "youtube_comment") or bool(OPINION_HOST_RE.search(str(d.get("summary") or "") + str(d.get("url") or "")))}
              for d in docs]
     for f in found:      # 개인 작성 글은 번호·점수만, 출처 이름·내용·제목·주소·일치 단어는 두지 않음
         if f["hidden"]:
-            f["matched"], f["source"] = [], "개인 작성 글"
+            f["matched"], f["source"], f["chunks"] = [], "개인 작성 글", []
     return {"summary": f"문서 {len(docs)}건 중 공개 보도·공시 {len(shown)}건 사용, 개인 작성 글 {hidden}건은 내용 비공개",
             "keys": shown, "tech": rag_tech(),
             "rag": {"query": f"{ctx['co'].get('name')} · 관점 3(투자심리·수급) 문서 프리셋 · 기준일 {ctx['as_of']} 이전 공개 문서", "found": found, "shown": shown, "hybrid": hyb}}
@@ -370,8 +371,8 @@ def tool_docs(args: dict, ctx: dict, led: Ledger) -> dict:
 RAG_PRESET = 3
 
 
-def retrieve_docs(co: dict, as_of: str) -> tuple[list[dict], dict]:
-    """문서 검색(관점 6). 벡터 검색이 켜져 있으면(CH_RAG_HYBRID=on) 질의 임베딩 → HNSW 벡터 검색 → 키워드와 합산, 실패하면 키워드 검색으로 대체하고 이유를 남긴다.
+def retrieve_docs(co: dict, as_of: str, question: str | None = None) -> tuple[list[dict], dict]:
+    """문서 검색(관점 6). 벡터 검색이 켜져 있으면(CH_RAG_HYBRID=on) 질의 임베딩 → 정확 벡터 검색 → 키워드와 합산, 실패하면 키워드 검색으로 대체하고 이유를 남긴다.
     두 번째 값은 실행 기록: {mode, modeLabel, embedModel, dim, vectorHits, seconds, fallback}."""
     from ch_agents import rag, rag_hybrid
     from ch_agents.agents import normalize_as_of
@@ -381,10 +382,10 @@ def retrieve_docs(co: dict, as_of: str) -> tuple[list[dict], dict]:
     if not rag_hybrid.enabled():
         return rag.select(RAG_PRESET, raw, co, as_of), {"mode": "keyword", "modeLabel": "키워드 검색(벡터 검색 꺼짐)", "fallback": None}
     t = time.monotonic()
-    raw["hybrid"] = rag_hybrid.fetch_hybrid(RAG_PRESET, co, as_of, raw)
+    raw["hybrid"] = rag_hybrid.fetch_hybrid(RAG_PRESET, co, as_of, raw, question=question)
     docs, status = rag_hybrid.select_hybrid(RAG_PRESET, raw, co, as_of)
     hits = len((raw["hybrid"] or {}).get("hits") or [])
-    return docs, {"mode": status["mode"], "embedModel": rag_hybrid.QUERY_MODEL, "dim": rag_hybrid.EMBED_DIM, "vectorHits": hits,
+    return docs, {"mode": status["mode"], "query": (raw["hybrid"] or {}).get("query"), "embedModel": rag_hybrid.QUERY_MODEL, "dim": rag_hybrid.EMBED_DIM, "vectorHits": hits,
                   "seconds": round(time.monotonic() - t, 2), "fallback": status.get("fallback"),
                   "modeLabel": "하이브리드 검색(키워드 + 벡터)" if status["mode"] == "hybrid" else "키워드 검색(벡터 검색 실패로 대체)"}
 
@@ -398,7 +399,7 @@ TOOL_DESC = """- run_node_agent {"agent_no": 3|4|6}: 3=거시(금리·환율 노
 def rag_tech() -> dict:
     from ch_agents import rag_hybrid, rerank
 
-    return {"검색": "키워드 후보 + 벡터 검색(HNSW)" if rag_hybrid.enabled() else "키워드·규칙 점수 선별(벡터 검색 꺼짐: CH_RAG_HYBRID=off)",
+    return {"검색": "키워드 후보 + 벡터 검색(정확 거리 정렬)" if rag_hybrid.enabled() else "키워드·규칙 점수 선별(벡터 검색 꺼짐: CH_RAG_HYBRID=off)",
             "임베딩 모델": f"{rag_hybrid.QUERY_MODEL} ({rag_hybrid.EMBED_DIM}차원)", "후보 상위 N": rag_hybrid.N_CANDIDATES,
             "문서당 청크": rag_hybrid.PER_DOC, "리랭커": f"{rerank.model_name()} 사용" if rerank.enabled() else "사용 안 함(CH_RAG_RERANK=off)"}
 
@@ -620,7 +621,7 @@ def answer(question: str, llm, emit: Callable[[dict], None] | None = None, unive
 
     co = db.company(comp["ticker"])
     days = interp["period"]["days"]
-    ctx = {"co": co, "ticker": comp["ticker"], "as_of": interp["period"]["as_of"], "days": days, "interp": interp, "outlooks": {}}
+    ctx = {"question": question, "co": co, "ticker": comp["ticker"], "as_of": interp["period"]["as_of"], "days": days, "interp": interp, "outlooks": {}}
     led = Ledger()
     done: list[dict] = []
     seen: set[str] = set()

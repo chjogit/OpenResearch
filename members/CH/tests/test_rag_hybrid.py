@@ -57,19 +57,19 @@ def test_fetch_hybrid_failures_are_recorded_not_raised():
         calls["p"] = p
         return HITS
     out = rag_hybrid.fetch_hybrid(3, CO, AS_OF, _raw(), embed=lambda t: [0.1] * 1024, run_sql=run_sql)
-    assert out == {"hits": HITS}
+    assert out["hits"] == HITS and "삼성전자" in out["query"]
     assert calls["p"]["cid"] == CO["company_id"] and calls["p"]["qv"].startswith("[0.100000")  # 종목 필터 + 질의 벡터
     assert "INSERT" not in rag_hybrid.VECTOR_SQL.upper() and "UPDATE" not in rag_hybrid.VECTOR_SQL.upper()  # 읽기 전용
 
 
-def test_fetch_bundle_hybrid_is_off_by_default(monkeypatch):
+def test_fetch_bundle_hybrid_is_on_by_default_and_can_be_turned_off(monkeypatch):
     monkeypatch.setattr(agents.db, "bundle", lambda sql, p: {})
     monkeypatch.setattr(agents.rag, "fetch", lambda a, co, as_of: {"news": [], "disclosures": []})
-    monkeypatch.delenv("CH_RAG_HYBRID", raising=False)
-    assert "hybrid" not in agents.fetch_bundle(3, CO, AS_OF)["rag"]
-    monkeypatch.setenv("CH_RAG_HYBRID", "on")
     monkeypatch.setattr(agents.rag_hybrid, "fetch_hybrid", lambda *a, **k: {"error": "x"})
-    assert agents.fetch_bundle(3, CO, AS_OF)["rag"]["hybrid"] == {"error": "x"}
+    monkeypatch.delenv("CH_RAG_HYBRID", raising=False)
+    assert agents.fetch_bundle(3, CO, AS_OF)["rag"]["hybrid"] == {"error": "x"}          # 기본 켬(#67)
+    monkeypatch.setenv("CH_RAG_HYBRID", "off")
+    assert "hybrid" not in agents.fetch_bundle(3, CO, AS_OF)["rag"]
 
 
 def test_no_hybrid_key_keeps_existing_behaviour():
@@ -144,3 +144,39 @@ def test_embed_query_with_mock_session(monkeypatch):
         raise AssertionError("차원 오류가 나야 함")
     except RuntimeError as e:
         assert "차원" in str(e)
+
+
+def test_question_goes_into_the_query_sentence():
+    a, b = rag_hybrid.query_text(3, CO), rag_hybrid.query_text(3, CO, "외국인 수급 어때?")
+    assert b.startswith("외국인 수급 어때? | ") and b.endswith(a) and "|" not in a
+
+
+W = ["반도체 공급", "환율 변동", "배당 확대", "공장 증설", "노조 협상", "신제품 출시", "미국 관세", "스마트폰 판매", "파운드리 수주", "메모리 가격", "자사주 소각", "로봇 투자"]
+
+
+def test_vector_top_docs_are_guaranteed_ahead_of_keyword_scores_and_carry_evidence():
+    many = [_hit(900 + i, 100 + i, W[i], 0.40 + i * 0.01) for i in range(12)]
+    docs, st = rag_hybrid.select_hybrid(3, {**_raw(), "hybrid": {"hits": many}}, CO, AS_OF)
+    news = [d for d in docs if d["kind"] != "공시"]
+    need = -(-int(rag.PRESETS[3].k_docs * rag_hybrid.VECTOR_SHARE * 100) // 100)
+    top_vec = sorted(many, key=lambda h: -h["sim"])[:need]
+    assert [d["doc_id"] for d in news[:need]] == [h["doc_id"] for h in top_vec]       # 유사도 순으로 먼저
+    assert all(d["origin"] in ("벡터", "둘 다") and d["chunks"] and d["chunks"][0]["chunkId"] == d["chunk_id"] for d in news[:need])
+    assert st["mode"] == "hybrid"
+
+
+def test_origin_marks_keyword_only_and_both():
+    docs, _ = rag_hybrid.select_hybrid(3, _hybrid_raw(), CO, AS_OF)
+    origins = {d["doc_id"]: d["origin"] for d in docs if d["kind"] != "공시"}
+    assert origins[50] == "벡터" and origins[1] == "둘 다" and "키워드" in origins.values()
+
+
+def test_future_and_other_company_chunks_never_reach_the_sql_params():
+    seen = {}
+
+    def run_sql(sql, p):
+        seen.update(p)
+        return HITS
+    rag_hybrid.fetch_hybrid(3, CO, AS_OF, _raw(), embed=lambda t: [0.1] * 1024, run_sql=run_sql, question="수급?")
+    assert seen["as_of"] == AS_OF and seen["cid"] == CO["company_id"] if "company_id" in CO else seen["as_of"] == AS_OF
+    assert "d.company_id = %(cid)s" in rag_hybrid.VECTOR_SQL and "d.published_at <= %(as_of)s::date" in rag_hybrid.VECTOR_SQL

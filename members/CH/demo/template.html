@@ -541,9 +541,24 @@ function outlookValid() {
   <ul>${o.limits.map(x => `<li>${esc(x)}</li>`).join("")}</ul>
   <p class="note">계산 방식·도출 과정: ${esc(o.doc)} · 다시 계산: <code>${esc(o.command || "")}</code></p></div>`;
 }
+function ragReportHtml() {
+  const R = D.ragReport;
+  if (!R) return "";
+  const s = R.summary, cov = R.coverage.map(c => `<tr><td>${esc(c.source)}</td><td>${esc(c.db)}</td><td>${fmt(c.docs)}</td><td>${fmt(c.embedded)}</td><td>${c.docs ? Math.round(c.embedded / c.docs * 1000) / 10 : 0}%</td><td>${esc(String(c.first).slice(0, 10))} ~ ${esc(String(c.last).slice(0, 10))}</td></tr>`).join("");
+  const rows = R.items.map(i => {
+    const t = x => x.top5.map(d => `<li>${esc(d.title || "(개인 작성 글 — 번호 " + d.docNo + " · 점수만)")} <span class="note">${esc(d.origin)}${d.sim != null ? " · 유사도 " + d.sim : ""}</span></li>`).join("");
+    return `<tr><td>${esc(i.question)}</td><td>${i.keyword.seconds}초<ol>${t(i.keyword)}</ol></td><td>${i.embedding.seconds}초 · 청크 ${i.embedding.chunks}개 · 벡터 후보 ${i.embedding.vectorHits}건<ol>${t(i.embedding)}</ol></td></tr>`;
+  }).join("");
+  return `<div class="card"><h2>문서 검색 방식 (임베딩 중심 RAG)</h2>
+    <p>질문·종목·영역으로 만든 질의 문장을 <b>${esc(R.model)}</b>(${R.dim}차원)로 임베딩 → ${esc(R.index)} 벡터 검색으로 기준일(${esc(R.asOf)}) 이하 청크를 <b>독립적으로</b> 가져옴 → 키워드 후보와 합침(벡터 유사도 상위 ${Math.round(R.vectorShare * 100)}% 자리를 먼저 보장, 나머지는 키워드·벡터 합산 점수 순) → 근거 청크(문서 번호·청크 번호·유사도) 반환. 임베딩 실패 시 키워드 검색으로 대체하고 화면에 표시합니다.</p>
+    <div class="kv"><div><small>비교 질문</small><b>${s.questions}개</b></div><div><small>검색 시간(키워드만)</small><b>${s.keywordSeconds}초</b></div><div><small>검색 시간(임베딩 중심)</small><b>${s.embeddingSeconds}초</b></div><div><small>근거 청크(질문당)</small><b>${s.embeddingChunks}개</b></div><div><small>키워드와 달라진 문서(질문당)</small><b>${s.changedDocs}건</b></div><div><small>대체(실패) 횟수</small><b>${s.fallbacks}회</b></div></div>
+    <h3>임베딩 보유율 (문서 대비 임베딩된 청크가 있는 문서)</h3><div class="tw"><table><tr><th>출처</th><th>DB</th><th>문서</th><th>임베딩 보유</th><th>보유율</th><th>기간</th></tr>${cov}</table></div>
+    <p class="note">메인 DB ${esc(R.dbSize)} / 한도 ${esc(R.dbLimit)}. 개인 작성 글(블로그·카페·유튜브 댓글)은 임베딩이 없어 키워드 검색만 씁니다(용량 문제, 티켓 #68).</p>
+    <h3>질문별 상위 5건 비교 (제목으로 관련성을 직접 판단하세요)</h3><div class="tw"><table><tr><th>질문 (${esc(R.ranAt)}, 기준일 ${esc(R.asOf)})</th><th>키워드만</th><th>임베딩 중심</th></tr>${rows}</table></div></div>`;
+}
 (function () {
   const v = D.validation;
-  $("#s-valid").innerHTML = perfCards() + `<div class="card"><h2>제거 문장 추이 (과거 측정 기록, 각 티켓 Comments 의 값)</h2><p class="note">${esc(v.note)}</p><div class="tw"><table><tr><th>단계</th><th>제거 문장 합계</th><th>범위</th><th>설명</th></tr>${v.rows.map(r =>
+  $("#s-valid").innerHTML = perfCards() + ragReportHtml() + `<div class="card"><h2>제거 문장 추이 (과거 측정 기록, 각 티켓 Comments 의 값)</h2><p class="note">${esc(v.note)}</p><div class="tw"><table><tr><th>단계</th><th>제거 문장 합계</th><th>범위</th><th>설명</th></tr>${v.rows.map(r =>
     `<tr><td>${esc(r.stage)}</td><td>${esc(r.removed_total)}</td><td>${esc(r.range)}</td><td>${esc(r.note)}</td></tr>`).join("")}</table></div></div>
   ${outlookValid()}
   ${sentEval()}

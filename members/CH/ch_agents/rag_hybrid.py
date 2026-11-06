@@ -51,16 +51,21 @@ WHERE d.company_id = %(cid)s AND d.source = ANY(%(sources)s::text[]) AND c.doc_i
 ORDER BY c.doc_id, c.chunk_idx
 """
 PER_DOC = 2                  # 문서당 최대 청크 수
+VECTOR_SHARE = 0.5           # 최종 문서 자리 중 벡터 유사도 순으로 먼저 보장하는 몫(#67). 나머지는 키워드·벡터 합산 점수 순
+EVIDENCE_PER_DOC = 2         # 문서마다 근거 청크(번호·유사도·발췌) 최대 개수
 
 
 def enabled() -> bool:
-    return os.getenv("CH_RAG_HYBRID", "off").lower() == "on"
+    return os.getenv("CH_RAG_HYBRID", "on").lower() == "on"      # #67: 기본 켬(에이전트 3·4·6 24회 켬/끔 측정 — 제거 39→26문장, 근거 없는 주장 0→0). 끄려면 CH_RAG_HYBRID=off
 
 
-def query_text(agent_id: int, co: dict) -> str:
+def query_text(agent_id: int, co: dict, question: str | None = None) -> str:
+    """질의 문장 = (질문) + 종목명 + 관점 이름 + 관점 키워드 상위 5개. 질문이 있으면 앞에 붙여 질문마다 다른 청크를 찾게 한다(#67)."""
     p = rag.PRESETS[agent_id]
     top = sorted(p.terms, key=lambda t: -p.terms[t])[:5]
-    return f"{co.get('name') or co.get('ticker')} {p.name} {' '.join(top)}"
+    base = f"{co.get('name') or co.get('ticker')} {p.name} {' '.join(top)}"
+    q = " ".join(str(question or "").split())[:300]
+    return f"{q} | {base}" if q else base
 
 
 def embed_query(text: str, session=None) -> list[float]:
@@ -89,19 +94,30 @@ def _doc_from_vector(r: dict) -> dict:
 
 
 def merge_candidates(agent_id: int, raw: dict, co: dict, as_of: str, hits: list[dict], n: int = N_CANDIDATES) -> list[dict]:
-    """키워드 점수(0~1 로 정규화)와 벡터 유사도를 가중 합산해 상위 n개 문서. 벡터로 찾은 문서에 chunk_id 를 붙임."""
+    """키워드 점수(0~1 로 정규화)와 벡터 유사도를 합쳐 상위 n개 문서 (#67 합치는 규칙):
+    ① 벡터 검색이 독립적으로 찾은 문서 중 유사도 상위 ceil(k_docs × VECTOR_SHARE)개를 **유사도 순으로 먼저** 둔다(키워드 점수에 밀려 빠지지 않게).
+    ② 나머지 자리는 0.5×키워드(0~1) + 0.5×유사도 합산 점수 순. ③ 같은 제목·출처별 개수 제한은 그대로.
+    각 문서에 origin(벡터·키워드·둘 다), sim, 근거 청크(chunks: 번호·유사도·발췌)를 붙인다."""
     p = rag.PRESETS[agent_id]
     kw = rag.select_docs(raw.get("news"), replace(p, k_docs=n * 3), co, as_of)
     top = max((d["score"] for d in kw), default=0.0) or 1.0
-    pool = {d["doc_id"]: {**d, "kw": d["score"] / top, "sim": 0.0} for d in kw}
-    for h in hits:
+    pool = {d["doc_id"]: {**d, "kw": d["score"] / top, "sim": 0.0, "chunks": []} for d in kw}
+    for h in sorted(hits, key=lambda x: -float(x["sim"])):
         if h["source"] not in p.sources:
             continue
-        cur = pool.setdefault(h["doc_id"], {**_doc_from_vector(h), "kw": 0.0, "sim": 0.0})
+        cur = pool.setdefault(h["doc_id"], {**_doc_from_vector(h), "kw": 0.0, "sim": 0.0, "chunks": []})
         if "chunk_id" not in cur or float(h["sim"]) > cur["sim"]:
             cur["sim"], cur["chunk_id"] = float(h["sim"]), h["chunk_id"]
+        if len(cur["chunks"]) < EVIDENCE_PER_DOC:
+            cur["chunks"].append({"chunkId": h["chunk_id"], "chunkIdx": h.get("chunk_idx"), "sim": round(float(h["sim"]), 3),
+                                  "excerpt": rag._clean(h.get("content"), 200) if h.get("content") else ""})
+    for d in pool.values():
+        d["origin"] = "둘 다" if d["kw"] and d["sim"] else "벡터" if d["sim"] else "키워드"
     ranked = sorted(pool.values(), key=lambda d: (W_KEYWORD * d["kw"] + W_VECTOR * max(d["sim"], 0.0),
                                                   d["published"], str(d["doc_id"])), reverse=True)
+    reserve = -(-int(p.k_docs * VECTOR_SHARE * 100) // 100)      # ceil(k_docs × 몫)
+    first = sorted((d for d in pool.values() if d["sim"] > 0), key=lambda d: (-d["sim"], str(d["doc_id"])))[:reserve]
+    ranked = first + [d for d in ranked if d not in first]
     out, norms, per_src = [], [], {}
     for d in ranked:
         nt = rag._norm_title(d["title"])
@@ -113,7 +129,8 @@ def merge_candidates(agent_id: int, raw: dict, co: dict, as_of: str, hits: list[
             continue
         norms.append(nt)
         per_src[src] = per_src.get(src, 0) + 1
-        d["score"] = round(W_KEYWORD * d.pop("kw") + W_VECTOR * max(d.pop("sim"), 0.0), 3)
+        d["score"] = round(W_KEYWORD * d.pop("kw") + W_VECTOR * max(d["sim"], 0.0), 3)
+        d["sim"] = round(d["sim"], 3)
         out.append(d)
         if len(out) >= n:
             break
@@ -122,14 +139,15 @@ def merge_candidates(agent_id: int, raw: dict, co: dict, as_of: str, hits: list[
 
 # ---------------------------------------------------------------- 호출 (네트워크·DB 읽기)
 
-def fetch_hybrid(agent_id: int, co: dict, as_of: str, raw: dict, embed=None, run_sql=None) -> dict:
-    """질의 임베딩 → 벡터 검색. 결과는 bundle['rag']['hybrid'] 에 저장할 dict. 실패는 error 로 기록."""
+def fetch_hybrid(agent_id: int, co: dict, as_of: str, raw: dict, embed=None, run_sql=None, question: str | None = None) -> dict:
+    """질의 임베딩 → 벡터 검색. 결과는 bundle['rag']['hybrid'] 에 저장할 dict. 실패는 error 로 기록. question 이 있으면 질의 문장에 포함(#67)."""
     from .asof import cut_future, require_as_of
 
     as_of = require_as_of(as_of)
     out: dict = {}
     try:
-        qv = (embed or embed_query)(query_text(agent_id, co))
+        out["query"] = query_text(agent_id, co, question)
+        qv = (embed or embed_query)(out["query"])
         if run_sql is None:
             from . import db
             run_sql = db.q

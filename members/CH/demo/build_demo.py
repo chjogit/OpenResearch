@@ -617,6 +617,12 @@ def question_problems(items: list[dict]) -> list[str]:
     return bad
 
 
+def load_rag_report() -> dict | None:
+    """문서 검색 방식 비교·임베딩 보유율(scripts/rag_compare.py 가 만든 demo/rag_compare.json). 없으면 성능 탭에 안 보임."""
+    f = HERE / "rag_compare.json"
+    return json.loads(f.read_text(encoding="utf-8")) if f.exists() else None
+
+
 def static_pipeline() -> dict:
     """처음 여는 화면의 파이프라인 그림: 시연 서버 기본 설정(벡터 검색 켜짐, 환경변수로 끈 경우는 그 값)으로 설명을 만든다. 질문을 실행하면 그 실행의 값으로 바뀜."""
     from qa import pipeline
@@ -638,7 +644,7 @@ def build_payload(runs: dict, status: dict, generated_at: str | None = None, out
         "tickers": [{"ticker": t, "name": n} for t, n in TICKERS], "agents": {str(k): v for k, v in AGENTS.items()},
         "runs": rs, "status": status, "validation": VALIDATION, "sentimentEval": load_sentiment_eval(), "overview": OVERVIEW,
         "outlook": outlook or {}, "outlookValidation": load_outlook_validation(),
-        "questions": questions or {"ranAt": None, "items": []}, "pipeline": static_pipeline(),
+        "questions": questions or {"ranAt": None, "items": []}, "pipeline": static_pipeline(), "ragReport": load_rag_report(),
         "interpEval": json.loads(QA_EVAL.read_text(encoding="utf-8")) if QA_EVAL.exists() else None,
     }
 

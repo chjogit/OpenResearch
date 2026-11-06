@@ -93,6 +93,14 @@ def test_retrieve_docs_keyword_only_when_off(monkeypatch):
     assert h["mode"] == "keyword" and h["fallback"] is None
 
 
+def test_step5_explains_query_with_question_and_merge_rule():
+    s5 = pipeline.describe(None)["steps"][4]
+    assert "질의" in s5["what"] and "임베딩" in s5["what"]
+    rule = next(t for t in s5["tech"] if t["label"] == "합치는 규칙")
+    from ch_agents import rag_hybrid
+    assert f"{int(rag_hybrid.VECTOR_SHARE * 100)}%" in rule["value"]
+
+
 def test_template_marks_stage_anchors_and_has_no_tech_json():
     t = (HERE / "demo" / "template.html").read_text(encoding="utf-8")
     assert 'data-stage="8"' in t and 'data-stage="9"' in t and 'data-stage="1"' in t and "pipeSvgH" in t and "pipeSvgV" in t

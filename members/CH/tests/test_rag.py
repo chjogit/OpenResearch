@@ -105,6 +105,7 @@ def test_rag_error_is_reported_not_raised():
 def test_fetch_bundle_attaches_rag(monkeypatch):
     monkeypatch.setattr(agents.db, "bundle", lambda sql, p: {"x": 1})
     monkeypatch.setattr(agents.rag, "fetch", lambda a, co, as_of: {"news": [], "disclosures": []})
+    monkeypatch.setenv("CH_RAG_HYBRID", "off")
     assert agents.fetch_bundle(3, CO, AS_OF)["rag"] == {"news": [], "disclosures": []}
     assert "rag" not in agents.fetch_bundle(3, CO, AS_OF, use_rag=False)
 
