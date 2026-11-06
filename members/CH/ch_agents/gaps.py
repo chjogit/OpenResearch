@@ -96,6 +96,7 @@ def _detail_of(label: str, reason: str) -> str:
 
 def _plain_label(label: str) -> str:
     base = re.split(r"[（(:]", label, 1)[0].strip()
+    base = re.sub(r"\s*변수$", "", base)               # '관세·통상정책 변수' = '관세·통상정책' (같은 주제)
     return base or label.strip()
 
 

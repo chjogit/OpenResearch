@@ -52,3 +52,7 @@ def test_contract_unverified_is_tidied_but_schema_still_valid():
     assert len(u) == 2 and u[0]["evidenceIds"] == ["E1", "E2"] and u[0]["group"] == "out_of_scope" and u[0]["sources"] == ["노드 점검", "에이전트 판단"]
     assert "N08" not in u[1]["item"] and u[1]["groupLabel"] == "미확보"
     assert contract.SCHEMA_VERSION  # 필드 추가는 선택 필드라 옛 결과도 검증 통과 (test_brief·test_outlook 에서 확인)
+
+def test_trailing_word_byeonsu_does_not_make_a_second_topic():
+    items, _ = gaps.organize([{"label": "관세·통상정책 변수(DB 미보관)", "reason": ""}, {"label": "관세·통상정책", "reason": ""}])
+    assert len(items) == 1
