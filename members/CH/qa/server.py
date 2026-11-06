@@ -12,6 +12,7 @@ DB 는 읽기 전용(ch_agents.db), 비밀값은 .env 에서만 읽고 응답·�
 from __future__ import annotations
 
 import json
+import os
 import sys
 import threading
 import time
@@ -70,7 +71,9 @@ class Handler(BaseHTTPRequestHandler):
         elif self.path.startswith("/api/status"):
             from ch_agents import llm as L
 
-            self._send(200, json.dumps({"live": True, "llm": L.MODEL}, ensure_ascii=False).encode(), "application/json; charset=utf-8")
+            from qa import pipeline
+
+            self._send(200, json.dumps({"live": True, "llm": L.MODEL, "pipeline": pipeline.describe(None)}, ensure_ascii=False).encode(), "application/json; charset=utf-8")
         elif self.path.startswith("/api/eval"):
             f = HERE / "eval_results.json"
             self._send(200, f.read_bytes() if f.exists() else b"{}", "application/json; charset=utf-8")
@@ -108,6 +111,7 @@ class Handler(BaseHTTPRequestHandler):
 
 
 def main(port: int = 8765):
+    os.environ.setdefault("CH_RAG_HYBRID", "on")      # 시연 서버 기본: 벡터 검색 켜짐(PM 11/5). 끄려면 CH_RAG_HYBRID=off 로 실행. 에이전트 3·4·6 기본값은 그대로(꺼짐)
     for stream in (sys.stdout, sys.stderr):      # Windows 콘솔(cp949)에서 한글·기호 출력이 응답을 끊지 않게
         try:
             stream.reconfigure(encoding="utf-8", errors="replace")
