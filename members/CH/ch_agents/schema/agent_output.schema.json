@@ -72,7 +72,11 @@
           "evidenceIds": {"type": "array", "items": {"type": "string"}},
           "availability": {"type": "string",
                            "enum": ["collecting", "partial_disclosure", "not_disclosed", "not_verified", "unclassified"]},
-          "availabilityLabel": {"type": "string"}
+          "availabilityLabel": {"type": "string"},
+          "group": {"type": "string", "enum": ["missing", "out_of_scope", "collecting", "date_diff", "limit", "processing"],
+                    "description": "성격별 묶음 (선택, #62): 미확보·범위 밖·수집 중·기준일 차이·한계·처리 기록"},
+          "groupLabel": {"type": "string"},
+          "sources": {"type": "array", "items": {"type": "string", "enum": ["노드 점검", "에이전트 판단"]}, "description": "같은 주제를 합친 출처 표시 (선택, #62)"}
         }
       }
     },

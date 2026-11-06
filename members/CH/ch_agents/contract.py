@@ -25,6 +25,7 @@ import re
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
+from . import gaps as gaps_mod
 from .availability import AVAILABILITY, availability
 from .nodes import legacy_agent_nos, legacy_tag
 
@@ -272,6 +273,7 @@ def build(run: dict, data, mode: str = "expert") -> dict:
     for u in unverified:
         u["availability"] = availability(u["item"], u["reason"])
         u["availabilityLabel"] = AVAILABILITY[u["availability"]]
+    unverified = gaps_mod.tidy(unverified)      # 같은 주제 합침·묶음·출처 표시·내부 코드 한국어화 (#62)
     out = {
         "schemaVersion": SCHEMA_VERSION,
         "reportId": None,

@@ -561,6 +561,11 @@ def answer(question: str, llm, emit: Callable[[dict], None] | None = None, unive
                            "answer": [], "gaps": [], "status": "", "trace": trace}
 
     def finish(status: str, text: str | None = None) -> dict:
+        from ch_agents.gaps import organize
+
+        out["gaps"], proc = organize(out.get("gaps") or [])         # 중복 합침·묶음·내부 코드 한국어화·처리 통계는 처리 기록으로 (#62)
+        if proc:
+            out["processing"] = proc
         out["status"] = status
         if text:
             out["message"] = text
