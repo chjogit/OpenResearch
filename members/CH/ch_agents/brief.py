@@ -12,7 +12,14 @@ import re
 from typing import Any
 
 MAX_CHARS = 200
-INTERNAL_CODE_RE = re.compile(r"(?<![A-Za-z0-9])[NDEPLSTM]\d{1,2}(?![0-9])|Point-in-Time")
+# 장부 키(L1·S19·T1081·F18·M7)·노드·사건 번호. 분기 표기(Q3·H1)는 제외
+INTERNAL_CODE_RE = re.compile(r"(?<![A-Za-z0-9])(?!Q[1-4](?![0-9])|H[12](?![0-9]))[A-Z]\d{1,5}(?![0-9])|Point-in-Time")
+KEY_NOTE_RE = re.compile(r"\s*[（(]?\b[A-Z]\d{1,5}(?:[·,\s]+[A-Z]\d{1,5})*[)）]?")
+
+
+def strip_codes(text: str) -> str:
+    """문장 속 장부 키 표기(예: '(T1081·T1082)')를 지운다. 값은 이미 채워져 있으니 키 표기만 군더더기다."""
+    return re.sub(r"\s{2,}", " ", INTERNAL_CODE_RE.sub("", KEY_NOTE_RE.sub("", text))).strip()
 METHOD_LABEL = {
     "node-rule": "노드 결과 규칙 요약(질의응답은 노드만 실행해 LLM 요약 없음)","llm": "LLM 요약", "llm-retry": "LLM 요약(줄여 다시 씀)", "llm-trim": "LLM 요약(검사를 통과한 앞 문장만 남김)", "rule": "규칙 기반 요약(LLM 요약이 검사를 통과하지 못해 대체)"}
 
@@ -40,10 +47,14 @@ def _claim_texts(result: dict) -> list[str]:
     return [t for t in out if t]
 
 
-def material(result: dict, data: Any) -> tuple[str, str | None]:
-    """LLM 에 주는 재료 문자열과 가장 중요한 미확보 1개."""
+def material(result: dict, data: Any, contract: dict | None = None) -> tuple[str, str | None]:
+    """LLM 에 주는 재료 문자열과 가장 중요한 미확보 1개. 전망 근거(규칙이 신호로 본 항목)는 관찰에 반영하도록 함께 준다."""
     lines = [f"핵심진단: {result.get('핵심진단', '')}"] if result.get("핵심진단") else []
     lines += [f"- {t}" for t in _claim_texts(result)[:4]]
+    ol = (contract or {}).get("outlook") or {}
+    why = [f["template"] for f in (ol.get("positiveFactors") or []) + (ol.get("negativeFactors") or []) if f.get("template")]
+    if why:
+        lines.append("전망 근거(규칙이 신호로 본 항목 — 관찰에 반드시 반영): " + " / ".join(why[:2]))
     gap = next((str(x) for x in result.get("미확인") or []), None)
     if gap:
         lines.append(f"미확보(가장 중요): {gap}")
@@ -76,11 +87,11 @@ def _ask(model: Any, msgs: list) -> str | None:
     return str(text).strip() if text else None
 
 
-def _llm_text(model: Any, result: dict, data: Any, budget: int) -> tuple[str | None, str | None]:
+def _llm_text(model: Any, result: dict, data: Any, budget: int, contract: dict | None = None) -> tuple[str | None, str | None]:
     """(요약, 방식). 실패하면 (None, None)."""
     from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 
-    mat, _ = material(result, data)
+    mat, _ = material(result, data, contract)
     if model is None or not mat:
         return None, None
     msgs = [SystemMessage(content=SYSTEM),
@@ -139,7 +150,7 @@ def make_brief(out: dict, data: Any, model: Any = None) -> dict:
     tail = outlook_tail(contract)
     budget = MAX_CHARS - (len(tail) + 1 if tail else 0)
     result = out.get("result") or {}
-    text, method = _llm_text(model, result, data, budget)
+    text, method = _llm_text(model, result, data, budget, contract)
     if not text:
         text, method = rule_text(result, contract, data, budget), "rule"
     full = f"{text} {tail}".strip()

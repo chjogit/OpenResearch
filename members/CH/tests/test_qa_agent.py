@@ -439,3 +439,14 @@ def test_demo_html_renders_200_char_brief_cards_above_details():
 def test_answer_brief_skips_sentences_with_internal_codes():
     b = qa.answer_brief([{"문장": "사건 E4의 실적 경신이 있다.", "구분": "사실"}, {"문장": "순매도가 이어졌다.", "구분": "사실"}])
     assert b["text"] == "순매도가 이어졌다."
+
+
+def test_answer_brief_never_shows_ledger_keys_even_when_every_sentence_has_them():
+    from ch_agents.brief import INTERNAL_CODE_RE
+
+    only_keys = qa.answer_brief([{"문장": "뉴스 감성(T1081)은 +0.168로 기준선(T1082) +0.312보다 낮다.", "구분": "사실"}])
+    assert only_keys["chars"] > 0 and not INTERNAL_CODE_RE.search(only_keys["text"]) and "+0.168" in only_keys["text"]
+    mixed = qa.answer_brief([{"문장": "변화(T1083)는 -0.144이다.", "구분": "사실"}, {"문장": "순매도가 이어졌다.", "구분": "사실"}])
+    assert mixed["text"] == "순매도가 이어졌다."
+    card = qa.agent_brief(4, __import__("ch_agents.facts", fromlist=["Facts"]).Facts("S"), {"agentName": "수급", "direction": "neutral", "directionLabel": "중립", "reason": "혼재", "hitRate": {}, "ledger": {}})
+    assert card["chars"] > 0

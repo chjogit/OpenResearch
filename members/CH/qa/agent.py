@@ -258,7 +258,10 @@ def agent_brief(no: int, facts, ol: dict) -> dict:
     cands = [fill(s) for s in [*facts.flags, *facts.notes] if "방향어 규칙" not in s]
     cands += [f"{v['label']} {v['display']}" for v in (ol.get("ledger") or {}).values()]
     obs = next((fix_notation(c.strip()) for c in cands if c.strip() and len(c.strip()) <= budget and not re.search(r"\{[^{}]*\}", c)
+                and not re.search(r"노드 산출물 참조|^\[", c.strip())
                 and not brief_mod.INTERNAL_CODE_RE.search(c) and not outlook_mod.problems(c)), "")
+    if obs and obs[-1] not in ".!?다요":
+        obs += "."                                       # 전망 문장이 마침표 없이 붙지 않게
     text = f"{obs} {tail}".strip() or "요약에 쓸 수 있는 핵심 관찰을 확보하지 못했습니다."
     hr = ol.get("hitRate") or {}
     return {"agent": no, "agentName": ol["agentName"], "text": text, "chars": len(text), "method": "node-rule", "methodLabel": brief_mod.METHOD_LABEL["node-rule"],
@@ -267,9 +270,12 @@ def agent_brief(no: int, facts, ol: dict) -> dict:
 
 def answer_brief(rendered: list[dict]) -> dict:
     """최종 답의 첫 문단을 200자 이내로(#64): 안내 문장을 뺀 앞 문장부터 200자 안에 들어가는 만큼. 첫 문장이 길면 잘라 '…' 표시."""
-    from ch_agents.brief import INTERNAL_CODE_RE, MAX_CHARS
+    from ch_agents.brief import INTERNAL_CODE_RE, MAX_CHARS, strip_codes
 
-    sents = [c["문장"].strip() for c in rendered if c.get("구분") != "안내" and c.get("문장") and not INTERNAL_CODE_RE.search(c["문장"])]
+    allsents = [c["문장"].strip() for c in rendered if c.get("구분") != "안내" and c.get("문장")]
+    sents = [s for s in allsents if not INTERNAL_CODE_RE.search(s)]
+    if not sents:                         # 모든 문장에 장부 키가 보이면 키 표기만 지우고 쓴다(값은 이미 채워져 있음)
+        sents = [t for t in (strip_codes(s) for s in allsents) if t]
     text = ""
     for s in sents:
         nxt = f"{text} {s}".strip()
