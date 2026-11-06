@@ -32,7 +32,19 @@ def test_hybrid_adds_vector_doc_with_chunk_id():
     assert by_id[50]["chunk_id"] == 902 and by_id[1]["chunk_id"] == 901   # 벡터로 찾은 문서·키워드와 겹친 문서
     assert news[0]["doc_id"] in (50, 1)                                   # 유사도가 높은 문서가 앞
     assert st == {"mode": "hybrid", "fallback": None}
-    assert docs[0]["kind"] == "공시"                                        # 공시는 그대로 앞에
+    assert docs[-1]["kind"] == "공시"                                       # 공시는 질문 기반 문서 뒤에(#67 QA)
+
+
+def test_disclosures_follow_question_docs_and_are_capped_unless_question_asks():
+    raw = _hybrid_raw()
+    n_disc = len([d for d in rag.select_disclosures(raw.get("disclosures"), rag.PRESETS[3])])
+    assert n_disc >= 2
+    raw["hybrid"]["query"] = "삼성전자 환율 영향은? | 삼성전자 뉴스 키워드"
+    docs, _ = rag_hybrid.select_hybrid(3, raw, CO, AS_OF)
+    assert [d["kind"] for d in docs].count("공시") == 1 and docs[-1]["kind"] == "공시"
+    raw["hybrid"]["query"] = "삼성전자 풍문 해명 공시 있어? | 삼성전자 뉴스 키워드"
+    docs, _ = rag_hybrid.select_hybrid(3, raw, CO, AS_OF)
+    assert [d["kind"] for d in docs].count("공시") == n_disc
 
 
 def test_no_chunks_or_error_falls_back_to_keyword_result_and_says_so():

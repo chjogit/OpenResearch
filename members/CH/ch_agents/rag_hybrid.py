@@ -13,6 +13,7 @@
 from __future__ import annotations
 
 import os
+import re
 from dataclasses import replace
 from difflib import SequenceMatcher
 
@@ -170,7 +171,18 @@ def select_hybrid(agent_id: int, raw: dict, co: dict, as_of: str) -> tuple[list[
         return rag.select(agent_id, raw, co, as_of), {"mode": "keyword", "fallback": why}
     p = rag.PRESETS[agent_id]
     cands = merge_candidates(agent_id, raw, co, as_of, h["hits"])
-    return rag.select_disclosures(raw.get("disclosures"), p) + cands[: p.k_docs], {"mode": "hybrid", "fallback": None}
+    return cands[: p.k_docs] + _disclosures_for(p, raw, h.get("query")), {"mode": "hybrid", "fallback": None}
+
+
+DISCLOSURE_WORD_RE = re.compile("공시|풍문|조회|해명|전환|행사|지분|보고서")
+
+
+def _disclosures_for(p, raw: dict, query: str | None) -> list[dict]:
+    """공시는 임베딩이 없고 이벤트 유형으로만 골라져 질문과 무관하게 같은 건이 나온다(#67 QA). 그래서 질문 기반 문서 뒤에 두고,
+    질문에 공시 관련 단어가 없으면 1건만 둔다. 질문이 없으면(질의에 ' | ' 가 없으면) 예전처럼 전부."""
+    disc = rag.select_disclosures(raw.get("disclosures"), p)
+    question = (query or "").split(" | ")[0] if " | " in (query or "") else ""
+    return disc if not question or DISCLOSURE_WORD_RE.search(question) else disc[:1]
 
 
 # ---------------------------------------------------------------- 청크 근거·리랭킹 (R4-2, CH_RAG_RERANK=on 일 때만)
