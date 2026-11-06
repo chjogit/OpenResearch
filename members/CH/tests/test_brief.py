@@ -109,3 +109,27 @@ def test_demo_save_check_flags_empty_long_and_coded_briefs():
     assert len(build_demo.brief_hits(mk("N12는 미실행"), None)) == 1
     qs = {"items": [{"result": {"agentBriefs": [{"agent": 4, "text": "나" * 201}], "brief": {"text": "답 요약"}}}]}
     assert len(build_demo.brief_hits(mk("정상"), qs)) == 1
+
+
+@pytest.mark.parametrize("code", ["T1081", "S12", "M7", "L1", "F18", "N05", "E4", "T10234"])
+def test_internal_key_regex_catches_1_to_5_digit_ledger_keys(code):
+    assert brief.INTERNAL_CODE_RE.search(f"뉴스 감성({code})은 낮다") and brief.INTERNAL_CODE_RE.search(f"{code}가 높다")
+    assert not brief.INTERNAL_CODE_RE.search("3분기 Q3 H1 실적, ETF1, 2026-11-04")
+
+
+def test_problems_rejects_text_with_visible_keys_and_strip_codes_removes_them():
+    from conftest import FakeLLM
+
+    no, make = ALL[1]
+    d = make()
+    probs, _ = brief._problems("순매도 강도(T1081)가 높다", d, 200)
+    assert "내부 코드 노출" in probs
+    assert brief.strip_codes("뉴스 감성(T1081)은 +0.168로 기준선(T1082·T1083)보다 낮다") == "뉴스 감성은 +0.168로 기준선보다 낮다"
+
+
+def test_material_includes_outlook_factors_so_the_reason_for_direction_is_summarized():
+    no, make = ALL[1]
+    d = make()
+    c = run_node_agent(no, "005930", llm=FakeLLM(good_json(d)), data=d)["contract"]
+    mat, _ = brief.material({"주장": [{"문장": "관찰 {L1}"}]}, d, c)
+    assert (not c["outlook"]["positiveFactors"] + c["outlook"]["negativeFactors"]) or "전망 근거" in mat
