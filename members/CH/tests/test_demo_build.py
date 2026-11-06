@@ -320,7 +320,7 @@ def test_template_has_live_and_replay_flow_with_all_stages():
 
 def test_notation_hits_and_fix_all_cover_runs_and_questions():
     bad = {"runs": {"k": {"contract": {"nextChecks": ["금통위 8일일 후"], "claims": [{"text": "평균 감성 +-0.250"}]}}}, "questions": [{"result": {"answer": [{"문장": "일수 1일가 1일로"}]}}]}
-    assert len(bd.notation_hits(bad)) == 3
+    assert len(bd.notation_hits(bad)) == 4
     fixed = bd.fix_notation_all(bad)
     assert bd.notation_hits(fixed) == [] and fixed["runs"]["k"]["contract"]["nextChecks"] == ["금통위 8일 후"]
     assert bd.fix_notation_all({"a": 1, "b": "날짜 2026-11-04"}) == {"a": 1, "b": "날짜 2026-11-04"}

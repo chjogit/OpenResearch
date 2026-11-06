@@ -255,14 +255,15 @@ def agent_brief(no: int, facts, ol: dict) -> dict:
     tail = brief_mod.outlook_tail({"outlook": ol})
     budget = brief_mod.MAX_CHARS - (len(tail) + 1 if tail else 0)
     fill = lambda s: re.sub(r"\{([A-Z]\d+)\}", lambda m: facts.items[m.group(1)]["text"] if m.group(1) in facts.items else m.group(0), s)
+    driver = brief_mod.driver_text(ol, budget)           # 전망에 쓴 신호(에이전트 4=외국인·기관 순매수 강도, 6=감성 변화, 3=환율·금리)
+    rest = budget - len(driver) - 1
     cands = [fill(s) for s in [*facts.flags, *facts.notes] if "방향어 규칙" not in s]
-    cands += [f"{v['label']} {v['display']}" for v in (ol.get("ledger") or {}).values()]
-    obs = next((fix_notation(c.strip()) for c in cands if c.strip() and len(c.strip()) <= budget and not re.search(r"\{[^{}]*\}", c)
-                and not re.search(r"노드 산출물 참조|^\[", c.strip())
-                and not brief_mod.INTERNAL_CODE_RE.search(c) and not outlook_mod.problems(c)), "")
+    obs = next((fix_notation(c.strip()) for c in cands if c.strip() and len(c.strip()) <= rest and not re.search(r"\{[^{}]*\}", c)
+                and not re.search(r"노드 산출물 참조|^\[|공표 전|사용하지 않음|처리 메모", c.strip())
+                and not brief_mod.INTERNAL_CODE_RE.search(c) and not outlook_mod.problems(c)), "") if rest >= 20 else ""
     if obs and obs[-1] not in ".!?다요":
         obs += "."                                       # 전망 문장이 마침표 없이 붙지 않게
-    text = f"{obs} {tail}".strip() or "요약에 쓸 수 있는 핵심 관찰을 확보하지 못했습니다."
+    text = f"{driver} {obs} {tail}".replace("  ", " ").strip() or "요약에 쓸 수 있는 핵심 관찰을 확보하지 못했습니다."
     hr = ol.get("hitRate") or {}
     return {"agent": no, "agentName": ol["agentName"], "text": text, "chars": len(text), "method": "node-rule", "methodLabel": brief_mod.METHOD_LABEL["node-rule"],
             "direction": ol["direction"], "directionLabel": ol["directionLabel"], "verdict": hr.get("verdict"), "verdictLabel": hr.get("verdictLabel")}

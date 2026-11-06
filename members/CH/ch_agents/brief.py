@@ -13,7 +13,7 @@ from typing import Any
 
 MAX_CHARS = 200
 # 장부 키(L1·S19·T1081·F18·M7)·노드·사건 번호. 분기 표기(Q3·H1)는 제외
-INTERNAL_CODE_RE = re.compile(r"(?<![A-Za-z0-9])(?!Q[1-4](?![0-9])|H[12](?![0-9]))[A-Z]\d{1,5}(?![0-9])|Point-in-Time")
+INTERNAL_CODE_RE = re.compile(r"(?<![A-Za-z0-9])(?!Q[1-4](?![0-9])|H[12](?![0-9]))[A-Z]\d{1,5}(?![0-9])|Point-in-Time|(?<![A-Za-z])CAR(?![A-Za-z])")
 KEY_NOTE_RE = re.compile(r"\s*[（(]?\b[A-Z]\d{1,5}(?:[·,\s]+[A-Z]\d{1,5})*[)）]?")
 
 
@@ -26,7 +26,7 @@ METHOD_LABEL = {
 SYSTEM = (
     "당신은 투자 분석 에이전트의 결과를 오케스트레이터에게 넘길 요약을 쓰는 보조자입니다. "
     "아래 '재료'만 쓰고 새 사실·숫자를 만들지 마십시오. 숫자는 재료에 있는 {키}(예: {F1})로만 쓰고 직접 숫자를 쓰지 마십시오. "
-    "핵심 관찰 1~2개와, 있으면 가장 중요한 미확보 1개를 한국어 평서문으로 씁니다. "
+    "전망 근거 문장은 코드가 앞에 따로 붙입니다. 그것과 다른 핵심 관찰 1개와, 있으면 가장 중요한 미확보 1개를 한국어 평서문으로 씁니다. "
     "매수·매도·보유·추천 같은 결론, 가격 수준·가격 전망, 내부 코드(N05·D1 등)는 쓰지 않습니다. 20거래일 전망은 코드가 따로 붙이니 쓰지 않습니다. "
     '출력은 JSON 하나: {"요약": "..."}'
 )
@@ -42,19 +42,46 @@ def outlook_tail(contract: dict) -> str:
     return f"20거래일 전망: {label}, 과거 검증 {verdict}."
 
 
+NO_SIGNAL_NOTE = "전망 근거인 {names} 값을 확보하지 못해 신호를 계산하지 못했습니다."
+
+
+def driver_text(outlook: dict | None, budget: int, reserve: int = 45) -> str:
+    """전망에 쓴 신호 문장(코드가 장부 값으로 만든 문장). 에이전트 4=외국인·기관 순매수 강도, 6=감성 변화, 3=환율·금리 변화와 상관.
+    기준을 넘은 신호를 먼저, 그다음 기준 미달 신호. 첫 신호는 항상, 다음 신호는 LLM 문장 자리(reserve)가 남을 때만. 계산된 신호가 없으면 그 사실을 짧게."""
+    from .notation import fix_notation
+
+    sigs = [s for s in (outlook or {}).get("signals") or [] if s.get("state") != "missing" and s.get("text")]
+    if not sigs:
+        names = "·".join(s["name"] for s in (outlook or {}).get("rule", {}).get("signals") or [])
+        return NO_SIGNAL_NOTE.format(names=names or "신호") if outlook else ""
+    sigs.sort(key=lambda s: s["state"] == "neutral")
+    out = ""
+    for s in sigs:
+        t = fix_notation(str(s["text"]).strip().rstrip(".")) + "."
+        if INTERNAL_CODE_RE.search(t) or "{" in t or _banned(t):
+            continue
+        nxt = f"{out} {t}".strip()
+        if len(nxt) > (budget if not out else budget - reserve):
+            break
+        out = nxt
+    return out
+
+
+def _banned(text: str) -> bool:
+    from . import outlook
+
+    return bool(outlook.problems(text))
+
+
 def _claim_texts(result: dict) -> list[str]:
     out = [c.get("문장", "") for c in result.get("주장") or [] if isinstance(c, dict)]
     return [t for t in out if t]
 
 
 def material(result: dict, data: Any, contract: dict | None = None) -> tuple[str, str | None]:
-    """LLM 에 주는 재료 문자열과 가장 중요한 미확보 1개. 전망 근거(규칙이 신호로 본 항목)는 관찰에 반영하도록 함께 준다."""
+    """LLM 에 주는 재료 문자열과 가장 중요한 미확보 1개. 전망 근거 신호 문장은 코드가 앞에 붙이므로 재료에 넣지 않는다."""
     lines = [f"핵심진단: {result.get('핵심진단', '')}"] if result.get("핵심진단") else []
     lines += [f"- {t}" for t in _claim_texts(result)[:4]]
-    ol = (contract or {}).get("outlook") or {}
-    why = [f["template"] for f in (ol.get("positiveFactors") or []) + (ol.get("negativeFactors") or []) if f.get("template")]
-    if why:
-        lines.append("전망 근거(규칙이 신호로 본 항목 — 관찰에 반드시 반영): " + " / ".join(why[:2]))
     gap = next((str(x) for x in result.get("미확인") or []), None)
     if gap:
         lines.append(f"미확보(가장 중요): {gap}")
@@ -150,8 +177,12 @@ def make_brief(out: dict, data: Any, model: Any = None) -> dict:
     tail = outlook_tail(contract)
     budget = MAX_CHARS - (len(tail) + 1 if tail else 0)
     result = out.get("result") or {}
-    text, method = _llm_text(model, result, data, budget, contract)
-    if not text:
+    driver = driver_text(contract.get("outlook"), budget)
+    rest = budget - len(driver) - 1 if driver else budget
+    text, method = (_llm_text(model, result, data, rest, contract) if rest >= 45 else (None, None))
+    if driver:
+        text, method = (f"{driver} {text}" if text else driver), (method or "rule")
+    elif not text:
         text, method = rule_text(result, contract, data, budget), "rule"
     full = f"{text} {tail}".strip()
     if len(full) > MAX_CHARS:     # 방어선: 전망 문구가 예상보다 길 때 앞쪽 관찰을 자름
