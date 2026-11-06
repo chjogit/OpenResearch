@@ -322,6 +322,7 @@ def test_judgment_answer_carries_per_agent_outlook_without_overall_conclusion(mo
     text = json.dumps(r["outlook"], ensure_ascii=False)
     assert not qa.CONCLUSION_RE.search(text.replace("순매수", "")) and "목표주가" not in text
     assert "전망[" in qa.summary_text(r)
+    assert 0 < r["brief"]["chars"] <= 200                      # 최종 답 200자 요약 (#64)
 
 
 def test_demo_html_renders_outlook_cards_with_notice():
@@ -403,3 +404,49 @@ def test_server_streams_events_then_result_and_serves_single_demo_page(monkeypat
         assert (qa.HERE.parent / "demo" / "demo.html").read_text(encoding="utf-8").replace("\r\n", "\n") == page.replace("\r\n", "\n") and not (qa.HERE / "qa.html").exists()
     finally:
         srv.shutdown()
+
+
+def test_agent_brief_is_within_200_chars_with_outlook_tail_and_no_internal_code(monkeypatch, tmp_path):
+    """#64: 질의응답 경로의 에이전트별 200자 요약 — 노드 문장 1개 + 전망·과거 검증 판정."""
+    from ch_agents import brief, outlook
+
+    monkeypatch.setattr(outlook, "HIT_RATE_PATH", tmp_path / "none.json")
+    f = _flow_facts()
+    f.flags.append("외국인 20일 순매수 강도 {S1}: 순매수 우세. " + "근거 설명 " * 60)              # 너무 긴 문장은 건너뜀
+    f.flags.append("기관 20일 순매수 강도 {S2}로 기준 미달이다.")
+    ol = qa.outlook_block(4, f, {"as_of": "2026-11-04", "ticker": "005930", "co": {}})
+    b = qa.agent_brief(4, f, ol)
+    assert 0 < b["chars"] <= 200 == brief.MAX_CHARS and b["text"].endswith(brief.outlook_tail({"outlook": ol})) and "{" not in b["text"]
+    assert "0.50%" in b["text"] and brief.INTERNAL_CODE_RE.search(b["text"]) is None and b["method"] == "node-rule"
+
+
+def test_answer_brief_takes_leading_sentences_within_200_and_skips_notices():
+    from ch_agents.brief import MAX_CHARS
+
+    rendered = [{"문장": "안내 문장", "구분": "안내"}, {"문장": "가" * 90 + ".", "구분": "사실"}, {"문장": "나" * 90 + ".", "구분": "사실"}, {"문장": "다" * 50, "구분": "사실"}]
+    b = qa.answer_brief(rendered)
+    assert b["chars"] <= MAX_CHARS and b["text"].startswith("가") and "안내" not in b["text"] and "다" not in b["text"]
+    cut = qa.answer_brief([{"문장": "라" * 500, "구분": "사실"}])
+    assert cut["chars"] == MAX_CHARS and cut["text"].endswith("…") and cut["method"] == "첫 문장 잘라냄"
+
+
+def test_demo_html_renders_200_char_brief_cards_above_details():
+    html = (qa.HERE.parent / "demo" / "template.html").read_text(encoding="utf-8")
+    assert "briefCard" in html and "briefsHtml(r) + genHtml(r)" in html and "/ 200자" in html and "summary200" in html
+    assert html.index("briefsHtml(r)") < html.index("answerHtml(r)", html.index("briefsHtml(r)"))
+
+
+def test_answer_brief_skips_sentences_with_internal_codes():
+    b = qa.answer_brief([{"문장": "사건 E4의 실적 경신이 있다.", "구분": "사실"}, {"문장": "순매도가 이어졌다.", "구분": "사실"}])
+    assert b["text"] == "순매도가 이어졌다."
+
+
+def test_answer_brief_never_shows_ledger_keys_even_when_every_sentence_has_them():
+    from ch_agents.brief import INTERNAL_CODE_RE
+
+    only_keys = qa.answer_brief([{"문장": "뉴스 감성(T1081)은 +0.168로 기준선(T1082) +0.312보다 낮다.", "구분": "사실"}])
+    assert only_keys["chars"] > 0 and not INTERNAL_CODE_RE.search(only_keys["text"]) and "+0.168" in only_keys["text"]
+    mixed = qa.answer_brief([{"문장": "변화(T1083)는 -0.144이다.", "구분": "사실"}, {"문장": "순매도가 이어졌다.", "구분": "사실"}])
+    assert mixed["text"] == "순매도가 이어졌다."
+    card = qa.agent_brief(4, __import__("ch_agents.facts", fromlist=["Facts"]).Facts("S"), {"agentName": "수급", "direction": "neutral", "directionLabel": "중립", "reason": "혼재", "hitRate": {}, "ledger": {}})
+    assert card["chars"] > 0

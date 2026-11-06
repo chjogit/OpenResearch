@@ -1,4 +1,4 @@
-"""값 표기 바로잡기(#60): 부호 중복('+-0.250'), 같은 단위 연속('8일일'), 값 뒤 조사 불일치('1일가'). 숫자·장부 키는 바꾸지 않고 글자 표기만 고친다.
+"""값 표기 바로잡기(#60·#64): 부호 중복('+-0.250'), 같은 단위 연속('8일일'), 같은 값 반복('1일은 1일로'), 값 뒤 조사 불일치('1일가'). 숫자·장부 키는 바꾸지 않고 글자 표기만 고친다.
 
 질의응답 답(qa.agent.render)과 계약 문장(contract.plain)이 같은 함수를 쓴다.
 """
@@ -14,6 +14,9 @@ UNITS = "백분위|%p|%|배|조원|억원|원|주|일|건|개|점"
 VALUE_JOSA_RE = re.compile(rf"(\d[\d,]*(?:\.\d+)?(?:{UNITS})?)(으로|이|가|은|는|을|를|과|와|로)(?![가-힣])")
 DOUBLE_SIGN_RE = re.compile(r"[+\-\u2212]\s*([+\-\u2212])(?=\d)")
 DUP_UNIT_RE = re.compile(rf"(\d)({UNITS})\2(?:(?![가-힣])|(?=으로|이|가|은|는|을|를|과|와|로|에|의|도|만|씩))")      # 조사 목록과 같은 단위. 뒤에 다른 한글 단어가 붙으면(개개인·일일차) 제외
+# 같은 값이 조사와 함께 되풀이: '1일은 1일로' · '-0.09 -0.09로'. 단위나 소수점이 있는 값만(정수 둘이 이어지는 목록은 제외)
+_VALUE = r"[+\-\u2212]?\d[\d,]*(?:\.\d+(?:{u})?|(?:{u}))"
+DUP_VALUE_RE = re.compile(rf"(?<![\d.])({_VALUE.format(u=UNITS)})(?:으로|이|가|은|는|을|를|과|와|로)?\s+(?=\1(?![\d.]))")
 
 
 def has_batchim(token: str) -> tuple[bool, bool]:
@@ -43,7 +46,7 @@ def _fix_josa(text: str) -> str:
 def fix_notation(text: str) -> str:
     """부호 중복은 값에 붙은 부호만 남기고, 같은 단위 연속은 한 번만, 값 뒤 조사는 읽는 소리에 맞게 고친다(멱등)."""
     text = DOUBLE_SIGN_RE.sub(lambda m: m.group(1), text)
-    return _fix_josa(DUP_UNIT_RE.sub(r"\1\2", text))
+    return _fix_josa(DUP_VALUE_RE.sub("", DUP_UNIT_RE.sub(r"\1\2", text)))
 
 
 def notation_problems(text: str) -> list[str]:
@@ -53,6 +56,8 @@ def notation_problems(text: str) -> list[str]:
         bad.append("부호 중복")
     if DUP_UNIT_RE.search(text):
         bad.append("같은 단위 연속")
+    if DUP_VALUE_RE.search(text):
+        bad.append("같은 값 반복")
     if _fix_josa(text) != text:
         bad.append("값 뒤 조사 불일치")
     return bad

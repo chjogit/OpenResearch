@@ -255,7 +255,7 @@ def test_collect_outlook_rejects_advice_text(monkeypatch):
 
 def test_payload_and_template_carry_outlook_and_r41_and_validation():
     p = bd.build_payload(_runs(), _status(), outlook={"005930": {"4": _ol_block()}})
-    assert p["meta"]["contract"] == "r4-1.4" and p["outlook"]["005930"]["4"]["direction"] == "neutral" and "outlookNote" in p["meta"]
+    assert p["meta"]["contract"] == "r4-1.5" and p["outlook"]["005930"]["4"]["direction"] == "neutral" and "outlookNote" in p["meta"]
     v = p["outlookValidation"]
     assert v["status"] in ("measured", "none")
     if v["status"] == "measured":
@@ -320,7 +320,7 @@ def test_template_has_live_and_replay_flow_with_all_stages():
 
 def test_notation_hits_and_fix_all_cover_runs_and_questions():
     bad = {"runs": {"k": {"contract": {"nextChecks": ["금통위 8일일 후"], "claims": [{"text": "평균 감성 +-0.250"}]}}}, "questions": [{"result": {"answer": [{"문장": "일수 1일가 1일로"}]}}]}
-    assert len(bd.notation_hits(bad)) == 3
+    assert len(bd.notation_hits(bad)) == 4
     fixed = bd.fix_notation_all(bad)
     assert bd.notation_hits(fixed) == [] and fixed["runs"]["k"]["contract"]["nextChecks"] == ["금통위 8일 후"]
     assert bd.fix_notation_all({"a": 1, "b": "날짜 2026-11-04"}) == {"a": 1, "b": "날짜 2026-11-04"}

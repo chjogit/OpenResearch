@@ -9,7 +9,9 @@ from qa import agent as qa
 
 
 @pytest.mark.parametrize("src,want", [
-    ("연속 순매도 일수 1일가 1일로 집계된다", "연속 순매도 일수 1일이 1일로 집계된다"),
+    ("연속 순매도 일수 1일가 1일로 집계된다", "연속 순매도 일수 1일로 집계된다"),                 # 같은 값 반복은 한 번만
+    ("개인은 1일은 1일로, 베타 -0.09 -0.09로", "개인은 1일로, 베타 -0.09로"),
+    ("거래일 5 5 5, 합 3,000원 중 2,000원", "거래일 5 5 5, 합 3,000원 중 2,000원"),               # 단위·소수점 없는 정수 목록은 그대로
     ("E10 평균 감성 +-0.250, E8 -+0.500", "E10 평균 감성 -0.250, E8 +0.500"),
     ("다음 금통위까지 8일일, FOMC 41일일 후", "다음 금통위까지 8일, FOMC 41일 후"),
     ("외국인 순매수 -38,044,711주가 음수", "외국인 순매수 -38,044,711주가 음수"),         # 이미 맞는 표기는 그대로
@@ -23,20 +25,21 @@ def test_fix_notation_cases(src, want):
 
 
 def test_fix_never_changes_digits():
-    for src in ("일수 1일가 1일로", "감성 +-0.250 과 -+0.500", "8일일 41일일 후 -19.85%가", "3,000원원이 4배을"):
+    for src in ("감성 +-0.250 과 -+0.500", "8일일 41일일 후 -19.85%가", "3,000원원이 4배을"):
         assert re.findall(r"\d[\d,.]*", fix_notation(src)) == re.findall(r"\d[\d,.]*", src.replace("일일", "일").replace("원원", "원"))
 
 
 def test_notation_problems_reports_each_kind():
     assert notation_problems("a +-0.250") == ["부호 중복"] and notation_problems("8일일") == ["같은 단위 연속"] and notation_problems("1일가") == ["값 뒤 조사 불일치"]
     assert notation_problems("감성 -0.250, 1일이 지났다") == []
+    assert notation_problems("1일이 1일로") == ["같은 값 반복"] and notation_problems("-0.09 -0.09로") == ["같은 값 반복"]
 
 
 def test_qa_render_fixes_sign_unit_and_josa_but_keeps_ledger_values():
     led = qa.Ledger()
     led.items.update({"S1": {"text": "1일"}, "T1": {"text": "-0.250"}, "M1": {"text": "8일"}})
     out = qa.render("연속 순매도 일수 {S1}가 {S1}로, 평균 감성 +{T1}, 금통위까지 {M1}일 남았다", led)
-    assert out == "연속 순매도 일수 1일이 1일로, 평균 감성 -0.250, 금통위까지 8일 남았다" and notation_problems(out) == []
+    assert out == "연속 순매도 일수 1일로, 평균 감성 -0.250, 금통위까지 8일 남았다" and notation_problems(out) == []
 
 
 def test_contract_plain_fixes_unit_duplicate_in_next_checks():

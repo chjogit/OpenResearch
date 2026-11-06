@@ -28,7 +28,7 @@ from pathlib import Path
 from .availability import AVAILABILITY, availability
 from .nodes import legacy_agent_nos, legacy_tag
 
-SCHEMA_VERSION = "r4-1.4"   # r4-1.1: unverified[].availability, r4-1.2: evidence[].tier·resultType, p01·p03, r4-1.3: agent.agentNos·claims[].tag·nodes[]·conflicts, r4-1.4: outlook (모두 선택 필드)
+SCHEMA_VERSION = "r4-1.5"   # r4-1.5: summary200·summary200Method(에이전트 200자 요약, #64), r4-1.4: outlook, r4-1.1: unverified[].availability, r4-1.2: evidence[].tier·resultType, p01·p03, r4-1.3: agent.agentNos·claims[].tag·nodes[]·conflicts, r4-1.4: outlook (모두 선택 필드)
 SCHEMA_PATH = Path(__file__).resolve().parent / "schema" / "agent_output.schema.json"
 KST = timezone(timedelta(hours=9))
 MODULES = {1: "agent1_macro", 3: "agent3_sentiment_flow"}

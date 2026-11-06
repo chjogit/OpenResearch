@@ -114,7 +114,7 @@ def test_contract_carries_outlook_and_validates(no, make, monkeypatch, tmp_path)
     out = run_node_agent(no, "005930", llm=FakeLLM(good_json(d)), data=d)
     c = out["contract"]
     ol = c["outlook"]
-    assert contract.validate(c) == [] and contract.link_errors(c) == [] and c["schemaVersion"] == "r4-1.4"
+    assert contract.validate(c) == [] and contract.link_errors(c) == [] and c["schemaVersion"] == "r4-1.5"
     assert ol["direction"] in ("positive", "neutral", "negative") and ol["horizonDays"] == 20 and ol["tag"] == "Prediction"
     assert ol["hitRate"]["status"] == "unverified" and "미검증" in ol["hitRate"]["text"]           # #55 결과 전
     assert ol["direction"] == "neutral" or (ol["positiveFactors"] or ol["negativeFactors"])
@@ -131,9 +131,10 @@ def test_outlook_does_not_change_existing_contract_fields(no, make):
     d2.extra.pop("outlook")
     without = run_node_agent(no, "005930", llm=FakeLLM(good_json(d2)), data=d2)["contract"]
     assert "outlook" not in without
-    a = {k: v for k, v in with_ol.items() if k not in ("outlook", "generatedAt")}
-    b = {k: v for k, v in without.items() if k not in ("generatedAt",)}
+    a = {k: v for k, v in with_ol.items() if k not in ("outlook", "generatedAt", "summary200", "summary200Method")}
+    b = {k: v for k, v in without.items() if k not in ("generatedAt", "summary200", "summary200Method")}
     assert a == b
+    assert "20거래일 전망" in with_ol["summary200"] and "20거래일 전망" not in without["summary200"]       # 200자 요약만 전망 문장이 붙음 (#64)
 
 
 def test_old_results_without_outlook_still_validate_and_render():

@@ -13,6 +13,7 @@ from typing import Any
 
 from .agents import AGENTS, MY_AGENTS, AgentData, family, fetch_agent_data, spec_of
 from .availability import AVAIL_SHORT, availability
+from . import brief as brief_mod
 from . import contract as contract_mod
 from . import exposure as exposure_mod
 from . import verify as verifier
@@ -874,6 +875,7 @@ def run_agent(agent_id: int, ticker: str | None = None, mode: str = "expert", ll
     attempts: list[dict] = []
     result, checks, status, best_at, best_n = None, {}, "실패", -1, None
     t0 = time.monotonic()
+    model = None
     try:
         from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 
@@ -934,6 +936,7 @@ def run_agent(agent_id: int, ticker: str | None = None, mode: str = "expert", ll
         out["rag_chunks"] = data.extra["rag_chunks"]
     # 데이터 계약 (R4 3장): reportId·claimId·evidenceId·사실/해석/예측·반대 근거·미확인·기준일/공개시각·출처 태그
     out["contract"] = contract_mod.build(out, data, mode)
+    out["contract"].update(brief_mod.make_brief(out, data, None if (status.startswith("규칙 기반") or any("error" in a for a in attempts)) else model))   # r4-1.5: 200자 요약 (#64)
     if data.extra.get("node_report"):   # 노드 기반 에이전트: 노드 목록·스킵 이유·충돌 구역·예측 생략 사유 (r4-1.3 선택 필드)
         out["contract"] = contract_mod.with_nodes(out["contract"], data.extra["node_report"])
         out["node_report"] = {k: v for k, v in data.extra["node_report"].items() if k != "results"}
