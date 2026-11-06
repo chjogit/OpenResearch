@@ -56,3 +56,17 @@ def test_contract_unverified_is_tidied_but_schema_still_valid():
 def test_trailing_word_byeonsu_does_not_make_a_second_topic():
     items, _ = gaps.organize([{"label": "관세·통상정책 변수(DB 미보관)", "reason": ""}, {"label": "관세·통상정책", "reason": ""}])
     assert len(items) == 1
+
+
+def test_ledger_key_lists_are_removed_from_label_and_reason():
+    items, _ = gaps.organize([{"label": "블로그·카페 최근 7일 수치", "reason": "T1056·T1057·T1058·T1059"}])
+    assert items and "T10" not in str(items) and gaps.gap_problems(items) == []
+    assert gaps.RAW_CODE_RE.search("사유 T1056") and not gaps.RAW_CODE_RE.search("3분기 Q3 H1 실적")
+
+
+def test_processing_stats_are_split_canonicalized_and_deduped():
+    _, proc = gaps.organize([
+        {"label": "근거 문장 미부착으로 점수 미산출 문서 1건 및 대상 기업 아님으로 분리한 문서 9건(심리·뉴스 데이터 점검 미충족)", "reason": ""},
+        {"label": "근거 문장을 붙이지 못해 점수를 내지 않은 문서 1건, 대상 기업 아님으로 분리한 문서 9건", "reason": ""},
+        {"label": "대상 기업 아님으로 분리한 문서 9건(심리·뉴스 데이터 점검 미충족 항목)", "reason": ""}])
+    assert proc == ["근거 문장을 붙이지 못해 점수를 내지 않은 문서 1건", "대상 기업 아님으로 분리한 문서 9건"]

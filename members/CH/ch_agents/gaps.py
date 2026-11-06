@@ -27,7 +27,19 @@ def ko_text(t: str) -> str:
     t = re.sub(rf"{_L}N(05|06|07|08|11|12){_R}", lambda m: NODE_KO[f"N{m.group(1)}"], t)
     t = re.sub(r"사건 E0*\d+(?:\s*(?:[·,、]|과|와)\s*E0*\d+)*", lambda m: "사건 " + re.sub(r"E0*(\d+)", r"\1", m.group(0)[3:]), t)
     t = re.sub(r"근거 E0*(\d+)", r"근거 \1", t)
-    return re.sub(rf"{_L}E0*(\d+){_R}", r"근거 \1", t)
+    t = re.sub(rf"{_L}E0*(\d+){_R}", r"근거 \1", t)
+    return strip_keys(t)
+
+
+KEY = r"(?<![A-Za-z0-9])(?!Q[1-4](?![0-9])|H[12](?![0-9]))[A-Z]\d{1,5}(?![0-9])"
+KEY_LIST_RE = re.compile(rf"[（(]?\s*{KEY}(?:\s*[·,、/]\s*{KEY})*\s*[)）]?")
+
+
+def strip_keys(t: str) -> str:
+    """장부 내부 키('T1056·T1057')와 그 나열을 지운다. 값·설명은 항목 이름·사유에 이미 있다."""
+    t = KEY_LIST_RE.sub("", t)
+    t = re.sub(r"[（(]\s*[)）]", "", t)
+    return re.sub(r"\s{2,}", " ", t).strip(" ,·")
 
 
 # ---- 분류: 처음 맞는 주제 규칙 (정규식, 표시 이름, 묶음). 이름이 None 이면 원래 항목 이름을 정리해 쓴다.
@@ -77,7 +89,22 @@ def split_stat(item: str) -> tuple[str, list[str]]:
     """'…문서 0건, …문서 43건' 같은 처리 통계 문장을 (빠진 자료 문구, 처리 기록 조각) 으로. 0건 조각은 버림."""
     if not STAT_RE.search(item) or any(rx.search(item) for rx, _, _ in TOPICS):      # 주제 항목('블로그 감성 변화(문서 N건·5일뿐)')은 통계가 아니다
         return item, []
-    return "", [c.strip() for c in item.split(",") if STAT_RE.search(c) and not re.search(r"(?<!\d)0건", c)]
+    frags = re.split(r"[,，]|\s및\s|\s그리고\s", item)
+    return "", list(dict.fromkeys(_canon(c) for c in frags if STAT_RE.search(c) and not re.search(r"(?<!\d)0건", c)))
+
+
+# 같은 통계가 다른 말로 적힌 것을 한 문장으로 (미충족 꼬리표는 뗌)
+CANON = ((re.compile(r"근거 문장.{0,12}(?:붙이지|미부착).{0,18}문서\s*(\d+)건"), "근거 문장을 붙이지 못해 점수를 내지 않은 문서 {n}건"),
+         (re.compile(r"대상 기업 아님.{0,10}문서\s*(\d+)건"), "대상 기업 아님으로 분리한 문서 {n}건"))
+
+
+def _canon(frag: str) -> str:
+    frag = re.sub(r"\s*[（(][^()（）]*미충족[^()（）]*[)）]", "", frag).strip()
+    for rx, tpl in CANON:
+        m = rx.search(frag)
+        if m:
+            return tpl.format(n=m.group(1))
+    return frag
 
 
 def _source(reason: str) -> str:
@@ -157,7 +184,7 @@ def organize(gaps: list[dict]) -> tuple[list[dict], list[str]]:
     return items, list(dict.fromkeys(proc))
 
 
-RAW_CODE_RE = re.compile(rf"{_L}N(05|06|07|08|11|12){_R}|{_L}CAR{_R}|{_L}D1 사후|Point-in-Time|확장 노드 입력 요건 미충족|{_L}E\d+{_R}")
+RAW_CODE_RE = re.compile(rf"{KEY}|{_L}N(05|06|07|08|11|12){_R}|{_L}CAR{_R}|{_L}D1 사후|Point-in-Time|확장 노드 입력 요건 미충족|{_L}E\d+{_R}")
 
 
 def gap_problems(items: list[dict]) -> list[str]:
