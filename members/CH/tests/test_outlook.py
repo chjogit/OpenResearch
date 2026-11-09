@@ -189,5 +189,8 @@ def test_notice_shown_in_every_profile_when_not_edge(no, make, monkeypatch, tmp_
     d = make()
     c = run_node_agent(no, "005930", llm=FakeLLM(good_json(d)), data=d)["contract"]
     assert c["outlook"]["hitRate"]["verdict"] == "unverified" and contract.validate(c) == []
-    for rend in renderer.render_all(c).values():
-        assert "판단 근거로 쓰기 어렵습니다" in rend["markdown"]
+    for rend in renderer.render_all(c).values():       # #73: 사용자가 읽는 화면에는 판정·고정 문구가 없고 짧은 출처 표시만
+        md = rend["markdown"]
+        assert "판단 근거로 쓰기 어렵습니다" not in md and "구별되지" not in md and "판정:" not in md and "과거 검증" not in md
+        assert outlook.SOURCE_MARK in md
+    assert c["outlook"]["hitRate"]["notice"] and c["outlook"]["hitRate"]["verdictLabel"]       # 계약에는 그대로

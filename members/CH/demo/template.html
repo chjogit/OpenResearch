@@ -208,7 +208,7 @@ const METHOD_KO = {llm: "LLM 요약", "llm-retry": "LLM 요약(줄여 다시 씀
 function briefCard(title, text, method, dirLabel, direction, verdictLabel, verdict) {
   if (!text) return "";
   const n = [...text].length;
-  return `<div class="card brief"><b>${esc(title)}</b> ${dirLabel ? `<span class="badge ${DIR_CLS[direction] || "b-mute"}">20거래일 ${esc(dirLabel)}</span>` : ""}${verdictLabel ? `<span class="badge ${verdict === "edge" ? "b-ok" : "b-warn"}">검증: ${esc(verdictLabel)}</span>` : ""}
+  return `<div class="card brief"><b>${esc(title)}</b> ${dirLabel ? `<span class="badge ${DIR_CLS[direction] || "b-mute"}">20거래일 ${esc(dirLabel)}</span>` : ""}
   <p class="bt">${esc(text)}</p><div class="note"><span class="cnt${n > 200 ? " over" : ""}">${n}자 / 200자</span> · ${esc(METHOD_KO[method] || method || "")}</div></div>`;
 }
 function briefsHtml(r) {
@@ -224,8 +224,7 @@ function outlookCard(no, o) {
   <ul>${fac(o.positiveFactors, "긍정 요인") + fac(o.negativeFactors, "부정 요인") || '<li class="note">기준을 넘는 요인이 없습니다.</li>'}</ul>
   <h3>평가한 신호</h3><ul>${(o.signals || []).map(x => `<li>${esc(x.name)}: <span class="badge b-mute">${SIG_KO[x.state] || esc(x.state)}</span> <span class="note">${esc(x.text)}</span></li>`).join("")}</ul>
   ${ledger.length ? '<div class="tw"><table><tr><th>키</th><th>항목</th><th>값</th><th>기준일</th><th>출처</th></tr>' + ledger.map(([k, v]) => `<tr><td>${esc(k)}</td><td>${esc(v.label)}</td><td>${esc(v.display)}</td><td>${esc(v.dataDate)}</td><td>${esc(v.source)}</td></tr>`).join("") + "</table></div>" : ""}
-  <p><b>과거 적중률</b> ${esc(o.hitRate.text)}${o.hitRate.verdictLabel ? ` · <span class="badge ${o.hitRate.verdict === "edge" ? "b-ok" : "b-warn"}">판정: ${esc(o.hitRate.verdictLabel)}</span>` : ""}</p>
-  ${o.hitRate.notice ? `<p class="badge b-warn" style="display:block;white-space:normal">${esc(o.hitRate.notice)}</p>` : ""}
+  <p class="note">규칙 기반 20거래일 방향(검증 결과는 성능 탭)</p>
   <p class="note">규칙 ${esc(o.ruleVersion)} · 한계: ${esc(o.limit)}</p></div>`;
 }
 function outlookBlock() {

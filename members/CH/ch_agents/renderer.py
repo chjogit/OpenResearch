@@ -14,6 +14,7 @@ import re
 
 from .availability import AVAIL_SHORT
 from .glossary import terms_for
+from .outlook import SOURCE_MARK
 from .profile import Level, Stance, UserProfile
 
 RENDER_VERSION = "1.0"
@@ -144,10 +145,7 @@ def _sections(c: dict) -> dict[str, list[dict]]:
             s["outlook"].append(_item(f"OUT-P{i}", "긍정 요인: " + f["text"], f.get("evidenceIds")))
         for i, f in enumerate(ol.get("negativeFactors") or [], 1):
             s["outlook"].append(_item(f"OUT-N{i}", "부정 요인: " + f["text"], f.get("evidenceIds")))
-        hr = ol["hitRate"]
-        s["outlook"].append(_item("OUT-hit", hr["text"] + (f" · 판정: {hr['verdictLabel']}" if hr.get("verdictLabel") else "")))
-        if hr.get("notice"):
-            s["outlook"].append(_item("OUT-verdict", hr["notice"]))
+        s["outlook"].append(_item("OUT-hit", SOURCE_MARK))        # 판정·고정 문구는 화면에 없음(#73), 성능 탭·계약 hitRate 에만
         s["outlook"].append(_item("OUT-note", f"{ol['limit']}. {ol['note']}"))
     for r in c.get("downsideRisks") or []:
         s["risks"].append(_item(r["riskId"], r["text"], r.get("evidenceIds")))
