@@ -153,7 +153,7 @@ def test_renderer_shows_outlook_in_every_profile_with_same_content(no, make):
     sets = {k: {x for x in renderer.content_set(v) if x[0] == "outlook"} for k, v in rend.items()}
     assert len({frozenset(s) for s in sets.values()}) == 1 and next(iter(sets.values()))                 # 프로필이 달라도 같은 내용
     md = rend["L1-defensive"]["markdown"]
-    assert "전망" in md and c["outlook"]["directionLabel"] in md and "미검증" in md and "오케스트레이터" in md
+    assert "전망" in md and c["outlook"]["directionLabel"] in md and "미검증" not in md and "오케스트레이터" in md
     assert [s["id"] for s in rend["L2-aggressive"]["sections"]][:2] == ["summary", "outlook"]
 
 
@@ -193,4 +193,5 @@ def test_notice_shown_in_every_profile_when_not_edge(no, make, monkeypatch, tmp_
         md = rend["markdown"]
         assert "판단 근거로 쓰기 어렵습니다" not in md and "구별되지" not in md and "판정:" not in md and "과거 검증" not in md
         assert outlook.SOURCE_MARK in md
+        assert "적중률" not in md and "미검증" not in md                  # L1·L2 안내문·L3 제목 포함(QA FAIL 1)
     assert c["outlook"]["hitRate"]["notice"] and c["outlook"]["hitRate"]["verdictLabel"]       # 계약에는 그대로
