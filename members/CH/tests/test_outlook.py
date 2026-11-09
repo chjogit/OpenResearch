@@ -34,8 +34,8 @@ def test_agent4_truth_table():
 
 
 def test_agent6_news_and_youtube_change():
-    mk = lambda n, y: {k: v for k, v in {"T1": item("뉴스 감성 변화(최근 7일 − 직전 8~30일)", n, "score") if n is not None else None,
-                                          "T2": item("유튜브 댓글 감성 변화(최근 7일 − 직전 8~30일)", y, "score") if y is not None else None}.items() if v}
+    mk = lambda n, y: {k: v for k, v in {"T1": item("뉴스 감성 변화(최근 7일 − 직전 7일)", n, "score") if n is not None else None,
+                                          "T2": item("유튜브 댓글 감성 변화(최근 7일 − 직전 7일)", y, "score") if y is not None else None}.items() if v}
     assert outlook.compute(6, mk(0.2, 0.0), "2026-10-26")["direction"] == "positive"
     assert outlook.compute(6, mk(-0.144, -0.019), "2026-10-26")["direction"] == "negative"      # 삼성전자 11/04 실측 장부와 같은 값
     r = outlook.compute(6, mk(0.2, -0.2), "2026-10-26")

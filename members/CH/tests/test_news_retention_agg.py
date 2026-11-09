@@ -7,7 +7,7 @@ from conftest import CO
 from test_compute import _sent_bundle
 
 AS_OF = "2026-10-25"
-KEEP_DAYS = 14   # kic-agent-data retention.DEFAULT_DAYS: 발행일 < 기준일 − 14 이면 삭제
+KEEP_DAYS = 11   # 실제 보관은 14일(kic-agent-data retention.DEFAULT_DAYS)이나, 비교 창(직전 7일=8~13일)이 14일 안이라 창 안쪽에서 잘라야 집계 합성 검증이 의미 있다(#76)
 
 
 def _day(k):
@@ -15,10 +15,10 @@ def _day(k):
 
 
 def _docs():
-    """문서 단위 (일자, 소스, 점수|None). 최근 7일·직전 8~30일 모두, 뉴스·댓글·블로그가 섞이고 점수 없는 문서 포함."""
+    """문서 단위 (일자, 소스, 점수|None). 최근 7일·직전 7일·그 이전 모두, 뉴스·댓글·블로그가 섞이고 점수 없는 문서 포함."""
     out = []
     for k in range(0, 30):
-        for i in range(2 + k % 4):
+        for i in range(4 + k % 4):          # 직전 7일(8~14일) 창이 최소 20건을 넘게
             out.append((_day(k), "naver_news", round(0.4 - 0.03 * k + 0.05 * i, 4) if (k + i) % 5 else None))
         if k % 3 == 0:
             out.append((_day(k), "finnhub_news", 0.1 * (k % 4) - 0.15))

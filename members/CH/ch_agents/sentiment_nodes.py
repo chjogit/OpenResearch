@@ -294,7 +294,7 @@ def n11(b: dict, as_of: str) -> NodeResult:
         conflicts = []
     # ③ 지난 기간 집계 기준선(원문은 보관 기한으로 삭제)·기존 지표
     led = _ledger(legacy)
-    keep = {k: v for k, v in led.items() if v["label"].endswith(("감성(최근 7일)", "감성 변화(최근 7일 − 직전 8~30일)", "감성(직전 8~30일, 기준선)"))
+    keep = {k: v for k, v in led.items() if v["label"].endswith(("감성(최근 7일)", "감성 변화(최근 7일 − 직전 7일)", "감성(직전 7일, 기준선)"))
             or v["label"].startswith("검색 관심도")}
     arts["agent3_sentiment_facts"] = keep            # 에이전트 3 와 같은 라벨·같은 값(보관 집계 포함)
     for k, v in keep.items():

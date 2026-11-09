@@ -21,7 +21,8 @@ from typing import Any
 
 from .sentiment_limit import SENT_EVAL_ACCURACY
 
-RULE_VERSION = "outlook-r1"
+RULE_VERSION = "outlook-r1.1"      # r1.1(#76): 에이전트 6 감성 변화 비교 창 8~30일 → 직전 7일(8~14일). 에이전트 3·4 규칙은 r1 과 같음
+MEASURED_COMPATIBLE = {3: ("outlook-r1",), 4: ("outlook-r1",)}   # 규칙이 안 바뀐 에이전트는 r1 로 측정한 적중률을 그대로 인정
 HORIZON_DAYS = 20
 LABEL = {"positive": "긍정", "neutral": "중립", "negative": "부정"}
 REASON = {"mixed": "혼재", "insufficient": "근거 부족", "weak": "신호 미약"}
@@ -44,10 +45,10 @@ RULES: dict[int, list[dict[str, Any]]] = {
          "neu": "기관 20일 순매수 강도 {v}: 규칙 기준 미달"},
     ],
     6: [
-        {"id": "news_tone", "kind": "direct", "name": "뉴스 감성 변화", "label": "뉴스 감성 변화(최근 7일 − 직전 8~30일)", "threshold": 0.10, "unit": "score",
+        {"id": "news_tone", "kind": "direct", "name": "뉴스 감성 변화", "label": "뉴스 감성 변화(최근 7일 − 직전 7일)", "threshold": 0.10, "unit": "score",
          "pos": "뉴스 감성 변화 {v}: 직전 기준선보다 개선(규칙 기준 초과)", "neg": "뉴스 감성 변화 {v}: 직전 기준선보다 악화(규칙 기준 초과)",
          "neu": "뉴스 감성 변화 {v}: 규칙 기준 미달"},
-        {"id": "youtube_tone", "kind": "direct", "name": "유튜브 댓글 감성 변화", "label": "유튜브 댓글 감성 변화(최근 7일 − 직전 8~30일)", "threshold": 0.10, "unit": "score",
+        {"id": "youtube_tone", "kind": "direct", "name": "유튜브 댓글 감성 변화", "label": "유튜브 댓글 감성 변화(최근 7일 − 직전 7일)", "threshold": 0.10, "unit": "score",
          "pos": "유튜브 댓글 감성 변화 {v}: 직전 기준선보다 개선(규칙 기준 초과)", "neg": "유튜브 댓글 감성 변화 {v}: 직전 기준선보다 악화(규칙 기준 초과)",
          "neu": "유튜브 댓글 감성 변화 {v}: 규칙 기준 미달"},
     ],
@@ -216,7 +217,7 @@ def hit_rate(agent_no: int, path: Path | None = None) -> dict:
         return {**base, "reason": "이 에이전트의 적중률 결과 없음"}
     if ent.get("unverified"):
         return {**base, "reason": str(ent["unverified"])}
-    if doc.get("ruleVersion") != RULE_VERSION:
+    if doc.get("ruleVersion") not in (RULE_VERSION, *MEASURED_COMPATIBLE.get(agent_no, ())):
         return {**base, "reason": f"측정한 규칙 버전({doc.get('ruleVersion')})이 현재({RULE_VERSION})와 다름"}
     n = ent.get("n")
     if not isinstance(n, int) or n < MIN_HIT_N:

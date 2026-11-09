@@ -34,10 +34,11 @@
   "signals": [{"id": "flow_foreign", "state": "negative", "...": "..."}, {"id": "flow_institution", "state": "neutral", "...": "..."}],
   "ledger": {"S4": {"label": "외국인 20일 순매수 강도(거래대금 대비)", "value": -4.34, "display": "-4.34%", "dataDate": "2026-11-03"}},
   "hitRate": {"status": "unverified", "rate": null, "n": null, "reason": "측정 전 (적중률 결과 파일 없음 — #55)", "text": "과거 적중률: 미검증 (측정 전 …)"},
-  "ruleVersion": "outlook-r1", "limit": "수급 자료는 시세보다 하루 늦게 적재됨 …", "note": "세 에이전트 결론의 종합은 오케스트레이터(SW) 담당입니다 …"
+  "ruleVersion": "outlook-r1.1", "limit": "수급 자료는 시세보다 하루 늦게 적재됨 …", "note": "세 에이전트 결론의 종합은 오케스트레이터(SW) 담당입니다 …"
 }
 ```
 - **`hitRate.verdict`(`edge`·`indistinct`·`unverified`) + `verdictLabel` + `notice`**(#58): 판정이 `edge`(기준선 대비 우위 있음)가 아니면 **종합 가중에 쓰지 말 것**. 현재 에이전트 4·3 은 `indistinct`(기준선과 구별 안 됨), 에이전트 6 은 `unverified`. `notice` 는 화면에 그대로 붙일 고정 문구입니다. 판정 규칙은 `docs/OUTLOOK_BACKTEST.md` 5-1.
+- (#76, 11/9) 규칙 버전 `outlook-r1.1`: 에이전트 6 감성 변화 비교 창이 '직전 7일(8~14일)'로 바뀜(장부 라벨 `…감성 변화(최근 7일 − 직전 7일)`, 기준선 `…감성(직전 7일, 기준선)`). 에이전트 3·4 규칙·적중률은 그대로.
 - 중립이면 `reasonCode`: `mixed`(혼재) · `insufficient`(근거 부족) · `weak`(신호 미약).
 - **종합 시 주의**: ① `중립(weak)` 은 '약한 신호'이지 '반대 의견'이 아닙니다 — 에이전트 3은 신호가 2개뿐이라 중립이 많습니다. ② `hitRate.status` 가 `unverified` 이면 그 에이전트 결론에는 과거 검증 근거가 없으니 가중에 쓰지 마세요(`measured` 일 때만 `rate`·`n`·`ci95` 참고). 적중률은 #55 결과 파일이 생기면 채워집니다. ③ 세 결론은 근거 키가 서로 다른 영역이라 독립으로 보이지만, 수급과 심리는 같은 사건을 반영할 수 있습니다. ④ 에이전트 6 감성은 정확도 56.6% 기준선, 에이전트 3 은 지표 수정 이력 미보관. ⑤ 결론 확정·가격 수준 표현은 어디에도 없어야 합니다 — 종합 결론에서도 같습니다.
 
