@@ -20,12 +20,12 @@ SCREEN = [      # 사용자 보고(11/5) 시연 화면의 미확보 목록 (질�
 def test_screen_list_merges_duplicates_and_groups_by_kind():
     items, proc = gaps.organize(SCREEN)
     labels = {(i["groupLabel"], i["label"]) for i in items}
-    assert len(items) == 6 and gaps.gap_problems(items) == []
-    assert ("범위 밖", "호가 잔량") in labels and ("범위 밖", "세부 투자 주체(금융투자·투신·연기금)") in labels
+    assert len(items) == 5 and gaps.gap_problems(items) == []
+    assert ("범위 밖", "호가 잔량, 세부 투자 주체(금융투자·투신·연기금)") in labels            # #75: 범위 밖 두 줄 → 한 줄
     assert ("기준일 차이", "수급은 11/3 기준") in labels and ("수집 중", "블로그 감성 변화") in labels
     assert ("미확보", "거시지표 발표·수정 이력") in labels and ("한계", "감성 판정 정확도") in labels
     assert proc == ["대상 기업 아님으로 분리한 문서 9건"]                       # 0건 조각은 버리고 처리 통계는 처리 기록으로
-    hoga = next(i for i in items if i["label"] == "호가 잔량")
+    hoga = next(i for i in items if i["label"].startswith("호가 잔량"))
     assert hoga["sources"] == ["노드 점검", "에이전트 판단"]                      # 같은 항목은 한 줄, 출처는 표시로만
     order = [i["groupLabel"] for i in items]
     assert order == sorted(order, key=list(gaps.GROUPS.values()).index)          # 묶음 순서
@@ -70,3 +70,64 @@ def test_processing_stats_are_split_canonicalized_and_deduped():
         {"label": "근거 문장을 붙이지 못해 점수를 내지 않은 문서 1건, 대상 기업 아님으로 분리한 문서 9건", "reason": ""},
         {"label": "대상 기업 아님으로 분리한 문서 9건(심리·뉴스 데이터 점검 미충족 항목)", "reason": ""}])
     assert proc == ["근거 문장을 붙이지 못해 점수를 내지 않은 문서 1건", "대상 기업 아님으로 분리한 문서 9건"]
+
+
+# ---- #75: 시연에서 드러난 미확보·한계 표시 오류
+def _one(items, group):
+    return [i for i in items if i["group"] == group]
+
+
+def test_parenthesis_and_comma_stay_in_the_item_name():
+    items, _ = gaps.organize([{"label": "금리 경로별(소비 위축, 차입 비용, 할인율)", "reason": "LLM 이 근거 부족으로 보고"},
+                              {"label": "외환 파생상품(통화선도 등)", "reason": "N05 미충족 항목"},
+                              {"label": "수출 매출 비중(FY2025)", "reason": "미충족 항목"}])
+    assert [i["label"] for i in items] == ["금리 경로별(소비 위축, 차입 비용, 할인율)", "외환 파생상품(통화선도 등)", "수출 매출 비중(FY2025)"]
+
+
+def test_trailing_mark_does_not_make_a_duplicate():
+    items, _ = gaps.organize([{"label": "기업 IT 투자 경기", "reason": "DB에 없음"}, {"label": "기업 IT 투자 경기 ※", "reason": "이 업종 경로에 필요하지만 DB에 없는 변수"}])
+    assert len(items) == 1 and "※" not in items[0]["label"]
+
+
+def test_too_few_scored_documents_is_collecting_not_missing():
+    items, _ = gaps.organize([{"label": "유튜브 댓글 감성", "reason": "점수 붙은 문서 4건 (최소 5건)"}])
+    assert items[0]["groupLabel"] == "수집 중" and "표본 부족" in items[0]["detail"]
+
+
+def test_llm_internal_meta_gaps_are_dropped_or_merged_into_the_accuracy_limit():
+    items, _ = gaps.organize([{"label": "감성 모델 개선 후 정확도 및 긍정 탐지 변화", "reason": "한계"},
+                              {"label": "감성 판정 한계", "reason": "키워드 사전 기준선 — 정확도 56.6%"},
+                              {"label": "블로그·카페 문서 중 종목 태그가 매핑되지 않은 글의 정확한 비중", "reason": "미확보"},
+                              {"label": "장중·장후 구분 불가로 사건 당일 반응과 후속 반응의 세부 시점 구분", "reason": "미확보"}])
+    assert [(i["groupLabel"], i["label"]) for i in items] == [("한계", "감성 판정 정확도")]
+
+
+def test_scope_items_fold_into_one_line_but_unrelated_scope_items_stay():
+    items, _ = gaps.organize([{"label": "호가 잔량", "reason": "범위 밖 — 공개·무로그인 출처 없음"}, {"label": "세부 투자 주체(금융투자·투신·연기금)", "reason": "범위 밖 — 공개·무로그인 출처 없음"},
+                              {"label": "분석 대상 밖 종목: 에코프로비엠", "reason": "국내 KOSPI 200 등만 분석"}])
+    labels = [i["label"] for i in _one(items, "out_of_scope")]
+    assert labels == ["호가 잔량, 세부 투자 주체(금융투자·투신·연기금)", "분석 대상 밖 종목: 에코프로비엠"]
+    assert "'" not in labels[1]
+
+
+FIN_GAPS = [{"label": "최근 4개 분기 영업이익 대비 환율 민감도", "reason": "미확보"}, {"label": "환율 민감도", "reason": "사업보고서 원문에서 민감도 표를 찾지 못함"},
+            {"label": "수출 매출 비중", "reason": "사업보고서 원문에서 회사 전체 내수·수출 표를 찾지 못함"}, {"label": "단독분기 매출 이력 및 다음 분기 매출 기준선 예측", "reason": "미확보"},
+            {"label": "최근 4개 분기", "reason": "기준일에 공시된 연속 4개 분기 영업이익 없음"}, {"label": "다음 분기 매출 기준선 예측", "reason": "기준일에 공시된 분기 매출 없음"},
+            {"label": "관세·통상정책", "reason": "DB에 없는 변수"}]
+
+
+def test_financial_company_not_applicable_items_are_one_group():
+    items, _ = gaps.organize(FIN_GAPS, financial=True)
+    na = _one(items, "not_applicable")
+    assert len(na) == 1 and na[0]["groupLabel"] == "해당 없음" and "금융업 계정 구조" in na[0]["detail"]
+    assert na[0]["label"] == "단독분기 매출 이력, 다음 분기 매출 기준선, 최근 4개 분기 영업이익, 수출 매출 비중, 환율 민감도"
+    assert [i["label"] for i in _one(items, "missing")] == ["관세·통상정책"]
+    plain, _ = gaps.organize(FIN_GAPS)                       # 금융업이 아니면 그대로 미확보
+    assert not _one(plain, "not_applicable") and len(_one(plain, "missing")) == 7
+
+
+def test_financial_company_is_decided_by_industry_code_not_holding_company_code_alone():
+    assert gaps.is_financial_company("64121", "카카오뱅크") and gaps.is_financial_company("65121", "삼성화재") and gaps.is_financial_company("66121", "삼성증권")
+    assert gaps.is_financial_company("64992", "KB금융") and gaps.is_financial_company("64992", "신한지주")
+    assert not gaps.is_financial_company("64992", "SK") and not gaps.is_financial_company("64992", "LG") and not gaps.is_financial_company("264", "삼성전자")
+    assert not gaps.is_financial_company(None, "KB금융")

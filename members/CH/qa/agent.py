@@ -240,6 +240,23 @@ def _remap(text: str, mapping: dict[str, str]) -> str:
     return re.sub(r"\{([A-Z]\d+)\}", lambda m: "{" + mapping.get(m.group(1), m.group(1)) + "}", text)
 
 
+MASK_PHRASE = "(수치는 노드 산출물 참조)"
+FIN_STATEMENT_TAG = re.compile(r"^(\[[^\]]+\]\s*)")
+
+
+def unmask_statement(s: str, items: dict[str, dict]) -> str | None:
+    """노드 판정 문장의 숫자 가림 문구를 답 작성용 자료에서 없앤다(#75). 가림 문구 때문에 LLM 이 '값이 없다'고 판단했음.
+    문장이 장부 키를 달고 있으면 '장부 항목 이름 {키}' 로 바꿔(조건 폭은 항목 이름에 있고 값은 코드가 채움) 보낸다.
+    키가 없는 문장(내부 점검 수치 설명)은 답과 무관해 뺀다(None). 가림 문구가 없으면 그대로."""
+    if MASK_PHRASE not in s:
+        return s
+    keys = [k for k in re.findall(r"\{([A-Z]\d+)\}", s) if k in items]
+    if not keys:
+        return None
+    tag = FIN_STATEMENT_TAG.match(s)
+    return f"{tag.group(1) if tag else ''}{items[keys[0]]['label']} {{{keys[0]}}}"
+
+
 def outlook_block(no: int, facts, ctx: dict) -> dict:
     """에이전트 3·4·6 의 20거래일 전망 결론(#54) — 계약 r4-1.4 outlook 블록과 같은 모양·같은 판정 문구(#58). 규칙 계산이라 LLM 이 쓰지 않는다."""
     from ch_agents import contract, node_agents
@@ -303,7 +320,7 @@ def tool_node_agent(args: dict, ctx: dict, led: Ledger) -> dict:
     ctx.setdefault("outlooks", {})[no] = outlook_block(no, facts, ctx)
     ctx.setdefault("briefs", {})[no] = agent_brief(no, facts, ctx["outlooks"][no])
     mp = led.add_facts(facts.items)
-    led.statements += [_remap(s, mp) for s in [*facts.flags, *facts.notes] if "방향어 규칙" not in s]
+    led.statements += [_remap(u, mp) for u in (unmask_statement(s, facts.items) for s in [*facts.flags, *facts.notes] if "방향어 규칙" not in s) if u]
     led.gaps += [g for g in facts.gaps if g not in led.gaps]
     nodes = [{"node": n["nodeId"], "state": n["state"], "status": n.get("status"), "reason": n.get("reason")} for n in report["nodes"]]
     skipped = report.get("prediction_skipped_reason")
@@ -373,6 +390,47 @@ def tool_docs(args: dict, ctx: dict, led: Ledger) -> dict:
             "rag": {"query": f"{ctx['co'].get('name')} · 관점 3(투자심리·수급) 문서 프리셋 · 기준일 {ctx['as_of']} 이전 공개 문서", "found": found, "shown": shown, "hybrid": hyb}}
 
 
+DISCLOSURE_Q_RE = re.compile(r"공시|다트|DART|8-?K", re.I)
+ROUTINE_DISCLOSURE_RE = re.compile(r"소유상황보고서|대량보유|특정증권등|자기주식\s*(취득|처분)\s*결과|기재정정|첨부정정")
+DISCLOSURE_DAYS = 60
+DISCLOSURE_SHOWN = 6
+
+
+def tool_disclosures(args: dict, ctx: dict, led: Ledger) -> dict:
+    """공시 목록(#75): 질문이 공시를 물으면 공시 표(core.disclosure)에서 기준일 이전 최근 공시를 직접 가져온다(문서 검색은 공시 제목에 '공시'가 없어 못 찾음).
+    임원·주요주주 소유상황 보고 같은 정기성 공시는 건수만, 그 밖의 공시는 제목·날짜를 문서(D#)로 올린다. 읽기 전용."""
+    from ch_agents import db
+    from ch_agents.facts import Facts
+
+    rows = db.q("SELECT rcept_dt, report_nm, event_type FROM core.disclosure WHERE company_id = %(cid)s AND rcept_dt <= %(as_of)s::date "
+                "AND rcept_dt > %(as_of)s::date - %(d)s::int ORDER BY rcept_dt DESC, rcept_no DESC LIMIT 200",
+                {"cid": ctx["co"]["company_id"], "as_of": ctx["as_of"], "d": DISCLOSURE_DAYS})
+    routine = [r for r in rows if ROUTINE_DISCLOSURE_RE.search(str(r["report_nm"] or ""))]
+    notable = [r for r in rows if r not in routine]
+    f = Facts("G")
+    if rows:
+        day0 = str(rows[0]["rcept_dt"])[:10]
+        f.add(f"최근 {DISCLOSURE_DAYS}일 공시 건수", len(rows), "건", day0, "core.disclosure", kind="obs")
+        f.add(f"최근 {DISCLOSURE_DAYS}일 임원·주요주주 소유상황 등 정기성 공시 건수", len(routine), "건", day0, "core.disclosure", kind="obs")
+    shown, seen = [], set()
+    for r in notable:
+        title = str(r["report_nm"] or "").strip()
+        if (title, str(r["rcept_dt"])) in seen:
+            continue
+        seen.add((title, str(r["rcept_dt"])))
+        k = f"D{len(led.docs) + 1}"
+        led.docs[k] = {"title": title[:80], "source": "dart", "published": str(r["rcept_dt"])[:10], "kind": "공시"}
+        led.doc_text[k] = title
+        shown.append(k)
+        if len(shown) >= DISCLOSURE_SHOWN:
+            break
+    if not rows:
+        led.gaps.append({"label": "최근 공시", "reason": f"기준일 이전 {DISCLOSURE_DAYS}일 안의 공시가 DB 에 없음"})
+    mp = led.add_facts(f.items)
+    return {"summary": f"공시 {len(rows)}건 중 정기성 {len(routine)}건 제외, {len(shown)}건을 문서로 사용 (최근 {DISCLOSURE_DAYS}일)", "keys": [*sorted(mp.values()), *shown],
+            "tech": "읽기 전용 SQL(core.disclosure, 기준일 이전)"}
+
+
 # 문서 검색 프리셋 번호. rag.PRESETS 는 옛 7관점 번호라 새 에이전트 6(투자심리·뉴스)에 해당하는 것은 3(투자심리·수급).
 # 이전 코드는 6 을 넘겨 모든 문서 검색이 KeyError 로 실패했음(#61 에서 발견·수정)
 RAG_PRESET = 3
@@ -405,10 +463,12 @@ def retrieve_docs(co: dict, as_of: str, question: str | None = None) -> tuple[li
                   "modeLabel": "하이브리드 검색(키워드 + 벡터)" if status["mode"] == "hybrid" else "키워드 검색(벡터 검색 실패로 대체)"}
 
 
-TOOLS: dict[str, Callable[[dict, dict, Ledger], dict]] = {"run_node_agent": tool_node_agent, "price_summary": tool_price, "doc_search": tool_docs}
+TOOLS: dict[str, Callable[[dict, dict, Ledger], dict]] = {"run_node_agent": tool_node_agent, "price_summary": tool_price, "doc_search": tool_docs,
+                                                          "disclosure_list": tool_disclosures}
 TOOL_DESC = """- run_node_agent {"agent_no": 3|4|6}: 3=거시(금리·환율 노출, 시나리오), 4=수급(거래대금·외국인·기관·개인), 6=투자심리·뉴스(사건별 감성). 규칙·통계 계산, LLM 없음.
 - price_summary {"days": 정수}: 종가·기간 등락률·평균 거래량(읽기 전용 DB).
-- doc_search {}: 뉴스·공시 문서 검색(RAG). 개인 작성 글은 건수만 나옴. **질문에 종목이 있으면 시스템이 항상 먼저 1회 실행**하므로 직접 고르지 않아도 됩니다."""
+- doc_search {}: 뉴스·공시 문서 검색(RAG). 개인 작성 글은 건수만 나옴. **질문에 종목이 있으면 시스템이 항상 먼저 1회 실행**하므로 직접 고르지 않아도 됩니다.
+(공시 목록은 질문이 공시를 물으면 시스템이 공시 표에서 직접 가져오므로 고르지 않아도 됩니다.)"""
 
 
 def rag_tech() -> dict:
@@ -456,10 +516,22 @@ ANSWER_SYSTEM = """당신은 한국 상장사 분석 질의응답의 '답 작성
 출력 JSON 하나: {"답": [{"문장": "...", "구분": "사실|해석|예측", "근거": ["S1","D2"]}], "미확보": ["..."]}"""
 
 
+PROMPT_ITEMS = 80
+
+
+def prompt_keys(led: Ledger) -> list[str]:
+    """답 작성용 장부 항목: 판정 문장이 가리키는 키를 먼저(앞 70개 자르기로 뒤쪽 키가 빠져 LLM 이 값이 없다고 본 문제, #75), 나머지는 원래 순서로 채운다."""
+    cited = [k for k in dict.fromkeys(k for s in led.statements for k in re.findall(r"\{([A-Z]\d+)\}", s)) if k in led.items]
+    rest = [k for k in led.items if k not in cited]
+    keep = set(cited + rest[:max(0, PROMPT_ITEMS - len(cited))])
+    return [k for k in led.items if k in keep]
+
+
 def build_answer_prompt(question: str, interp: dict, led: Ledger) -> str:
     lines = [f"질문: {question}", f"종목: {interp['company'].get('name')} / 기준일: {interp['period']['as_of']}" + (f" / 사용자가 말한 가정: {interp['scenario']}" if interp["scenario"] else "")]
     lines.append("[숫자 장부]")
-    for k, v in list(led.items.items())[:70]:
+    for k in prompt_keys(led):
+        v = led.items[k]
         lines.append(f"- {k}: {v['label']} = {v['text']} (기준 {v.get('as_of')})")
     lines.append("[판정 문장]")
     lines += [f"- {s}" for s in led.statements[:25]]
@@ -493,7 +565,9 @@ def to_keys(text: str, led: Ledger) -> str:
         t = v["text"]
         if t and t != "무자료" and t in text:
             text = text.replace(t, "{" + k + "}")
-        elif t and t[:1] in "+-" and t[1:] in text and not re.search(r"\d", text[max(0, text.find(t[1:]) - 1):text.find(t[1:])]):
+        elif t.endswith("원") and re.search(r"\d(?:조|억|만)$", t[:-1]) and re.search(rf"(?<![\d,.+\-−]){re.escape(t[:-1])}(?![0-9가-힣])", text):
+            text = re.sub(rf"(?<![\d,.+\-−]){re.escape(t[:-1])}(?![0-9가-힣])", "{" + k + "}", text)      # '424억~' 처럼 단위 '원' 을 뺀 값도 그 키로 (#75 범위 하한)
+        elif t and t[:1] in "+-" and t[1:] in text and not re.search(r"[\d+\-−]", text[max(0, text.find(t[1:]) - 1):text.find(t[1:])]):     # 앞에 다른 부호가 있으면 부호를 뒤집지 않음(#75)
             text = text.replace(t[1:], "{" + k + "}", 1)
     return text
 
@@ -509,6 +583,8 @@ def verify_answer(parsed: dict | None, led: Ledger, question: str, interp: dict)
     from ch_agents.thresholds import threshold_terms
 
     allowed = set(llm_mod.COMMON_TERMS) | threshold_terms() | set(llm_mod.LOOSE_NUMBER.findall(question)) | set(llm_mod.LOOSE_NUMBER.findall(interp.get("scenario") or ""))
+    for v in led.items.values():            # 장부 항목 이름 속 조건 숫자('환율 10% 상승 시')는 값이 아니라 용어
+        allowed |= set(llm_mod.LOOSE_NUMBER.findall(v["label"]))
     allowed |= {x.lstrip("+-") for x in allowed}
     ok, removed = [], []
     for c in (parsed or {}).get("답") or []:
@@ -632,11 +708,13 @@ def answer(question: str, llm, emit: Callable[[dict], None] | None = None, unive
     out: dict[str, Any] = {"question": question, "interpretation": {k: interp[k] for k in ("company", "period", "domains", "intent", "refuse", "scenario", "notes")},
                            "answer": [], "gaps": [], "status": "", "trace": trace}
 
+    state = {"financial": False}          # 금융업이면 매출·영업이익 계정이 없는 항목을 '해당 없음' 으로 묶는다(#75)
+
     def finish(status: str, text: str | None = None) -> dict:
         from ch_agents.gaps import organize
         from qa import pipeline as pipeline_mod
 
-        out["gaps"], proc = organize(out.get("gaps") or [])         # 중복 합침·묶음·내부 코드 한국어화·처리 통계는 처리 기록으로 (#62)
+        out["gaps"], proc = organize(out.get("gaps") or [], financial=state["financial"])         # 중복 합침·묶음·내부 코드 한국어화·처리 통계는 처리 기록으로 (#62)
         if proc:
             out["processing"] = proc
         out["status"] = status
@@ -660,13 +738,15 @@ def answer(question: str, llm, emit: Callable[[dict], None] | None = None, unive
     if comp["status"] == "ambiguous":
         return finish("종목 모호", "어느 종목인지 정해 주세요: " + ", ".join(comp["candidates"]))
     if comp["status"] == "not_found":
-        out["gaps"] = [{"label": f"'{comp['mention']}'", "reason": f"분석 대상 종목 밖(미확보) — {UNIVERSE_NOTE}"}]
+        out["gaps"] = [{"label": f"분석 대상 밖 종목: {comp['mention']}", "reason": "국내 KOSPI 200 등만 분석"}]
         return finish("미확보", f"'{comp['mention']}' 은(는) 이 시스템의 분석 대상 종목에서 찾지 못했습니다. 지어내지 않고 '미확보'로 답합니다.")
     if interp["intent"] == "범위밖" and not interp["domains"]:
         out["gaps"] = [{"label": "질문 범위", "reason": "종목 분석(거시·수급·심리뉴스·시세) 밖이거나 DB 에 없는 자료를 묻는 질문"}]
         return finish("미확보", "이 질문은 이 시스템이 가진 자료(거시·수급·심리뉴스·시세)로 답할 수 없어 '미확보'로 답합니다.")
 
     co = db.company(comp["ticker"])
+    from ch_agents.gaps import is_financial_company
+    state["financial"] = is_financial_company(co.get("sector"), co.get("name"))
     days = interp["period"]["days"]
     ctx = {"question": question, "co": co, "ticker": comp["ticker"], "as_of": interp["period"]["as_of"], "days": days, "interp": interp, "outlooks": {}}
     led = Ledger()
@@ -683,6 +763,16 @@ def answer(question: str, llm, emit: Callable[[dict], None] | None = None, unive
             res = {"summary": f"도구 실패: {type(e).__name__}: {str(e)[:120]}", "keys": [], "tech": "-"}
         done.append({"tool": "doc_search", "args": {}, "result": res})
         step("도구", tool="doc_search", args={}, reason="대상 종목이 있는 모든 질문에 뉴스·공시 근거를 붙이기 위해 먼저 실행", origin="고정 단계(항상 실행)",
+             result=res, seconds=round(time.monotonic() - ts, 1))
+    if "disclosure_list" in tools and DISCLOSURE_Q_RE.search(question):      # 공시를 묻는 질문은 공시 표에서 최근 공시를 직접(#75, 상한에 세지 않음)
+        seen.add("disclosure_list{}")
+        ts = time.monotonic()
+        try:
+            res = tools["disclosure_list"]({}, ctx, led)
+        except Exception as e:  # noqa: BLE001
+            res = {"summary": f"도구 실패: {type(e).__name__}: {str(e)[:120]}", "keys": [], "tech": "-"}
+        done.append({"tool": "disclosure_list", "args": {}, "result": res})
+        step("도구", tool="disclosure_list", args={}, reason="질문이 공시를 물어 공시 표에서 최근 공시 목록을 직접 가져옴", origin="고정 단계(공시 질문)",
              result=res, seconds=round(time.monotonic() - ts, 1))
     for _ in range(MAX_TOOL_CALLS):
         if time.monotonic() - t0 > TIME_BUDGET_S:

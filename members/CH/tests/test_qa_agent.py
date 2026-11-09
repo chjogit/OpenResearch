@@ -179,7 +179,7 @@ def test_answer_out_of_universe_and_ambiguous():
         return qa.answer(q, FakeLLM(interp_json(company_mention=mention)), universe=UNI, today=TODAY, latest=LATEST, tools={})
 
     r = go("애플", "애플 수급은?")
-    assert r["status"] == "미확보" and "분석 대상" in r["gaps"][0]["reason"] and r["answer"] == []
+    assert r["status"] == "미확보" and r["gaps"][0]["label"] == "분석 대상 밖 종목: 애플" and "KOSPI 200" in r["gaps"][0]["reason"] and r["answer"] == []   # #75: 따옴표째 이름이 아님
     r = go("삼성", "삼성 수급은?")
     assert r["status"] == "종목 모호" and "삼성물산" in r["message"]
     assert go(None, "수급은?")["status"] == "종목 필요"
@@ -453,3 +453,102 @@ def test_answer_brief_never_shows_ledger_keys_even_when_every_sentence_has_them(
     assert mixed["text"] == "순매도가 이어졌다."
     card = qa.agent_brief(4, __import__("ch_agents.facts", fromlist=["Facts"]).Facts("S"), {"agentName": "수급", "direction": "neutral", "directionLabel": "중립", "reason": "혼재", "hitRate": {}, "ledger": {}})
     assert card["chars"] > 0
+
+
+# ---- #75: 시연에서 드러난 미확보·한계 표시 오류
+def test_unmask_statement_replaces_mask_phrase_with_ledger_label_and_key():
+    items = {"M74": {"label": "환율 10% 상승 시 세전이익 영향(전 통화 합계, FY2025)", "text": "-1.03조원"}}
+    s = "[공시 사실] 환율 (수치는 노드 산출물 참조) 상승 시 세전이익 영향(전 통화 합계, FY2025) {M74}"
+    out = qa.unmask_statement(s, items)
+    assert out == "[공시 사실] 환율 10% 상승 시 세전이익 영향(전 통화 합계, FY2025) {M74}" and "노드 산출물 참조" not in out
+    assert qa.unmask_statement("한계(N11): Brier (수치는 노드 산출물 참조) 가 낮음", items) is None      # 키 없는 점검 수치 문장은 뺀다
+    assert qa.unmask_statement("[공시 사실] 수출 매출 비중 {M78}", items) == "[공시 사실] 수출 매출 비중 {M78}"
+
+
+def test_answer_prompt_puts_statement_keys_before_the_item_cap(monkeypatch):
+    led = qa.Ledger()
+    led.add_facts({f"M{i}": {"label": f"항목{i}", "value": float(i), "unit": "idx", "text": str(i), "as_of": "2026-11-04", "source": "x"} for i in range(1, 121)})
+    led.statements = ["[공시 사실] 환율 10% 상승 시 세전이익 영향 {M110}", "[공시 사실] 환율 비중 {M115}"]
+    keys = qa.prompt_keys(led)
+    assert len(keys) == qa.PROMPT_ITEMS and "M110" in keys and "M115" in keys and keys[:3] == ["M1", "M2", "M3"]
+    prompt = qa.build_answer_prompt("q", {"company": {"name": "x"}, "period": {"as_of": "2026-11-04"}, "scenario": None}, led)
+    assert "- M110:" in prompt and "- M115:" in prompt and "노드 산출물 참조" not in prompt
+
+
+def test_to_keys_accepts_lower_bound_written_without_won_and_verify_keeps_the_sentence():
+    led = qa.Ledger()
+    led.add_facts({"L15": {"label": "최근 60일 일 거래대금 하단(10백분위)", "value": 4.24e10, "unit": "KRW", "text": "424억원", "as_of": "2026-11-04", "source": "x"},
+                   "L16": {"label": "최근 60일 일 거래대금 상단(90백분위)", "value": 9.0e10, "unit": "KRW", "text": "900억원", "as_of": "2026-11-04", "source": "x"}})
+    assert qa.to_keys("최근 60일 일 거래대금 범위는 424억~{L16}이다.", led) == "최근 60일 일 거래대금 범위는 {L15}~{L16}이다."
+    assert qa.to_keys("거래대금 1,424억 이다", led) == "거래대금 1,424억 이다"           # 다른 값의 일부는 건드리지 않음
+    parsed = {"답": [{"문장": "최근 60일 일 거래대금 범위(10~90백분위)는 424억~{L16}이다.", "구분": "계산", "근거": ["L16"]}]}
+    ok, removed = qa.verify_answer(parsed, led, "q", {"scenario": None, "period": {"as_of": "2026-11-04"}, "company": {}})
+    assert len(ok) == 1 and not removed
+    assert qa.render(ok[0]["문장"], led) == "최근 60일 일 거래대금 범위(10~90백분위)는 424억원~900억원이다."
+
+
+def test_condition_numbers_in_ledger_labels_are_not_loose_numbers():
+    led = qa.Ledger()
+    led.add_facts({"M74": {"label": "환율 10% 상승 시 세전이익 영향(FY2025)", "value": -1.0e12, "unit": "KRW±", "text": "-1.03조원", "as_of": "FY2025", "source": "x"}})
+    parsed = {"답": [{"문장": "환율 10% 상승 시 세전이익 영향은 {M74}이다.", "구분": "사실", "근거": ["M74"]}]}
+    ok, removed = qa.verify_answer(parsed, led, "q", {"scenario": None, "period": {"as_of": "2026-11-04"}, "company": {}})
+    assert len(ok) == 1 and not removed
+
+
+def test_disclosure_question_pulls_recent_disclosures_from_the_table(monkeypatch):
+    from ch_agents import db
+
+    rows = [{"rcept_dt": "2026-11-09", "report_nm": "임원ㆍ주요주주특정증권등소유상황보고서"}, {"rcept_dt": "2026-11-06", "report_nm": "임원ㆍ주요주주특정증권등소유상황보고서"},
+            {"rcept_dt": "2026-11-05", "report_nm": "주요사항보고서(자기주식취득결정)"}, {"rcept_dt": "2026-10-30", "report_nm": "영업(잠정)실적(공정공시)"}]
+    seen = {}
+    monkeypatch.setattr(db, "q", lambda sql, params=None: seen.update(sql=sql, params=params) or rows)
+    led = qa.Ledger()
+    res = qa.tool_disclosures({}, {"co": {"company_id": 7}, "as_of": "2026-11-09"}, led)
+    assert "core.disclosure" in seen["sql"] and "rcept_dt <= %(as_of)s" in seen["sql"] and seen["params"]["as_of"] == "2026-11-09"
+    assert [d["title"] for d in led.docs.values()] == ["주요사항보고서(자기주식취득결정)", "영업(잠정)실적(공정공시)"] and all(d["kind"] == "공시" for d in led.docs.values())
+    assert [v["text"] for v in led.items.values()] == ["4건", "2건"] and "정기성 2건 제외" in res["summary"]
+    assert qa.DISCLOSURE_Q_RE.search("삼성전자 최근 공시 중 중요한 거 있어?") and not qa.DISCLOSURE_Q_RE.search("삼성전자 외국인 수급은?")
+
+
+def test_answer_runs_disclosure_step_for_disclosure_questions_and_not_others(monkeypatch):
+    from ch_agents import db
+
+    monkeypatch.setattr(db, "company", lambda t: {"company_id": 1, "ticker": t, "name": "삼성전자", "sector": "264"})
+    called = []
+
+    def fake_disc(args, ctx, led):
+        called.append("disclosure_list")
+        led.docs["D1"] = {"title": "주요사항보고서", "source": "dart", "published": "2026-11-05", "kind": "공시"}
+        return {"summary": "공시 1건", "keys": ["D1"], "tech": "-"}
+
+    llm = FakeLLM(interp_json(domains=[]), plan=[{"action": "answer", "reason": "충분"}],
+                  ans={"답": [{"문장": "최근 주요사항보고서가 공시되었다.", "구분": "사실", "근거": ["D1"]}], "미확보": []})
+    r = qa.answer("삼성전자 최근 공시 중 중요한 거 있어?", llm, universe=UNI, today=TODAY, latest=LATEST, tools={"disclosure_list": fake_disc})
+    assert called == ["disclosure_list"] and r["status"] == "완료" and r["trace"][1]["tool"] == "disclosure_list"
+    qa.answer("삼성전자 외국인 수급?", FakeLLM(interp_json()), universe=UNI, today=TODAY, latest=LATEST, tools={"disclosure_list": fake_disc})
+    assert called == ["disclosure_list"]                                                  # 공시를 묻지 않으면 실행하지 않음
+
+
+def test_financial_company_gaps_are_grouped_as_not_applicable(monkeypatch):
+    from ch_agents import db
+
+    monkeypatch.setattr(db, "company", lambda t: {"company_id": 1, "ticker": t, "name": "삼성전자", "sector": "65121"})      # 보험(업종 코드)
+
+    def fake_tool(args, ctx, led):
+        led.add_facts(make_ledger().items)
+        led.gaps += [{"label": "수출 매출 비중", "reason": "사업보고서 원문에서 회사 전체 내수·수출 표를 찾지 못함"}, {"label": "환율 민감도", "reason": "x"}]
+        return {"summary": "x", "keys": ["S1"], "tech": "-"}
+
+    llm = FakeLLM(interp_json(), plan=[{"action": "tool", "tool": "run_node_agent", "args": {"agent_no": 4}, "reason": "r"}, {"action": "answer", "reason": "충분"}],
+                  ans={"답": [{"문장": "외국인 5일 순매수는 {S1}이다.", "구분": "사실", "근거": ["S1"]}], "미확보": []})
+    r = qa.answer("삼성전자 외국인 수급?", llm, universe=UNI, today=TODAY, latest=LATEST, tools={"run_node_agent": fake_tool})
+    na = [g for g in r["gaps"] if g["group"] == "not_applicable"]
+    assert len(na) == 1 and na[0]["label"] == "수출 매출 비중, 환율 민감도" and not any(g["label"] == "수출 매출 비중" for g in r["gaps"])
+
+
+def test_to_keys_never_flips_the_sign_of_an_opposite_scenario_value():
+    led = qa.Ledger()
+    led.add_facts({"X1": {"label": "환율 -5% 가정 시 영향", "value": 7e10, "unit": "KRW±", "text": "+700억원", "as_of": "x", "source": "x"},
+                   "X2": {"label": "환율 +5% 가정 시 영향", "value": -7e10, "unit": "KRW±", "text": "-700억원", "as_of": "x", "source": "x"}})
+    out = qa.render(qa.to_keys("하락하면 약 +700억원, 상승하면 약 -700억원", led), led)
+    assert out == "하락하면 약 +700억원, 상승하면 약 -700억원"            # 이전에는 '-700억원' 이 '-{X1}' 이 되어 '+700억원' 으로 뒤집혔음

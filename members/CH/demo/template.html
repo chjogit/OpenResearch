@@ -153,7 +153,7 @@ function claimTable(r) {
     `<tr><td>${esc(c.claimId)}</td><td><span class="badge b-mute">${esc(c.tag || c.typeLabel || c.type)}</span>${esc(c.typeLabel || "")}</td><td>${esc(c.text)}</td>
      <td>${(c.evidenceIds || []).map(evLabel).join(", ")}</td><td>${esc((c.verification || {}).status || "")}</td></tr>`).join("") + "</table></div>";
 }
-const GAP_ORDER = ["미확보", "범위 밖", "수집 중", "기준일 차이", "한계"];
+const GAP_ORDER = ["미확보", "범위 밖", "해당 없음", "수집 중", "기준일 차이", "한계"];
 function gapsHtml(items) {
   if (!items || !items.length) return '<p class="note">없음</p>';
   const by = {};

@@ -252,3 +252,11 @@ def test_fetch_hybrid_searches_public_and_private_sources_separately():
     assert set(calls[1][0]) <= set(rag_hybrid.PRIVATE_SOURCES) and calls[1][1] == rag_hybrid.PRIVATE_CANDIDATES
     assert len(out["hits"]) == 2
 
+
+
+def test_topic_terms_drop_predicates_conditions_and_adjectives():     # #75
+    names = {"lg에너지솔루션", "삼성전자", "기아"}
+    assert rag_hybrid.topic_terms("LG에너지솔루션은 환율이 오르면 어떤 영향이 있어?", names) == ["환율"]
+    assert rag_hybrid.topic_terms("삼성전자 최근 공시 중 중요한 거 있어?", names) == []
+    assert rag_hybrid.topic_terms("기아는 환율이 5% 떨어지면 어떻게 돼?", names) == ["환율"]
+    assert rag_hybrid.topic_terms("삼성전자 노조 파업 소식 있어?", names) == ["노조", "파업"]

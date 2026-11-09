@@ -1,14 +1,23 @@
 """미확보·미확인 목록 정리(#62): 중복 합치기 · 성격별 묶음 · 내부 코드 한국어화. 에이전트 계약·질의응답·시연이 같은 규칙을 쓴다(한 곳).
 
-묶음(GROUPS): 미확보(실제로 없는 자료) · 범위 밖(공개·무로그인 출처 없음) · 수집 중(기간이 짧음) · 기준일 차이(수집이 시세보다 늦음) ·
-한계(방법의 한계) / 처리 기록(처리 통계 — 목록에서 빼고 0건 조각은 버림).
+묶음(GROUPS): 미확보(실제로 없는 자료) · 범위 밖(공개·무로그인 출처 없음) · 해당 없음(금융업 계정 구조 등 원래 없는 항목) ·
+수집 중(기간이 짧거나 표본 부족) · 기준일 차이(수집이 시세보다 늦음) · 한계(방법의 한계) / 처리 기록(처리 통계 — 목록에서 빼고 0건 조각은 버림).
 같은 주제(같은 노드·같은 대상)는 한 줄로 합치고, 출처는 '노드 점검'·'에이전트 판단' 표시로만 남긴다.
+
+정리 규칙(#75, organize 에만 적용):
+- 항목 이름의 괄호 설명은 이름에 붙여 둔다('금리 경로별(소비 위축, 차입 비용, 할인율)' 한 항목). 끝의 표시 기호(※ 등)는 떼고 같은 주제로 합친다.
+- '호가 잔량'·'세부 투자 주체' 같은 범위 밖 항목은 질문마다 두 줄로 나오지 않게 한 줄로 접는다.
+- 금융업(financial=True)이면 매출·영업이익 계정 구조가 달라 원래 없는 항목(단독분기 매출 이력, 다음 분기 매출 기준선, 최근 4개 분기 영업이익,
+  수출 매출 비중, 환율 민감도)을 '해당 없음' 한 줄로 묶는다. 금융업 판정은 호출한 쪽이 업종 코드로 한다(is_financial_company).
+- 점수 붙은 문서가 최소 건수에 못 미치는 항목은 '수집 중(표본 부족)'이다.
+- LLM 이 '미확보'로 쓴 내부 사항(종목 태그 매핑 비중, 장중·장후 구분 불가 등)은 답과 무관해 뺀다. '감성 모델 개선 후 정확도·긍정 탐지' 같은 말은
+  노드가 이미 내는 '감성 판정 정확도' 한계로 합친다.
 """
 from __future__ import annotations
 
 import re
 
-GROUPS = {"missing": "미확보", "out_of_scope": "범위 밖", "collecting": "수집 중", "date_diff": "기준일 차이", "limit": "한계"}
+GROUPS = {"missing": "미확보", "out_of_scope": "범위 밖", "not_applicable": "해당 없음", "collecting": "수집 중", "date_diff": "기준일 차이", "limit": "한계"}
 PROCESSING = "processing"
 NODE_CHECK, AGENT_JUDGE = "노드 점검", "에이전트 판단"
 
@@ -51,7 +60,7 @@ TOPICS = (
     (re.compile(r"카페\s*감성\s*변화"), "카페 감성 변화", "collecting"),
     (re.compile(r"유튜브.{0,6}감성\s*변화"), "유튜브 댓글 감성 변화", "collecting"),
     (re.compile(r"거시지표.{0,6}(발표|수정).{0,4}이력|Point-in-Time"), "거시지표 발표·수정 이력", "missing"),
-    (re.compile(r"감성\s*판정\s*한계|정확도\s*\d"), "감성 판정 정확도", "limit"),
+    (re.compile(r"감성\s*판정\s*한계|정확도\s*\d|감성\s*(모델|판정).{0,20}(정확도|개선)|긍정\s*탐지"), "감성 판정 정확도", "limit"),
     (re.compile(r"^(긍정|부정)(·위험)?\s*요인$"), None, "limit"),
 )
 STAT_RE = re.compile(r"문서\s*\d+건")
@@ -121,10 +130,34 @@ def _detail_of(label: str, reason: str) -> str:
     return max(cands, key=len, default="")
 
 
+MARK_TAIL_RE = re.compile(r"[\s※*†‡]+$")          # 항목 끝의 표시 기호(※ 등)는 이름이 아니다 → 같은 주제로 합침 (#75)
+
+
 def _plain_label(label: str) -> str:
-    base = re.split(r"[（(:]", label, 1)[0].strip()
+    base = re.split(r"[（(:]", MARK_TAIL_RE.sub("", label), 1)[0].strip()
     base = re.sub(r"\s*변수$", "", base)               # '관세·통상정책 변수' = '관세·통상정책' (같은 주제)
     return base or label.strip()
+
+
+def _whole_label(label: str) -> str:
+    """항목 이름은 괄호 설명까지 한 덩어리로 둔다(#75: '금리 경로별(소비 위축, 차입 비용, 할인율)'). 콜론 뒤는 설명이라 상세로 보낸다."""
+    base = MARK_TAIL_RE.sub("", label.split(":", 1)[0]).strip()
+    base = re.sub(r"\s*변수(?=[（(]|$)", "", base)
+    return base or label.strip()
+
+
+def _reason_detail(label: str, reason: str) -> str:
+    """상세: 콜론 뒤 설명과 일반 문구가 아닌 사유 중 가장 긴 것(괄호 설명은 이름에 있으므로 쓰지 않음)."""
+    cands = [label.split(":", 1)[1].strip()] if ":" in label else []
+    if reason and not GENERIC_REASON.search(reason):
+        cands.append(reason.strip())
+    return max(cands, key=len, default="")
+
+
+OUT_OF_UNIVERSE_RE = re.compile(r"^분석\s*대상\s*밖\s*종목")
+SAMPLE_SHORT_RE = re.compile(r"기간\s*짧|\d+일뿐|수집\s*중|점수\s*붙은\s*문서\s*\d+건|최소\s*\d+\s*건")
+# LLM 이 '미확보'로 쓴 내부 사정 — 답과 무관해 뺀다(#75)
+INTERNAL_META_RE = re.compile(r"종목\s*태그.{0,16}(매핑|연결|붙)|매핑되지\s*않은|장중.{0,6}장후\s*구분")
 
 
 def classify(label: str, reason: str = "") -> dict | None:
@@ -134,6 +167,9 @@ def classify(label: str, reason: str = "") -> dict | None:
     if not label or not split_stat(label)[0]:
         return None
     detail = _detail_of(label, reason)
+    if OUT_OF_UNIVERSE_RE.search(label):             # 대상 밖 종목: 이름을 따옴표째가 아니라 '분석 대상 밖 종목: 이름' 으로 (#75)
+        whole = MARK_TAIL_RE.sub("", label)
+        return {"topic": re.sub(r"\s+", "", whole), "group": "out_of_scope", "label": whole, "detail": reason or detail, "source": _source(reason)}
     for rx, name, group in TOPICS:
         if rx.search(label):
             if group == "date_diff":
@@ -146,23 +182,58 @@ def classify(label: str, reason: str = "") -> dict | None:
             return {"topic": name, "group": group, "label": name, "detail": detail, "source": _source(reason)}
     text = f"{label} {reason}"
     group = ("out_of_scope" if re.search(r"범위\s*밖|공개·무로그인", text) else
-             "collecting" if re.search(r"기간\s*짧|\d+일뿐|수집\s*중", text) else
+             "collecting" if SAMPLE_SHORT_RE.search(text) else
              "limit" if re.search(r"한계|정확도", text) else "missing")
     name = _plain_label(label)
-    return {"topic": re.sub(r"\s+", "", name), "group": group, "label": name, "detail": detail, "source": _source(reason)}
+    detail = _reason_detail(label, reason)
+    if group == "collecting" and re.search(r"점수\s*붙은\s*문서|최소\s*\d+\s*건", text):
+        detail = "표본 부족 — " + detail if detail else "표본 부족"
+    return {"topic": re.sub(r"\s+", "", name), "group": group, "label": _whole_label(label), "detail": detail, "source": _source(reason)}
 
 
-def organize(gaps: list[dict]) -> tuple[list[dict], list[str]]:
+FOLD_SCOPE = ("호가 잔량", "세부 투자 주체(금융투자·투신·연기금)")       # 수급 질문마다 나오는 범위 밖 항목은 한 줄로 접는다
+SCOPE_DETAIL = "공개·무로그인 출처 없음(외국인·기관 합계로 대체)"
+# 금융업은 매출·영업이익 계정 구조가 달라 원래 없는 항목 (정규식, 표시 이름) — 표시 순서대로
+FIN_NA = ((re.compile(r"단독\s*분기\s*매출\s*(이력|급변)"), "단독분기 매출 이력"),
+          (re.compile(r"(다음\s*분기|분기)\s*매출\s*기준선"), "다음 분기 매출 기준선"),
+          (re.compile(r"최근\s*4\s*개\s*분기"), "최근 4개 분기 영업이익"),
+          (re.compile(r"수출\s*매출\s*비중"), "수출 매출 비중"),
+          (re.compile(r"환율\s*민감도"), "환율 민감도"))
+FIN_NA_DETAIL = "금융업 계정 구조(매출·영업이익 계정이 일반 기업과 달라 원래 없는 항목)"
+FINANCIAL_NAME_RE = re.compile(r"금융|은행|카드|증권|보험|캐피탈|페이|신한지주")      # 이름에 금융이 없는 금융지주는 여기에 추가
+
+
+def is_financial_company(sector_code: str | None, name: str | None = None) -> bool:
+    """금융업 판정(#75): 한국표준산업분류 코드로. 은행 641·보험 65·금융지원 66·여신 6491 은 코드만으로 금융업.
+    '기타 금융업'(649·64992)에는 일반 지주회사(SK·LG·CJ 등)가 같이 들어 있어, 이 코드는 이름에 금융·은행·카드·증권·보험 등이 있을 때만 금융업으로 본다."""
+    code = str(sector_code or "")
+    if code.startswith(("641", "65", "66", "6491", "6492", "6493", "6494")):
+        return True
+    if code.startswith("649"):
+        return bool(FINANCIAL_NAME_RE.search(name or ""))
+    return False
+
+
+def organize(gaps: list[dict], financial: bool = False) -> tuple[list[dict], list[str]]:
     """[{'label','reason'}] → (묶음 순서로 정리한 항목, 처리 기록 조각).
-    항목: {'group','groupLabel','label','detail','reason','sources'}. 같은 주제는 하나로(출처 합침), 0건 통계는 버림."""
+    항목: {'group','groupLabel','label','detail','reason','sources'}. 같은 주제는 하나로(출처 합침), 0건 통계는 버림.
+    financial=True 면 금융업에 원래 없는 항목을 '해당 없음' 한 줄로 묶는다."""
     merged: dict[tuple, dict] = {}
     proc: list[str] = []
+    na_names: list[str] = []
     for g in gaps:
         label, reason = str(g.get("label") or g.get("item") or ""), str(g.get("reason") or "")
         rest, st = split_stat(ko_text(label))
         proc += st
         if not rest:
             continue
+        if INTERNAL_META_RE.search(label):             # 답과 무관한 LLM 내부 사정
+            continue
+        if financial:
+            hits = [nm for rx, nm in FIN_NA if rx.search(label)]
+            if hits:
+                na_names += [nm for nm in hits if nm not in na_names]
+                continue
         c = classify(label, reason)
         if c is None:
             continue
@@ -174,8 +245,21 @@ def organize(gaps: list[dict]) -> tuple[list[dict], list[str]]:
             cur["detail"] = max([cur["detail"], c["detail"]], key=len)
             if c["group"] == "date_diff" and "마지막 수집일" in cur["label"]:      # 날짜가 있는 쪽 이름을 쓴다
                 cur["label"] = c["label"]
+            elif len(c["label"]) > len(cur["label"]):                              # 괄호 설명이 붙은 쪽 이름을 쓴다
+                cur["label"] = c["label"]
             if c["source"] not in cur["sources"]:
                 cur["sources"].append(c["source"])
+    fold = [v for v in merged.values() if v["group"] == "out_of_scope" and v["label"] in FOLD_SCOPE]
+    if len(fold) >= 2:                                  # 범위 밖 항목은 한 줄: '호가 잔량, 세부 투자 주체(…)'
+        first = fold[0]
+        first["label"] = ", ".join(x["label"] for x in sorted(fold, key=lambda x: FOLD_SCOPE.index(x["label"])))
+        first["detail"] = SCOPE_DETAIL
+        for x in fold[1:]:
+            first["sources"] += [s2 for s2 in x["sources"] if s2 not in first["sources"]]
+            merged = {k: v for k, v in merged.items() if v is not x}
+    if na_names:
+        merged[("not_applicable", "금융업")] = {"group": "not_applicable", "groupLabel": GROUPS["not_applicable"], "label": ", ".join(nm for _, nm in FIN_NA if nm in na_names),
+                                                 "detail": FIN_NA_DETAIL, "sources": [NODE_CHECK]}
     order = list(GROUPS)
     items = sorted(merged.values(), key=lambda x: order.index(x["group"]))
     for it in items:

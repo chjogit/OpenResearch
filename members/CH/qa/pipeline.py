@@ -11,7 +11,7 @@ from typing import Any
 # 추적 이벤트(trace[].kind, 도구는 kind:tool) → 그림 단계 번호. 에이전트가 내는 이벤트 종류는 모두 여기 있어야 한다(시험).
 EVENT_STAGE: dict[str, list[int]] = {
     "해석": [2], "선택": [3], "시간 초과": [3],
-    "도구:run_node_agent": [4], "도구:price_summary": [4], "도구:doc_search": [5],
+    "도구:run_node_agent": [4], "도구:price_summary": [4], "도구:doc_search": [5], "도구:disclosure_list": [4],
     "답·검사": [6, 7], "종료": [8, 9],
 }
 
@@ -40,7 +40,7 @@ def _stat(out: dict | None, no: int) -> str | None:
         origins = sorted({str(e.get("origin") or "") for e in tools if e.get("origin")})
         return f"도구 {len(tools)}회" + (f" ({' · '.join(origins)})" if origins else "")
     if no == 4:
-        n = [e for e in tools if e.get("tool") in ("run_node_agent", "price_summary")]
+        n = [e for e in tools if e.get("tool") in ("run_node_agent", "price_summary", "disclosure_list")]
         agents = sorted({(e.get("args") or {}).get("agent_no") for e in n if e.get("tool") == "run_node_agent"} - {None})
         return (f"에이전트 {', '.join(str(a) for a in agents)}" if agents else "") + (" · " if agents and any(e.get("tool") == "price_summary" for e in n) else "") + ("시세 요약" if any(e.get("tool") == "price_summary" for e in n) else "") or "실행 없음"
     if no == 5:
