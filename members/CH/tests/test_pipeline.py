@@ -76,7 +76,7 @@ def test_retrieve_docs_records_embedding_call_and_vector_hits(monkeypatch):
     from ch_agents import rag_hybrid
 
     _fake(monkeypatch, {"hits": [{"doc_id": 7}] * 3})
-    monkeypatch.setattr(rag_hybrid, "select_hybrid", lambda *a: ([{"doc_id": 7}], {"mode": "hybrid", "fallback": None}))
+    monkeypatch.setattr(rag_hybrid, "select_hybrid", lambda *a, **k: ([{"doc_id": 7}], {"mode": "hybrid", "fallback": None}))
     docs, h = qa.retrieve_docs({"name": "x"}, "2026-11-04")
     assert docs == [{"doc_id": 7}] and h["mode"] == "hybrid" and h["vectorHits"] == 3 and h["embedModel"] == rag_hybrid.QUERY_MODEL and h["fallback"] is None
 

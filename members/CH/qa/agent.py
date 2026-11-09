@@ -361,7 +361,11 @@ def tool_docs(args: dict, ctx: dict, led: Ledger) -> dict:
     for f in found:      # 개인 작성 글은 번호·점수만, 출처 이름·내용·제목·주소·일치 단어는 두지 않음
         if f["hidden"]:
             f["matched"], f["source"], f["chunks"] = [], "개인 작성 글", []
-    return {"summary": f"문서 {len(docs)}건 중 공개 보도·공시 {len(shown)}건 사용, 개인 작성 글 {hidden}건은 내용 비공개",
+    rel = hyb.get("relevance") or {}
+    if rel.get("notFound"):
+        led.gaps.append({"label": "질문과 관련된 문서", "reason": f"질문 핵심어({', '.join(rel.get('terms') or [])})가 들어 있거나 유사도 {rel.get('strongSim')} 이상인 뉴스·공시를 찾지 못함 — 관련 없는 일반 기사로 채우지 않음"})
+    return {"summary": ("질문과 관련된 문서를 찾지 못함" if rel.get("notFound") else f"문서 {len(docs)}건 중 공개 보도·공시 {len(shown)}건 사용, 개인 작성 글 {hidden}건은 내용 비공개")
+            + (f" (관련도 낮음 {rel['dropped']}건 제외)" if rel.get("dropped") else ""),
             "keys": shown, "tech": rag_tech(),
             "rag": {"query": f"{ctx['co'].get('name')} · 관점 3(투자심리·수급) 문서 프리셋 · 기준일 {ctx['as_of']} 이전 공개 문서", "found": found, "shown": shown, "hybrid": hyb}}
 
@@ -383,9 +387,17 @@ def retrieve_docs(co: dict, as_of: str, question: str | None = None) -> tuple[li
         return rag.select(RAG_PRESET, raw, co, as_of), {"mode": "keyword", "modeLabel": "키워드 검색(벡터 검색 꺼짐)", "fallback": None}
     t = time.monotonic()
     raw["hybrid"] = rag_hybrid.fetch_hybrid(RAG_PRESET, co, as_of, raw, question=question)
-    docs, status = rag_hybrid.select_hybrid(RAG_PRESET, raw, co, as_of)
+    rel: dict = {"checked": False}
+    names = set(aliases()) | {str(co.get("name") or "")}
+
+    def keep(ds: list[dict]) -> list[dict]:          # 질문과 관련 없는 일반 기사로 채우지 않음(#70)
+        kept, r = rag_hybrid.relevance_filter(ds, question, names)
+        rel.update(r)
+        return kept
+
+    docs, status = rag_hybrid.select_hybrid(RAG_PRESET, raw, co, as_of, keep=keep if question else None)
     hits = len((raw["hybrid"] or {}).get("hits") or [])
-    return docs, {"mode": status["mode"], "query": (raw["hybrid"] or {}).get("query"), "embedModel": rag_hybrid.QUERY_MODEL, "dim": rag_hybrid.EMBED_DIM, "vectorHits": hits,
+    return docs, {"relevance": rel, "mode": status["mode"], "query": (raw["hybrid"] or {}).get("query"), "embedModel": rag_hybrid.QUERY_MODEL, "dim": rag_hybrid.EMBED_DIM, "vectorHits": hits,
                   "seconds": round(time.monotonic() - t, 2), "fallback": status.get("fallback"),
                   "modeLabel": "하이브리드 검색(키워드 + 벡터)" if status["mode"] == "hybrid" else "키워드 검색(벡터 검색 실패로 대체)"}
 

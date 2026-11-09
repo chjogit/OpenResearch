@@ -153,8 +153,14 @@ def fetch_hybrid(agent_id: int, co: dict, as_of: str, raw: dict, embed=None, run
             from . import db
             run_sql = db.q
         vec = "[" + ",".join(f"{x:.6f}" for x in qv) + "]"
-        out["hits"], _ = cut_future(run_sql(VECTOR_SQL, {**rag.params(agent_id, co, as_of), "qv": vec,
-                                                         "n": N_CANDIDATES * 2}), as_of)   # E3
+        base = {**rag.params(agent_id, co, as_of), "qv": vec}
+        public = [s for s in base["sources"] if s not in PRIVATE_SOURCES]
+        private = [s for s in base["sources"] if s in PRIVATE_SOURCES]
+        # 개인 작성 글(유튜브 댓글 임베딩, #69)이 후보 40건을 채워 뉴스·공시가 밀리지 않게 출처 묶음별로 따로 검색(#70)
+        rows = run_sql(VECTOR_SQL, {**base, "sources": public, "n": N_CANDIDATES * 2}) if public else []
+        if private:
+            rows = list(rows) + list(run_sql(VECTOR_SQL, {**base, "sources": private, "n": PRIVATE_CANDIDATES}))
+        out["hits"], _ = cut_future(rows, as_of)   # E3
     except Exception as e:  # noqa: BLE001
         return {"error": f"{type(e).__name__}: {e}"}
     if not out["hits"]:
@@ -162,16 +168,64 @@ def fetch_hybrid(agent_id: int, co: dict, as_of: str, raw: dict, embed=None, run
     return out
 
 
-def select_hybrid(agent_id: int, raw: dict, co: dict, as_of: str) -> tuple[list[dict], dict]:
-    """(문서 목록, status). hybrid 결과가 없거나 실패면 rag.select 와 같은 결과 + status['fallback'] 에 이유."""
+def select_hybrid(agent_id: int, raw: dict, co: dict, as_of: str, keep=None) -> tuple[list[dict], dict]:
+    """(문서 목록, status). hybrid 결과가 없거나 실패면 rag.select 와 같은 결과 + status['fallback'] 에 이유.
+    keep(문서 목록) → 남길 문서(관련도 점검, #70)는 후보를 k 개로 자르기 **전에** 적용한다(자른 뒤에 걸면 관련 기사가 밀려난 채 비게 됨)."""
     raw = raw or {}
     h = raw.get("hybrid")
     if not h or h.get("error"):
         why = (h or {}).get("error") or "하이브리드 결과 없음"
         return rag.select(agent_id, raw, co, as_of), {"mode": "keyword", "fallback": why}
     p = rag.PRESETS[agent_id]
-    cands = merge_candidates(agent_id, raw, co, as_of, h["hits"])
-    return cands[: p.k_docs] + _disclosures_for(p, raw, h.get("query")), {"mode": "hybrid", "fallback": None}
+    cands = merge_candidates(agent_id, raw, co, as_of, h["hits"], n=N_CANDIDATES * 3 if keep else N_CANDIDATES)   # 거를 땐 풀을 넓게
+    discs = _disclosures_for(p, raw, h.get("query"))
+    if keep:
+        pool = keep(cands + discs)
+        cands, discs = [d for d in pool if d.get("kind") != "공시"], [d for d in pool if d.get("kind") == "공시"]
+    return cands[: p.k_docs] + discs, {"mode": "hybrid", "fallback": None}
+
+
+# ---------------------------------------------------------------- 질문 관련도 점검 (#70)
+# 유사도 하나로는 가를 수 없음: 질의에 종목명이 섞여 '관련 기사 있는 현대차 노조 파업'(0.611)이 '관련 기사 없는 삼성전자 노조 파업'(0.643)보다 낮다.
+# 그래서 ① 질문 핵심어(종목명·일반어 제외)가 제목·근거 청크·요약에 있거나 ② 유사도가 STRONG_SIM 이상이면 관련 문서로 본다. 핵심어가 없는 질문은 점검하지 않는다.
+STRONG_SIM = 0.68
+PRIVATE_SOURCES = ("naver_blog", "naver_cafe", "youtube_comment")
+PRIVATE_CANDIDATES = 10      # 개인 작성 글 벡터 후보 수(검색 후보 전용, 원문 비공개)
+GENERIC_ROOTS = ("최근", "소식", "뉴스", "기사", "있", "이슈", "분위기", "관련", "얼마", "민감", "어때", "어떤", "알려", "영향", "흐름", "지금", "사도", "될까", "팔아",
+                 "전망", "계획", "가능", "예정", "방향", "할까", "해야", "주가", "투자", "매수", "매도", "현황", "상황", "요즘", "오늘", "동향", "정보", "내용", "대해", "대한", "어떻게", "무엇", "뭐야", "보여", "말해", "변화")
+PARTICLES = "은는이가을를에의도로과와만"
+
+
+def topic_terms(question: str | None, names: set[str] | frozenset = frozenset()) -> list[str]:
+    """질문에서 종목명·일반어를 빼고 남은 핵심어(조사 한 글자 제거). 예: '현대차 노조 파업 소식 있어?' → ['노조', '파업']."""
+    out = []
+    for t in re.findall(r"[0-9A-Za-z가-힣]{2,}", question or ""):
+        tl = t.lower()
+        if t in names or any(n and (tl.startswith(n.lower()) or n.lower().startswith(tl)) for n in names if len(n) >= 2):
+            continue
+        if any(t.startswith(g) for g in GENERIC_ROOTS):
+            continue
+        if len(t) >= 3 and t[-1] in PARTICLES:
+            t = t[:-1]
+        if t not in out:
+            out.append(t)
+    return out
+
+
+def relevance_filter(docs: list[dict], question: str | None, names: set[str] | frozenset = frozenset()) -> tuple[list[dict], dict]:
+    """(남긴 문서, 점검 기록). 핵심어가 없는 질문(일반 질문)이면 그대로 둔다. 기준 미만 문서는 목록에서 뺀다(건수만 기록)."""
+    terms = topic_terms(question, names)
+    info = {"terms": terms, "strongSim": STRONG_SIM, "checked": bool(terms), "dropped": 0, "notFound": False}
+    if not terms:
+        return docs, info
+    kept = []
+    for d in docs:
+        text = " ".join([str(d.get("title") or ""), str(d.get("summary") or "")] + [str(c.get("excerpt") or "") for c in d.get("chunks") or []])
+        if float(d.get("sim") or 0) >= STRONG_SIM or any(t in text for t in terms):
+            kept.append(d)
+    info["dropped"] = len(docs) - len(kept)
+    info["notFound"] = not kept
+    return kept, info
 
 
 DISCLOSURE_WORD_RE = re.compile("공시|풍문|조회|해명|전환|행사|지분|보고서")

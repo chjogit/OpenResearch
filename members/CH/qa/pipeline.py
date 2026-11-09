@@ -86,6 +86,7 @@ def describe(out: dict | None = None) -> dict:
          "tech": [_flag("벡터 검색", hybrid, f"{rag_hybrid.QUERY_MODEL}, {rag_hybrid.EMBED_DIM}차원, 후보 상위 {rag_hybrid.N_CANDIDATES}" if hybrid
                         else f"키워드·규칙 점수만 사용 (임베딩 모델 {rag_hybrid.QUERY_MODEL} {rag_hybrid.EMBED_DIM}차원은 켤 때 사용)", "CH_RAG_HYBRID"),
                   _flag("리랭커", rr, rerank.model_name() if rr else "", "CH_RAG_RERANK"), _on(f"{rag_hybrid.PER_DOC}개", "문서당 청크"),
+                  _on(f"질문 핵심어가 제목·근거 청크에 있거나 유사도 {rag_hybrid.STRONG_SIM} 이상인 문서만 사용, 없으면 '찾지 못함'", "관련도 점검"),
                   _on(f"벡터 유사도 상위 {int(rag_hybrid.VECTOR_SHARE * 100)}% 자리를 먼저 보장, 나머지는 키워드 {rag_hybrid.W_KEYWORD}·벡터 {rag_hybrid.W_VECTOR} 합산 점수 순", "합치는 규칙")],
          "subs": [{"name": "키워드·규칙 점수", "state": "on"}, {"name": "벡터 검색(정확 거리 정렬)", "state": "on" if hybrid else "off"},
                   {"name": "리랭커", "state": "on" if rr else "off"}]},

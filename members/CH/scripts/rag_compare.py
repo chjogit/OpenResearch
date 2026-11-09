@@ -24,6 +24,7 @@ QUESTIONS = (
     ("000660", "SK하이닉스 기관 순매수 흐름 알려줘"), ("000660", "SK하이닉스 HBM 관련 최근 소식은?"), ("005380", "현대차는 금리 변화에 얼마나 민감해?"),
     ("005380", "현대차 관세 영향 뉴스가 있어?"), ("005380", "현대차 지금 사도 될까?"), ("105560", "KB금융 최근 뉴스 분위기는?"),
     ("105560", "KB금융 배당·주주환원 관련 소식은?"), ("105560", "KB금융 환율 영향은?"), ("005930", "삼성전자 지금 팔아야 할까?"),
+    ("005380", "현대차 노조 파업 소식 있어?"), ("005930", "삼성전자 노조 파업 소식 있어?"), ("000660", "SK하이닉스 우주 탐사 계획은?"), ("105560", "KB금융 반도체 수출 영향은?"),   # #70
 )
 
 
@@ -51,7 +52,7 @@ def one(co: dict, as_of: str, question: str, mode: str) -> dict:
         top.append({"docNo": d.get("doc_id"), "source": "개인 작성 글" if private else str(d.get("source") or ""), "title": "" if private else str(d.get("title") or "")[:60],
                     "origin": d.get("origin") or "키워드", "score": d.get("score"), "sim": d.get("sim"), "chunks": len(d.get("chunks") or [])})
     return {"seconds": sec, "mode": info["mode"], "fallback": info.get("fallback"), "vectorHits": info.get("vectorHits"), "docs": len(docs),
-            "chunks": sum(len(d.get("chunks") or []) for d in docs), "ids": [d.get("doc_id") for d in docs], "top5": top}
+            "relevance": info.get("relevance") or {}, "chunks": sum(len(d.get("chunks") or []) for d in docs), "ids": [d.get("doc_id") for d in docs], "top5": top}
 
 
 def main(as_of: str = "2026-11-04") -> int:
@@ -65,9 +66,11 @@ def main(as_of: str = "2026-11-04") -> int:
     e = [i["embedding"] for i in items]
     summary = {"questions": len(items), "keywordSeconds": round(sum(x["seconds"] for x in k) / len(k), 2), "embeddingSeconds": round(sum(x["seconds"] for x in e) / len(e), 2),
                "embeddingChunks": round(sum(x["chunks"] for x in e) / len(e), 1), "changedDocs": round(sum(len(set(a["ids"]) - set(b["ids"])) for a, b in zip(e, k)) / len(items), 1),
-               "fallbacks": sum(1 for x in e if x["mode"] != "hybrid")}
+               "fallbacks": sum(1 for x in e if x["mode"] != "hybrid"),
+               "notFound": sum(1 for x in e if x["relevance"].get("notFound")), "checked": sum(1 for x in e if x["relevance"].get("checked")),
+               "droppedAvg": round(sum(x["relevance"].get("dropped") or 0 for x in e) / len(e), 1)}
     out = {"asOf": as_of, "ranAt": time.strftime("%Y-%m-%d %H:%M"), "model": rag_hybrid.QUERY_MODEL, "dim": rag_hybrid.EMBED_DIM, "index": "정확 검색(종목·출처·기준일로 거른 뒤 코사인 거리 정렬, HNSW 인덱스 삭제 #69)",
-           "vectorShare": rag_hybrid.VECTOR_SHARE, "candidates": rag_hybrid.N_CANDIDATES, "dbSize": size, "dbLimit": "800MB", "coverage": cov, "summary": summary, "items": items}
+           "vectorShare": rag_hybrid.VECTOR_SHARE, "candidates": rag_hybrid.N_CANDIDATES, "strongSim": rag_hybrid.STRONG_SIM, "dbSize": size, "dbLimit": "800MB", "coverage": cov, "summary": summary, "items": items}
     OUT.write_text(json.dumps(out, ensure_ascii=False, indent=1, default=str), encoding="utf-8")
     print("저장:", OUT, summary)
     return 0

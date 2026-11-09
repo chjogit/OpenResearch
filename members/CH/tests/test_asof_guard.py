@@ -66,7 +66,7 @@ def test_chunk_and_vector_tools_drop_future_chunks(monkeypatch):
                 "source": "naver_news", "title": "t", "summary": "", "url": "u", "sim": 0.5}
 
     rows = [hit(1, "2026-10-20"), hit(2, AS_OF), hit(3, "2026-10-27"), hit(4, "2026-11-01")]
-    run_sql = lambda sql, p: list(rows)                                      # noqa: E731  모의 SQL: 미래 행이 섞여 돌아옴
+    run_sql = lambda sql, p: list(rows) if "naver_news" in p["sources"] else []   # noqa: E731  모의 SQL: 미래 행이 섞여 돌아옴(공개 출처 묶음에만)
     chunks = rag_hybrid.fetch_chunks(3, CO, AS_OF, {}, embed=lambda q: [0.1, 0.2], run_sql=run_sql)
     assert [h["chunk_id"] for h in chunks["hits"]] == [1, 2]
     hyb = rag_hybrid.fetch_hybrid(3, CO, AS_OF, {}, embed=lambda q: [0.1, 0.2], run_sql=run_sql)

@@ -366,7 +366,7 @@ function nodeBlock(d) {
 }
 function ragBlock(g, tech) {
   const h = g.hybrid, how = h ? `검색 방식: ${esc(h.modeLabel)}` + (h.mode === "hybrid" ? ` · 질의 임베딩 ${esc(h.embedModel)}(${h.dim}차원) → 벡터 검색 ${h.vectorHits}건 · ${h.seconds}초` : "") + (h.fallback ? ` · 대체 사유: ${esc(h.fallback)}` : "") : "";
-  return `<p class="note">검색 대상: ${esc(g.query)}${how ? "<br>" + how : ""}</p>` + (g.found.length ? '<div class="tw"><table><tr><th>문서 번호</th><th>출처</th><th>발행일</th><th>점수</th><th>일치 단어</th><th>공개</th></tr>' + g.found.map(f =>
+  return `<p class="note">검색 대상: ${esc(g.query)}${how ? "<br>" + how : ""}</p>` + (h && h.relevance && h.relevance.checked ? `<p class="note">관련도 점검: 질문 핵심어 ${esc((h.relevance.terms || []).join(", "))} — 제목·근거 청크에 있거나 유사도 ${h.relevance.strongSim} 이상인 문서만 사용, 관련도 낮음 ${h.relevance.dropped}건 제외</p>` : "") + (h && h.relevance && h.relevance.notFound ? '<p class="note"><b>질문과 관련된 문서를 찾지 못함</b> — 관련 없는 일반 기사로 채우지 않았습니다.</p>' : g.found.length ? '<div class="tw"><table><tr><th>문서 번호</th><th>출처</th><th>발행일</th><th>점수</th><th>일치 단어</th><th>공개</th></tr>' + g.found.map(f =>
     `<tr><td>${esc(f.docNo)}</td><td>${esc(f.hidden ? "개인 작성 글(블로그·카페·유튜브)" : f.source)}</td><td>${esc(f.published)}</td><td>${esc(f.score)}</td><td>${esc((f.matched || []).join(", "))}</td><td>${f.hidden ? "번호만(내용 비공개)" : "사용"}</td></tr>`).join("") + "</table></div>" : '<p class="note">찾은 문서 없음</p>');
 }
 function stepHtml(e) {
@@ -546,12 +546,13 @@ function ragReportHtml() {
   if (!R) return "";
   const s = R.summary, cov = R.coverage.map(c => `<tr><td>${esc(c.source)}</td><td>${esc(c.db)}</td><td>${fmt(c.docs)}</td><td>${fmt(c.embedded)}</td><td>${c.docs ? Math.round(c.embedded / c.docs * 1000) / 10 : 0}%</td><td>${esc(String(c.first).slice(0, 10))} ~ ${esc(String(c.last).slice(0, 10))}</td></tr>`).join("");
   const rows = R.items.map(i => {
-    const t = x => x.top5.map(d => `<li>${esc(d.title || "(개인 작성 글 — 번호 " + d.docNo + " · 점수만)")} <span class="note">${esc(d.origin)}${d.sim != null ? " · 유사도 " + d.sim : ""}</span></li>`).join("");
+    const t = x => !x.top5.length ? '<li class="note">질문과 관련된 문서를 찾지 못함</li>' : x.top5.map(d => `<li>${esc(d.title || "(개인 작성 글 — 번호 " + d.docNo + " · 점수만)")} <span class="note">${esc(d.origin)}${d.sim != null ? " · 유사도 " + d.sim : ""}</span></li>`).join("");
     return `<tr><td>${esc(i.question)}</td><td>${i.keyword.seconds}초<ol>${t(i.keyword)}</ol></td><td>${i.embedding.seconds}초 · 청크 ${i.embedding.chunks}개 · 벡터 후보 ${i.embedding.vectorHits}건<ol>${t(i.embedding)}</ol></td></tr>`;
   }).join("");
   return `<div class="card"><h2>문서 검색 방식 (임베딩 중심 RAG)</h2>
     <p>질문·종목·영역으로 만든 질의 문장을 <b>${esc(R.model)}</b>(${R.dim}차원)로 임베딩 → ${esc(R.index)} 벡터 검색으로 기준일(${esc(R.asOf)}) 이하 청크를 <b>독립적으로</b> 가져옴 → 키워드 후보와 합침(벡터 유사도 상위 ${Math.round(R.vectorShare * 100)}% 자리를 먼저 보장, 나머지는 키워드·벡터 합산 점수 순) → 근거 청크(문서 번호·청크 번호·유사도) 반환. 임베딩 실패 시 키워드 검색으로 대체하고 화면에 표시합니다.</p>
-    <div class="kv"><div><small>비교 질문</small><b>${s.questions}개</b></div><div><small>검색 시간(키워드만)</small><b>${s.keywordSeconds}초</b></div><div><small>검색 시간(임베딩 중심)</small><b>${s.embeddingSeconds}초</b></div><div><small>근거 청크(질문당)</small><b>${s.embeddingChunks}개</b></div><div><small>키워드와 달라진 문서(질문당)</small><b>${s.changedDocs}건</b></div><div><small>대체(실패) 횟수</small><b>${s.fallbacks}회</b></div></div>
+    <div class="kv"><div><small>비교 질문</small><b>${s.questions}개</b></div><div><small>검색 시간(키워드만)</small><b>${s.keywordSeconds}초</b></div><div><small>검색 시간(임베딩 중심)</small><b>${s.embeddingSeconds}초</b></div><div><small>근거 청크(질문당)</small><b>${s.embeddingChunks}개</b></div><div><small>키워드와 달라진 문서(질문당)</small><b>${s.changedDocs}건</b></div><div><small>대체(실패) 횟수</small><b>${s.fallbacks}회</b></div>${s.checked != null ? `<div><small>관련도 점검한 질문</small><b>${s.checked}개</b></div><div><small>‘찾지 못함’ 질문</small><b>${s.notFound}개</b></div><div><small>점검 중 제외(질문당)</small><b>${s.droppedAvg}건</b></div>` : ""}</div>
+    ${R.strongSim != null ? `<p class="note">관련도 기준(#70): 질문에서 종목명·일반어를 뺀 핵심어가 문서 제목·근거 청크·요약에 있거나, 벡터 유사도가 <b>${R.strongSim}</b> 이상이면 관련 문서로 봅니다. 그 외는 목록에서 빼고, 하나도 없으면 ‘질문과 관련된 문서를 찾지 못함’으로 표시합니다. 핵심어가 없는 일반 질문(예: 최근 이슈)은 점검하지 않습니다. 유사도 하나만으로는 가를 수 없어(관련 기사가 있는 질문이 오히려 더 낮은 경우가 있음) 핵심어 일치를 함께 씁니다.</p>` : ""}
     <h3>임베딩 보유율 (문서 대비 임베딩된 청크가 있는 문서)</h3><div class="tw"><table><tr><th>출처</th><th>DB</th><th>문서</th><th>임베딩 보유</th><th>보유율</th><th>기간</th></tr>${cov}</table></div>
     <p class="note">메인 DB ${esc(R.dbSize)} / 한도 ${esc(R.dbLimit)}. 개인 작성 글(블로그·카페·유튜브 댓글)은 임베딩이 없어 키워드 검색만 씁니다(용량 문제, 티켓 #68).</p>
     <h3>질문별 상위 5건 비교 (제목으로 관련성을 직접 판단하세요)</h3><div class="tw"><table><tr><th>질문 (${esc(R.ranAt)}, 기준일 ${esc(R.asOf)})</th><th>키워드만</th><th>임베딩 중심</th></tr>${rows}</table></div></div>`;
