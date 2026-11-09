@@ -447,9 +447,10 @@ def retrieve_docs(co: dict, as_of: str, question: str | None = None) -> tuple[li
     if not rag_hybrid.enabled():
         return rag.select(RAG_PRESET, raw, co, as_of), {"mode": "keyword", "modeLabel": "키워드 검색(벡터 검색 꺼짐)", "fallback": None}
     t = time.monotonic()
-    raw["hybrid"] = rag_hybrid.fetch_hybrid(RAG_PRESET, co, as_of, raw, question=question)
     rel: dict = {"checked": False}
     names = set(aliases()) | {str(co.get("name") or "")}
+    raw["hybrid"] = rag_hybrid.fetch_hybrid(RAG_PRESET, co, as_of, raw, question=question,
+                                            terms=rag_hybrid.topic_terms(question, names) if question else None)   # #79: 핵심어 키워드 보충
 
     def keep(ds: list[dict]) -> list[dict]:          # 질문과 관련 없는 일반 기사로 채우지 않음(#70)
         kept, r = rag_hybrid.relevance_filter(ds, question, names)
@@ -459,6 +460,7 @@ def retrieve_docs(co: dict, as_of: str, question: str | None = None) -> tuple[li
     docs, status = rag_hybrid.select_hybrid(RAG_PRESET, raw, co, as_of, keep=keep if question else None)
     hits = len((raw["hybrid"] or {}).get("hits") or [])
     return docs, {"relevance": rel, "mode": status["mode"], "query": (raw["hybrid"] or {}).get("query"), "embedModel": rag_hybrid.QUERY_MODEL, "dim": rag_hybrid.EMBED_DIM, "vectorHits": hits,
+                  "supplemented": sum(1 for d in docs if d.get("origin") == "키워드 보충"),
                   "seconds": round(time.monotonic() - t, 2), "fallback": status.get("fallback"),
                   "modeLabel": "하이브리드 검색(키워드 + 벡터)" if status["mode"] == "hybrid" else "키워드 검색(벡터 검색 실패로 대체)"}
 

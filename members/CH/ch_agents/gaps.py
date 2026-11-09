@@ -12,6 +12,11 @@
 - 점수 붙은 문서가 최소 건수에 못 미치는 항목은 '수집 중(표본 부족)'이다.
 - LLM 이 '미확보'로 쓴 내부 사항(종목 태그 매핑 비중, 장중·장후 구분 불가 등)은 답과 무관해 뺀다. '감성 모델 개선 후 정확도·긍정 탐지' 같은 말은
   노드가 이미 내는 '감성 판정 정확도' 한계로 합친다.
+
+같은 뜻 합치기(#79, organize 끝에서 같은 묶음 안에서만):
+- 항목 이름에서 괄호 설명과 일반어(회사·전체·공시·자료·현황 등)를 빼고 2글자 이상 낱말(핵심 명사)을 뽑는다.
+- 한 항목의 핵심 명사가 **3개 이상**이고 전부 다른 항목의 핵심 명사에 들어 있으면 같은 뜻으로 보고 한 줄로 합친다(더 긴 이름 유지, 출처·상세 합침).
+  예: '수출 매출 비중(회사 공시)' {수출,매출,비중} ⊂ '회사 전체 내수·수출 매출 비중' {내수,수출,매출,비중}. 핵심 명사 2개 이하는 우연히 겹치기 쉬워 합치지 않는다.
 """
 from __future__ import annotations
 
@@ -214,6 +219,34 @@ def is_financial_company(sector_code: str | None, name: str | None = None) -> bo
     return False
 
 
+GENERIC_NOUNS = frozenset({"회사", "전체", "공시", "자료", "현황", "정보", "데이터", "관련", "기준", "여부", "내용"})
+SIMILAR_MIN = 3         # 핵심 명사가 이 개수 이상이고 전부 다른 항목에 들어 있으면 같은 뜻
+
+
+def key_nouns(label: str) -> frozenset[str]:
+    """괄호 설명·일반어를 뺀 핵심 명사 집합(2글자 이상)."""
+    base = re.sub(r"[（(][^)）]*[)）]", " ", label or "")
+    return frozenset(t for t in re.findall(r"[0-9A-Za-z가-힣]{2,}", base) if t not in GENERIC_NOUNS)
+
+
+def merge_similar(merged: dict) -> dict:
+    """같은 묶음 안에서 핵심 명사가 포함 관계(작은 쪽 SIMILAR_MIN 개 이상)인 항목을 하나로 합친다(#79). 더 긴 이름을 남기고 출처·상세를 합침."""
+    items = list(merged.items())
+    drop: set = set()
+    for i, (ki, vi) in enumerate(items):
+        for kj, vj in items[i + 1:]:
+            if ki in drop or kj in drop or vi["group"] != vj["group"] or vi["group"] in ("date_diff", "out_of_scope"):
+                continue
+            a, b = key_nouns(vi["label"]), key_nouns(vj["label"])
+            small = a if len(a) <= len(b) else b
+            if len(small) >= SIMILAR_MIN and small <= (a & b):
+                keep, gone, gk = (vi, vj, kj) if len(vi["label"]) >= len(vj["label"]) else (vj, vi, ki)
+                keep["detail"] = max([keep["detail"], gone["detail"]], key=len)
+                keep["sources"] += [x for x in gone["sources"] if x not in keep["sources"]]
+                drop.add(gk)
+    return {k: v for k, v in merged.items() if k not in drop}
+
+
 def organize(gaps: list[dict], financial: bool = False) -> tuple[list[dict], list[str]]:
     """[{'label','reason'}] → (묶음 순서로 정리한 항목, 처리 기록 조각).
     항목: {'group','groupLabel','label','detail','reason','sources'}. 같은 주제는 하나로(출처 합침), 0건 통계는 버림.
@@ -249,6 +282,7 @@ def organize(gaps: list[dict], financial: bool = False) -> tuple[list[dict], lis
                 cur["label"] = c["label"]
             if c["source"] not in cur["sources"]:
                 cur["sources"].append(c["source"])
+    merged = merge_similar(merged)
     fold = [v for v in merged.values() if v["group"] == "out_of_scope" and v["label"] in FOLD_SCOPE]
     if len(fold) >= 2:                                  # 범위 밖 항목은 한 줄: '호가 잔량, 세부 투자 주체(…)'
         first = fold[0]

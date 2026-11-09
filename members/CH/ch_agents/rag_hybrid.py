@@ -51,6 +51,23 @@ FROM rag.chunk c JOIN rag.document d USING (doc_id)
 WHERE d.company_id = %(cid)s AND d.source = ANY(%(sources)s::text[]) AND c.doc_id = ANY(%(ids)s::bigint[])
 ORDER BY c.doc_id, c.chunk_idx
 """
+# 키워드 보충 (#79): 질문 핵심어가 제목·청크에 든 공개 출처 문서를 벡터 후보와 별도로 찾는다(읽기 전용). 문서당 핵심어가 든 청크(없으면 첫 청크) 1개.
+KEYWORD_SQL = """
+SELECT * FROM (
+  SELECT DISTINCT ON (d.doc_id) c.chunk_id, d.doc_id, c.chunk_idx, left(c.content, 400) AS content,
+         d.source, d.title, left(coalesce(d.summary, ''), 240) AS summary,
+         d.published_at::date AS published, d.published_at AS published_at, d.url,
+         coalesce(1 - (c.embedding <=> %(qv)s::halfvec), 0) AS sim
+  FROM rag.document d LEFT JOIN rag.chunk c ON c.doc_id = d.doc_id
+  WHERE d.company_id = %(cid)s AND d.source = ANY(%(sources)s::text[])
+    AND d.published_at <= %(as_of)s::date
+    AND d.published_at > %(as_of)s::date - CASE WHEN d.source = ANY(%(long_src)s::text[]) THEN %(long_days)s::int
+                                                ELSE %(days)s::int END
+    AND (d.title ILIKE ANY(%(pats)s::text[]) OR c.content ILIKE ANY(%(pats)s::text[]))
+  ORDER BY d.doc_id, (c.content ILIKE ANY(%(pats)s::text[])) DESC, c.chunk_idx
+) x ORDER BY published_at DESC LIMIT %(cap)s
+"""
+KEYWORD_SUPPLEMENT_CAP = 10  # 키워드 보충 문서 상한(벡터 후보 수와 별도, 최종 k 에는 관련도 점검 뒤 합산). 표시: origin '키워드 보충'
 PER_DOC = 2                  # 문서당 최대 청크 수
 VECTOR_SHARE = 0.5           # 최종 문서 자리 중 벡터 유사도 순으로 먼저 보장하는 몫(#67). 나머지는 키워드·벡터 합산 점수 순
 EVIDENCE_PER_DOC = 2         # 문서마다 근거 청크(번호·유사도·발췌) 최대 개수
@@ -94,11 +111,13 @@ def _doc_from_vector(r: dict) -> dict:
             "terms": [], "score": 0.0, "doc_id": r["doc_id"]}
 
 
-def merge_candidates(agent_id: int, raw: dict, co: dict, as_of: str, hits: list[dict], n: int = N_CANDIDATES) -> list[dict]:
+def merge_candidates(agent_id: int, raw: dict, co: dict, as_of: str, hits: list[dict], n: int = N_CANDIDATES, supplement: list[dict] | None = None) -> list[dict]:
     """키워드 점수(0~1 로 정규화)와 벡터 유사도를 합쳐 상위 n개 문서 (#67 합치는 규칙):
     ① 벡터 검색이 독립적으로 찾은 문서 중 유사도 상위 ceil(k_docs × VECTOR_SHARE)개를 **유사도 순으로 먼저** 둔다(키워드 점수에 밀려 빠지지 않게).
     ② 나머지 자리는 0.5×키워드(0~1) + 0.5×유사도 합산 점수 순. ③ 같은 제목·출처별 개수 제한은 그대로.
-    각 문서에 origin(벡터·키워드·둘 다), sim, 근거 청크(chunks: 번호·유사도·발췌)를 붙인다."""
+    각 문서에 origin(벡터·키워드·둘 다), sim, 근거 청크(chunks: 번호·유사도·발췌)를 붙인다.
+    ④ (#79) supplement(질문 핵심어가 든 공개 문서, KEYWORD_SQL 결과)는 위 순위와 별개로, 위 목록에 없는 문서만 최대 KEYWORD_SUPPLEMENT_CAP 개를
+    뒤에 붙인다(origin '키워드 보충'). 같은 제목 중복은 똑같이 제외. 관련도 점검은 이 뒤에 적용된다."""
     p = rag.PRESETS[agent_id]
     kw = rag.select_docs(raw.get("news"), replace(p, k_docs=n * 3), co, as_of)
     top = max((d["score"] for d in kw), default=0.0) or 1.0
@@ -135,12 +154,31 @@ def merge_candidates(agent_id: int, raw: dict, co: dict, as_of: str, hits: list[
         out.append(d)
         if len(out) >= n:
             break
+    have = {d["doc_id"] for d in out}
+    added = 0
+    for h in supplement or []:
+        if added >= KEYWORD_SUPPLEMENT_CAP:
+            break
+        if h["doc_id"] in have or h["source"] not in p.sources or h["source"] in PRIVATE_SOURCES:
+            continue
+        nt = rag._norm_title(rag._clean(h.get("title")))
+        if not nt or any(nt == m or SequenceMatcher(None, nt, m).ratio() >= rag.DEDUP_RATIO for m in norms):
+            continue
+        norms.append(nt)
+        d = {**_doc_from_vector(h), "sim": round(float(h.get("sim") or 0), 3), "origin": "키워드 보충",
+             "chunks": [{"chunkId": h["chunk_id"], "chunkIdx": h.get("chunk_idx"), "sim": round(float(h.get("sim") or 0), 3),
+                         "excerpt": rag._clean(h.get("content"), 400) if h.get("content") else ""}] if h.get("chunk_id") else []}
+        if h.get("chunk_id"):
+            d["chunk_id"] = h["chunk_id"]
+        out.append(d)
+        have.add(d["doc_id"])
+        added += 1
     return out
 
 
 # ---------------------------------------------------------------- 호출 (네트워크·DB 읽기)
 
-def fetch_hybrid(agent_id: int, co: dict, as_of: str, raw: dict, embed=None, run_sql=None, question: str | None = None) -> dict:
+def fetch_hybrid(agent_id: int, co: dict, as_of: str, raw: dict, embed=None, run_sql=None, question: str | None = None, terms: list[str] | None = None) -> dict:
     """질의 임베딩 → 벡터 검색. 결과는 bundle['rag']['hybrid'] 에 저장할 dict. 실패는 error 로 기록. question 이 있으면 질의 문장에 포함(#67)."""
     from .asof import cut_future, require_as_of
 
@@ -161,6 +199,14 @@ def fetch_hybrid(agent_id: int, co: dict, as_of: str, raw: dict, embed=None, run
         if private:
             rows = list(rows) + list(run_sql(VECTOR_SQL, {**base, "sources": private, "n": PRIVATE_CANDIDATES}))
         out["hits"], _ = cut_future(rows, as_of)   # E3
+        if terms and public:   # 키워드 보충 후보(#79): 핵심어가 제목·청크에 든 공개 출처 문서. 실패해도 벡터 결과는 유지
+            try:
+                pats = ["%" + t.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%" for t in terms]
+                sup = run_sql(KEYWORD_SQL, {**base, "sources": public, "pats": pats, "cap": KEYWORD_SUPPLEMENT_CAP * 2})
+                out["supplement"], _ = cut_future(list(sup), as_of)
+                out["supplementTerms"] = list(terms)
+            except Exception as e:  # noqa: BLE001
+                out["supplementError"] = f"{type(e).__name__}: {e}"
     except Exception as e:  # noqa: BLE001
         return {"error": f"{type(e).__name__}: {e}"}
     if not out["hits"]:
@@ -177,7 +223,7 @@ def select_hybrid(agent_id: int, raw: dict, co: dict, as_of: str, keep=None) -> 
         why = (h or {}).get("error") or "하이브리드 결과 없음"
         return rag.select(agent_id, raw, co, as_of), {"mode": "keyword", "fallback": why}
     p = rag.PRESETS[agent_id]
-    cands = merge_candidates(agent_id, raw, co, as_of, h["hits"], n=N_CANDIDATES * 3 if keep else N_CANDIDATES)   # 거를 땐 풀을 넓게
+    cands = merge_candidates(agent_id, raw, co, as_of, h["hits"], n=N_CANDIDATES * 3 if keep else N_CANDIDATES, supplement=h.get("supplement"))   # 거를 땐 풀을 넓게
     discs = _disclosures_for(p, raw, h.get("query"))
     if keep:
         pool = keep(cands + discs)

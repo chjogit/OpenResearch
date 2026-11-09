@@ -123,7 +123,7 @@ def test_financial_company_not_applicable_items_are_one_group():
     assert na[0]["label"] == "단독분기 매출 이력, 다음 분기 매출 기준선, 최근 4개 분기 영업이익, 수출 매출 비중, 환율 민감도"
     assert [i["label"] for i in _one(items, "missing")] == ["관세·통상정책"]
     plain, _ = gaps.organize(FIN_GAPS)                       # 금융업이 아니면 그대로 미확보
-    assert not _one(plain, "not_applicable") and len(_one(plain, "missing")) == 7
+    assert not _one(plain, "not_applicable") and len(_one(plain, "missing")) == 5      # #79: 더 긴 이름에 핵심 명사가 모두 든 "최근 4개 분기"·"다음 분기 매출 기준선 예측" 은 그 항목에 합쳐짐
 
 
 def test_financial_company_is_decided_by_industry_code_not_holding_company_code_alone():
@@ -131,3 +131,16 @@ def test_financial_company_is_decided_by_industry_code_not_holding_company_code_
     assert gaps.is_financial_company("64992", "KB금융") and gaps.is_financial_company("64992", "신한지주")
     assert not gaps.is_financial_company("64992", "SK") and not gaps.is_financial_company("64992", "LG") and not gaps.is_financial_company("264", "삼성전자")
     assert not gaps.is_financial_company(None, "KB금융")
+
+
+def test_similar_missing_items_with_contained_key_nouns_merge_into_one_line():     # #79
+    items, _ = gaps.organize([{"label": "수출 매출 비중(회사 공시)", "reason": "LLM 이 근거 부족으로 보고"},
+                              {"label": "회사 전체 내수·수출 매출 비중", "reason": "공시에 구분 없음"}])
+    assert len(items) == 1 and items[0]["label"] == "회사 전체 내수·수출 매출 비중"
+    assert gaps.key_nouns("수출 매출 비중(회사 공시)") == {"수출", "매출", "비중"}
+
+
+def test_items_with_few_shared_nouns_or_different_groups_do_not_merge():
+    items, _ = gaps.organize([{"label": "단독분기 매출 이력", "reason": "x"}, {"label": "매출 비중", "reason": "y"},
+                              {"label": "환율 민감도 수치", "reason": "z"}])
+    assert len(items) == 3

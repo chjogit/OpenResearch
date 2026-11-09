@@ -260,3 +260,57 @@ def test_topic_terms_drop_predicates_conditions_and_adjectives():     # #75
     assert rag_hybrid.topic_terms("삼성전자 최근 공시 중 중요한 거 있어?", names) == []
     assert rag_hybrid.topic_terms("기아는 환율이 5% 떨어지면 어떻게 돼?", names) == ["환율"]
     assert rag_hybrid.topic_terms("삼성전자 노조 파업 소식 있어?", names) == ["노조", "파업"]
+
+
+# ---- #79 키워드 보충
+def _sup(doc_id, title, source="naver_news", content="환율 상승 시 영향"):
+    return {"chunk_id": 7000 + doc_id, "doc_id": doc_id, "chunk_idx": 0, "content": content, "source": source, "title": title, "summary": "",
+            "published": "2026-10-20", "published_at": "2026-10-20", "url": f"https://s.example/{doc_id}", "sim": 0.3}
+
+
+def test_keyword_supplement_adds_docs_outside_vector_candidates_with_origin_and_cap():
+    sup = [_sup(100 + i, f"전혀 다른 제목 {i}번 환율 기사 고유문구{chr(0xAC00 + i * 37)}") for i in range(15)]
+    cands = rag_hybrid.merge_candidates(3, _hybrid_raw(), CO, AS_OF, HITS, supplement=sup)
+    added = [d for d in cands if d["origin"] == "키워드 보충"]
+    assert 0 < len(added) <= rag_hybrid.KEYWORD_SUPPLEMENT_CAP
+    assert all(d["chunks"] and d["chunks"][0]["excerpt"] for d in added)
+
+
+def test_keyword_supplement_skips_docs_already_present_and_private_sources():
+    sup = [_sup(50, "삼성전자 자금 흐름 변화 점검"), _sup(201, "개인 블로그 환율 글", source="naver_blog"), _sup(202, "환율 급등 수혜 업종 분석")]
+    cands = rag_hybrid.merge_candidates(3, _hybrid_raw(), CO, AS_OF, HITS, supplement=sup)
+    assert [d["doc_id"] for d in cands if d["origin"] == "키워드 보충"] == [202]      # 이미 후보인 50 · 개인 작성 글 201 은 제외
+
+
+def test_supplement_survives_relevance_filter_when_vector_docs_do_not_match():
+    h = _hybrid_raw(supplement=[_sup(300, "원화 약세 환율 급등 영향")])
+    h["hybrid"]["hits"] = [{**x, "sim": 0.3} for x in HITS]          # 약한 유사도: 핵심어 없는 벡터 문서는 점검에서 빠진다
+    docs, st = rag_hybrid.select_hybrid(3, h, CO, AS_OF, keep=lambda ds: rag_hybrid.relevance_filter(ds, "삼성전자는 환율이 오르면?", {"삼성전자"})[0])
+    news = [d for d in docs if d["kind"] != "공시"]
+    assert [d["doc_id"] for d in news] == [300] and news[0]["origin"] == "키워드 보충"
+
+
+def test_fetch_hybrid_runs_keyword_query_only_with_terms_and_records_failure():
+    calls = []
+
+    def run_sql(sql, p):
+        calls.append(("pats" in p, p.get("pats")))
+        if "pats" in p:
+            return [_sup(1, "환율 기사")]
+        return [{"chunk_id": 1, "doc_id": 2, "content": "x", "published_at": f"{AS_OF}T00:00:00", "published": AS_OF,
+                 "source": "naver_news", "title": "t", "summary": "", "url": "u", "sim": 0.5}]
+    emb = lambda q: [0.1, 0.2]
+    out = rag_hybrid.fetch_hybrid(3, CO, AS_OF, {}, embed=emb, run_sql=run_sql, terms=["환율"])
+    kw = [c for c in calls if c[0]]
+    assert len(kw) == 1 and kw[0][1] == ["%환율%"] and out["supplement"][0]["doc_id"] == 1
+    calls.clear()
+    rag_hybrid.fetch_hybrid(3, CO, AS_OF, {}, embed=emb, run_sql=run_sql)
+    assert not any(c[0] for c in calls)               # 핵심어가 없으면 보충 질의 없음
+
+    def bad(sql, p):
+        if "pats" in p:
+            raise RuntimeError("boom")
+        return [{"chunk_id": 1, "doc_id": 2, "content": "x", "published_at": f"{AS_OF}T00:00:00", "published": AS_OF,
+                 "source": "naver_news", "title": "t", "summary": "", "url": "u", "sim": 0.5}]
+    out = rag_hybrid.fetch_hybrid(3, CO, AS_OF, {}, embed=emb, run_sql=bad, terms=["환율"])
+    assert out["hits"] and "supplementError" in out and "supplement" not in out
