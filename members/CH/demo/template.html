@@ -44,7 +44,7 @@ th{background:var(--accbg)}
 .brief .bt{font-size:15px;line-height:1.6;margin:6px 0}.cnt.over{color:var(--bad,#c33);font-weight:700}.ol{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:10px}.ol .card{margin:0}.ol h3{margin:0 0 6px}
 .dir{display:inline-block;border-radius:8px;padding:2px 12px;font-weight:700;font-size:16px}
 .step{border-left:4px solid var(--acc)}.step b{display:inline-block;margin-bottom:4px}.step code{font-size:12px;background:var(--bg);padding:0 4px;border-radius:4px}
-.sent{display:inline}.sent .badge{margin-right:3px}.ansbox p{margin:6px 0}.evl{color:var(--acc);cursor:pointer;text-decoration:none;border-bottom:1px dotted var(--acc)}
+.sent{display:inline}.sent .badge{margin-right:3px}.ansbox p{margin:6px 0}.kc{font-size:11px;opacity:.6}.evl{color:var(--acc);cursor:pointer;text-decoration:none;border-bottom:1px dotted var(--acc)}
 tr.flash td{background:var(--warnbg)}.row{display:flex;gap:8px}.row input{flex:1;min-width:0;padding:8px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--ink);font:inherit}
 .pipe svg{width:100%;height:auto;display:block}.pipe .pipeV{display:none;max-width:420px}
 .pn{cursor:pointer}.pn rect.bx{fill:var(--card);stroke:var(--line);stroke-width:1.5}.pn circle{fill:var(--mute)}.pn text{fill:var(--ink);font-size:12px}.pn text.num{fill:#fff;font-weight:700;font-size:12px;text-anchor:middle}
@@ -387,23 +387,32 @@ function stepHtml(e) {
   } else if (e.kind === "종료") h += `${esc(e.status)} · LLM ${e.usage.llm_calls}회 · 토큰 ${fmt(e.usage.input_tokens)}/${fmt(e.usage.output_tokens)} · 총 ${e.usage.total_seconds}초`;
   return h + "</div>";
 }
+// 근거 키(M74·D11 같은 장부·문서 코드)는 화면 문장에 쓰지 않는다(#80, #48 원칙): 사람이 읽는 번호로 보이고 코드는 title·표의 작은 회색 칸에만 둔다.
+function evNums(r) {
+  const m = {}; let n = 0; const add = k => { if (!(k in m)) m[k] = ++n; };
+  (r.answer || []).forEach(c => (c.근거 || []).forEach(add));
+  const ev = r.evidence || {}; Object.keys(ev["장부"] || {}).concat(Object.keys(ev["문서"] || {})).forEach(add);
+  return m;
+}
 function answerHtml(r) {
+  const nums = evNums(r);
   const sents = (r.answer || []).map(c => {
     const dir = c.방향 && c.방향 !== "중립" && c.방향 !== "안내" ? `<span class="badge ${c.방향 === "긍정" ? "b-ok" : "b-bad"}">${esc(c.방향)}</span>` : "";
-    const ev = (c.근거 || []).map(k => `<a class="evl" href="#ev-${esc(k)}" data-k="${esc(k)}">${esc(k)}</a>`).join(" ");
+    const ev = (c.근거 || []).map(k => `<a class="evl" href="#ev-${esc(k)}" data-k="${esc(k)}" title="${esc(k)}">근거 ${nums[k]}</a>`).join(" ");
     return `<span class="sent"><span class="badge ${TAGC[c.구분] || "b-mute"}">${esc(c.태그 || c.구분)}</span>${dir}${esc(c.문장)}${c.인용 ? ` <span class="note">(${c.인용.map(q => esc(q.문서 + " · " + q.날짜)).join(", ")})</span>` : ""}${ev ? ` <sup>[${ev}]</sup>` : ""}</span>`;
   });
   const paras = [];
   for (let i = 0; i < sents.length; i += 3) paras.push("<p>" + sents.slice(i, i + 3).join(" ") + "</p>");
   return `<div class="card ansbox" data-stage="9"><h2>자연어 답 <span class="badge ${/^완료/.test(r.status) ? "b-ok" : "b-warn"}">${esc(r.status)}</span></h2>${r.message ? `<p>${esc(r.message)}</p>` : ""}${paras.join("")}
-    <p class="note">문장 앞 표시는 사실·계산·예측·해석 구분, [ ] 안은 근거 키(누르면 아래 근거 표의 해당 줄로 이동). 종합 결론은 오케스트레이터(SW) 담당입니다.</p></div>`;
+    <p class="note">문장 앞 표시는 사실·계산·예측·해석 구분, [ ] 안은 근거 번호(누르면 아래 근거 표의 해당 줄로 이동). 종합 결론은 오케스트레이터(SW) 담당입니다.</p></div>`;
 }
 function evidenceHtml(r) {
-  const ev = r.evidence || {"장부": {}, "문서": {}};
-  const rows = Object.entries(ev["장부"]).map(([k, v]) => `<tr id="ev-${esc(k)}"><td>${esc(k)}</td><td>${esc(v["항목"])}</td><td>${esc(v["값"])}</td><td>${esc(v["기준일"])}</td><td>${esc(v["출처"])}</td></tr>`)
-    .concat(Object.entries(ev["문서"]).map(([k, d]) => `<tr id="ev-${esc(k)}"><td>${esc(k)}</td><td>문서</td><td>${esc(d.title)}</td><td>${esc(d.published)}</td><td>${esc(d.source)}</td></tr>`));
+  const ev = r.evidence || {"장부": {}, "문서": {}}, nums = evNums(r);
+  const keyCell = k => `<td><b>근거 ${nums[k]}</b> <span class="note kc" title="내부 코드">${esc(k)}</span></td>`;
+  const rows = Object.entries(ev["장부"]).map(([k, v]) => `<tr id="ev-${esc(k)}">${keyCell(k)}<td>${esc(v["항목"])}</td><td>${esc(v["값"])}</td><td>${esc(v["기준일"])}</td><td>${esc(v["출처"])}</td></tr>`)
+    .concat(Object.entries(ev["문서"]).map(([k, d]) => `<tr id="ev-${esc(k)}">${keyCell(k)}<td>문서</td><td>${esc(d.title)}</td><td>${esc(d.published)}</td><td>${esc(d.source)}</td></tr>`));
   const gaps = gapsHtml(r.gaps) + ((r.processing || []).length ? `<h3>처리 기록</h3><p class="note">${esc(r.processing.join(" · "))} (빠진 자료가 아니라 처리 통계입니다)</p>` : "");
-  return `<div class="card"><h2>근거 (장부 값·문서)</h2>${rows.length ? '<div class="tw"><table><tr><th>키</th><th>항목</th><th>값</th><th>기준일</th><th>출처</th></tr>' + rows.join("") + "</table></div>" : '<p class="note">없음</p>'}</div>
+  return `<div class="card"><h2>근거 (장부 값·문서)</h2>${rows.length ? '<div class="tw"><table><tr><th>근거</th><th>항목</th><th>값</th><th>기준일</th><th>출처</th></tr>' + rows.join("") + "</table></div>" : '<p class="note">없음</p>'}</div>
     <div class="card"><h2>미확보 · 한계</h2>${gaps}</div>`;
 }
 function genHtml(r) {

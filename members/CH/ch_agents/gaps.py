@@ -29,7 +29,11 @@ NODE_CHECK, AGENT_JUDGE = "노드 점검", "에이전트 판단"
 # ---- 내부 코드 → 한국어 용어표 (#48 용어표를 한 곳으로: 시연·질의응답·계약 모두 사용)
 NODE_KO = {"N05": "거시 데이터 점검", "N06": "거시 해석", "N07": "수급 데이터 점검", "N08": "수급 해석",
            "N11": "심리·뉴스 데이터 점검", "N12": "심리·뉴스 해석"}
-PHRASE_KO = (("확장 노드 입력 요건 미충족", "추가 분석에 필요한 자료 부족"), ("D1 사후 탐색 등급", "사후 탐색 단계(검증 전)"),
+PHRASE_KO = (("확장 노드 입력 요건 미충족", "추가 분석에 필요한 자료 부족"),
+             ("D1 사후 탐색 등급", "발표·수정 이력 미보관으로 시점 추정"), ("D1 사후 탐색", "발표·수정 이력 미보관으로 시점 추정"),
+             ("사후 탐색 단계(검증 전)", "발표·수정 이력 미보관으로 시점 추정"),                   # 이미 저장된 실행 결과(옛 용어)도 새 말로
+             # #80: '사후 탐색 단계(검증 전)' 는 내부 용어라 쉬운 말로
+             ("이 업종 경로에 필요하지만 DB에 없는 변수", "이 업종 분석에 필요하지만 아직 수집하지 않는 지표"),
              ("(Point-in-Time)", ""), ("Point-in-Time", "시점별 이력"), ("CAR", "사건 뒤 주가 반응(초과수익)"))
 _L, _R = r"(?<![A-Za-z0-9_])", r"(?![A-Za-z0-9_])"   # 한글 조사('E10에서')가 붙어도 코드 경계로 인식
 
@@ -39,10 +43,15 @@ def ko_text(t: str) -> str:
     for a, b in PHRASE_KO:
         t = re.sub(rf"{_L}{re.escape(a)}{_R}" if a.isascii() else re.escape(a), b, t)
     t = re.sub(rf"{_L}N(05|06|07|08|11|12){_R}", lambda m: NODE_KO[f"N{m.group(1)}"], t)
+    return strip_keys(event_ids_ko(t))
+
+
+def event_ids_ko(t: str) -> str:
+    """사건·근거 번호('사건 E4', '근거 E10', 'E1')만 사람이 읽는 번호로(#80: 질의응답 문장에서도 씀). 다른 코드는 건드리지 않는다."""
     t = re.sub(r"사건 E0*\d+(?:\s*(?:[·,、]|과|와)\s*E0*\d+)*", lambda m: "사건 " + re.sub(r"E0*(\d+)", r"\1", m.group(0)[3:]), t)
     t = re.sub(r"근거 E0*(\d+)", r"근거 \1", t)
     t = re.sub(rf"{_L}E0*(\d+){_R}", r"근거 \1", t)
-    return strip_keys(t)
+    return t
 
 
 KEY = r"(?<![A-Za-z0-9])(?!Q[1-4](?![0-9])|H[12](?![0-9]))[A-Z]\d{1,5}(?![0-9])"
@@ -97,6 +106,18 @@ def tidy(unverified: list[dict]) -> list[dict]:
         seen[key] = row
         out.append(row)
     return out
+
+
+NAME_STAT_SPLIT_RE = re.compile(r"\s+[—–-]\s+(?=.*(?:점수\s*붙은\s*문서|최소\s*\d+\s*건))")
+
+
+def split_name_stat(label: str, reason: str = "") -> tuple[str, str]:
+    """(#80) 이름 칸에 통계 문구가 통째로 든 항목('유튜브 댓글 감성 — 점수 붙은 문서 4건(최소 5건)')을 이름과 사유로 나눈다.
+    나누지 않으면 split_stat 이 '문서 N건' 만 보고 처리 기록으로 버려 '수집 중(표본 부족)' 줄이 사라진다. 표본 부족 문구가 아니면 그대로 둔다."""
+    m = NAME_STAT_SPLIT_RE.search(label)
+    if not m:
+        return label, reason
+    return label[:m.start()].strip(), f"{label[m.end():].strip()} {reason}".strip()
 
 
 def split_stat(item: str) -> tuple[str, list[str]]:
@@ -255,7 +276,7 @@ def organize(gaps: list[dict], financial: bool = False) -> tuple[list[dict], lis
     proc: list[str] = []
     na_names: list[str] = []
     for g in gaps:
-        label, reason = str(g.get("label") or g.get("item") or ""), str(g.get("reason") or "")
+        label, reason = split_name_stat(str(g.get("label") or g.get("item") or ""), str(g.get("reason") or ""))
         rest, st = split_stat(ko_text(label))
         proc += st
         if not rest:

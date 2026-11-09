@@ -35,7 +35,7 @@ def test_internal_codes_are_korean_everywhere():
     items, _ = gaps.organize(SCREEN)
     text = " ".join(f"{i['label']} {i['detail']} {i['reason']}" for i in items)
     assert not gaps.RAW_CODE_RE.search(text) and "Point-in-Time" not in text
-    assert gaps.ko_text("N08 미충족 항목, D1 사후 탐색 등급") == "수급 해석 미충족 항목, 사후 탐색 단계(검증 전)"
+    assert gaps.ko_text("N08 미충족 항목, D1 사후 탐색 등급") == "수급 해석 미충족 항목, 발표·수정 이력 미보관으로 시점 추정"
     assert gaps.ko_text("거시지표 발표·수정 이력(Point-in-Time) 미보관") == "거시지표 발표·수정 이력 미보관"
 
 
@@ -144,3 +144,26 @@ def test_items_with_few_shared_nouns_or_different_groups_do_not_merge():
     items, _ = gaps.organize([{"label": "단독분기 매출 이력", "reason": "x"}, {"label": "매출 비중", "reason": "y"},
                               {"label": "환율 민감도 수치", "reason": "z"}])
     assert len(items) == 3
+
+
+def test_stat_in_name_with_dash_is_collecting_not_dropped():       # #80 B
+    items, proc = gaps.organize([{"label": "유튜브 댓글 감성 — 점수 붙은 문서 4건(최소 5건)", "reason": ""}])
+    assert [(i["group"], i["label"]) for i in items] == [("collecting", "유튜브 댓글 감성")] and "표본 부족" in items[0]["detail"] and not proc
+
+
+def test_dash_split_only_for_sample_shortage_text():
+    assert gaps.split_name_stat("블로그 문서 43건 — 처리 통계", "") == ("블로그 문서 43건 — 처리 통계", "")
+    items, proc = gaps.organize([{"label": "수집 문서 43건, 점수 문서 0건", "reason": ""}])
+    assert items == [] and proc == ["수집 문서 43건"]
+
+
+def test_plain_words_for_internal_phrases():                          # #80 C
+    out = gaps.ko_text("이 업종 경로에 필요하지만 DB에 없는 변수 · D1 사후 탐색 등급")
+    assert out == "이 업종 분석에 필요하지만 아직 수집하지 않는 지표 · 발표·수정 이력 미보관으로 시점 추정"
+    assert "사후 탐색" not in gaps.ko_text("D1 사후 탐색 (수정 이력 미보관, 공표일은 보수 규칙)")
+    items, _ = gaps.organize([{"label": "기업 IT 투자 경기", "reason": "이 업종 경로에 필요하지만 DB에 없는 변수"}])
+    assert items[0]["detail"] == "이 업종 분석에 필요하지만 아직 수집하지 않는 지표"
+
+
+def test_old_stored_phrase_is_also_rewritten():                       # #80 C: 저장된 실행 결과에 옛 용어가 있어도 새 말로
+    assert gaps.ko_text("(사후 탐색 단계(검증 전))") == "(발표·수정 이력 미보관으로 시점 추정)"

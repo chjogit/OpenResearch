@@ -57,7 +57,9 @@ SELECT * FROM (
   SELECT DISTINCT ON (d.doc_id) c.chunk_id, d.doc_id, c.chunk_idx, left(c.content, 400) AS content,
          d.source, d.title, left(coalesce(d.summary, ''), 240) AS summary,
          d.published_at::date AS published, d.published_at AS published_at, d.url,
-         coalesce(1 - (c.embedding <=> %(qv)s::halfvec), 0) AS sim
+         coalesce(1 - (c.embedding <=> %(qv)s::halfvec), 0) AS sim,
+         (d.title ILIKE ANY(%(pats)s::text[])) AS in_title,
+         (SELECT count(*) FROM unnest(%(pats)s::text[]) AS pt WHERE c.content ILIKE pt) AS n_terms
   FROM rag.document d LEFT JOIN rag.chunk c ON c.doc_id = d.doc_id
   WHERE d.company_id = %(cid)s AND d.source = ANY(%(sources)s::text[])
     AND d.published_at <= %(as_of)s::date
@@ -68,6 +70,8 @@ SELECT * FROM (
 ) x ORDER BY published_at DESC LIMIT %(cap)s
 """
 KEYWORD_SUPPLEMENT_CAP = 10  # 키워드 보충 문서 상한(벡터 후보 수와 별도, 최종 k 에는 관련도 점검 뒤 합산). 표시: origin '키워드 보충'
+SUPPLEMENT_MIN_TERMS = 2     # (#80) 키워드 보충 조건: 핵심어가 **제목**에 있으면 통과. 본문에만 있으면 서로 다른 핵심어 min(2, 핵심어 수)개 이상 **그리고** 유사도 SUPPLEMENT_SIM_FLOOR 이상
+SUPPLEMENT_SIM_FLOOR = 0.58  # 실측(2026-11-09, 질의-청크 유사도): 무관 기사 K-세일페스타·할인전 0.527~0.571 < 하한 0.58 < 관련 기사 LG 환율 0.589 (한화 순천사업장 0.588 은 핵심어 1/2 라 개수 조건으로 제외)
 PER_DOC = 2                  # 문서당 최대 청크 수
 VECTOR_SHARE = 0.5           # 최종 문서 자리 중 벡터 유사도 순으로 먼저 보장하는 몫(#67). 나머지는 키워드·벡터 합산 점수 순
 EVIDENCE_PER_DOC = 2         # 문서마다 근거 청크(번호·유사도·발췌) 최대 개수
@@ -111,7 +115,19 @@ def _doc_from_vector(r: dict) -> dict:
             "terms": [], "score": 0.0, "doc_id": r["doc_id"]}
 
 
-def merge_candidates(agent_id: int, raw: dict, co: dict, as_of: str, hits: list[dict], n: int = N_CANDIDATES, supplement: list[dict] | None = None) -> list[dict]:
+def supplement_ok(h: dict, terms: list[str] | None) -> bool:
+    """(#80) 키워드 보충 후보가 주제와 충분히 닿는가: 핵심어가 제목에 있거나, 본문(근거 청크)뿐이면 서로 다른 핵심어 min(SUPPLEMENT_MIN_TERMS, 핵심어 수)개 이상이면서 유사도 SUPPLEMENT_SIM_FLOOR 이상.
+    핵심어 정보가 없으면(옛 스냅샷) 거르지 않는다."""
+    if not terms:
+        return True
+    title, body = str(h.get("title") or ""), str(h.get("content") or "")
+    in_title = h["in_title"] if "in_title" in h else any(t in title for t in terms)          # SQL 이 전체 청크로 센 값 우선(발췌는 400자까지만)
+    n_terms = h["n_terms"] if "n_terms" in h else sum(1 for t in terms if t in body)
+    return bool(in_title) or (int(n_terms or 0) >= min(SUPPLEMENT_MIN_TERMS, len(terms)) and float(h.get("sim") or 0) >= SUPPLEMENT_SIM_FLOOR)
+
+
+def merge_candidates(agent_id: int, raw: dict, co: dict, as_of: str, hits: list[dict], n: int = N_CANDIDATES, supplement: list[dict] | None = None,
+                     supplement_terms: list[str] | None = None) -> list[dict]:
     """키워드 점수(0~1 로 정규화)와 벡터 유사도를 합쳐 상위 n개 문서 (#67 합치는 규칙):
     ① 벡터 검색이 독립적으로 찾은 문서 중 유사도 상위 ceil(k_docs × VECTOR_SHARE)개를 **유사도 순으로 먼저** 둔다(키워드 점수에 밀려 빠지지 않게).
     ② 나머지 자리는 0.5×키워드(0~1) + 0.5×유사도 합산 점수 순. ③ 같은 제목·출처별 개수 제한은 그대로.
@@ -159,7 +175,7 @@ def merge_candidates(agent_id: int, raw: dict, co: dict, as_of: str, hits: list[
     for h in supplement or []:
         if added >= KEYWORD_SUPPLEMENT_CAP:
             break
-        if h["doc_id"] in have or h["source"] not in p.sources or h["source"] in PRIVATE_SOURCES:
+        if h["doc_id"] in have or h["source"] not in p.sources or h["source"] in PRIVATE_SOURCES or not supplement_ok(h, supplement_terms):
             continue
         nt = rag._norm_title(rag._clean(h.get("title")))
         if not nt or any(nt == m or SequenceMatcher(None, nt, m).ratio() >= rag.DEDUP_RATIO for m in norms):
@@ -223,7 +239,7 @@ def select_hybrid(agent_id: int, raw: dict, co: dict, as_of: str, keep=None) -> 
         why = (h or {}).get("error") or "하이브리드 결과 없음"
         return rag.select(agent_id, raw, co, as_of), {"mode": "keyword", "fallback": why}
     p = rag.PRESETS[agent_id]
-    cands = merge_candidates(agent_id, raw, co, as_of, h["hits"], n=N_CANDIDATES * 3 if keep else N_CANDIDATES, supplement=h.get("supplement"))   # 거를 땐 풀을 넓게
+    cands = merge_candidates(agent_id, raw, co, as_of, h["hits"], n=N_CANDIDATES * 3 if keep else N_CANDIDATES, supplement=h.get("supplement"), supplement_terms=h.get("supplementTerms"))   # 거를 땐 풀을 넓게
     discs = _disclosures_for(p, raw, h.get("query"))
     if keep:
         pool = keep(cands + discs)

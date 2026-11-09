@@ -552,3 +552,39 @@ def test_to_keys_never_flips_the_sign_of_an_opposite_scenario_value():
                    "X2": {"label": "환율 +5% 가정 시 영향", "value": -7e10, "unit": "KRW±", "text": "-700억원", "as_of": "x", "source": "x"}})
     out = qa.render(qa.to_keys("하락하면 약 +700억원, 상승하면 약 -700억원", led), led)
     assert out == "하락하면 약 +700억원, 상승하면 약 -700억원"            # 이전에는 '-700억원' 이 '-{X1}' 이 되어 '+700억원' 으로 뒤집혔음
+
+
+def test_summary_text_hides_ledger_keys_and_numbers_the_evidence():      # #80 A
+    r = {"question": "q", "interpretation": {"company": {"name": "삼성전자", "status": "found"}, "period": {"as_of": "2026-11-06", "days": None}, "domains": [], "intent": "x", "refuse": False, "scenario": None},
+         "trace": [], "status": "완료", "answer": [{"구분": "사실", "문장": "외국인 순매도는 -5만주이다.", "근거": ["S1", "D11"]}, {"구분": "해석", "문장": "약하다.", "근거": ["S1"]}],
+         "evidence": {"장부": {"S1": {"항목": "외국인 순매수"}}, "문서": {"D11": {"title": "삼성전자 수급 기사"}}}, "outlook": {}, "gaps": [],
+         "usage": {"llm_calls": 1, "input_tokens": 1, "output_tokens": 1, "total_seconds": 1}}
+    t = qa.summary_text(r)
+    assert "S1" not in t.split("근거 1:")[0] and "D11" not in t and "← 근거 1, 2" in t and "근거 1: 외국인 순매수" in t and "근거 2: 삼성전자 수급 기사" in t
+
+
+def test_template_shows_evidence_numbers_not_keys():                   # #80 A
+    from pathlib import Path
+    t = (Path(__file__).resolve().parents[1] / "demo" / "template.html").read_text(encoding="utf-8")
+    assert "evNums" in t and '>근거 ${nums[k]}</a>' in t and 'title="${esc(k)}">근거' in t and 'class="note kc"' in t
+
+
+def test_disclosure_question_keeps_only_disclosure_related_docs():     # #80 D
+    docs = [{"kind": "뉴스", "title": "삼성전자 외국인 순매도 이어져", "chunks": [{"excerpt": "수급 동향"}]},
+            {"kind": "뉴스", "title": "삼성전자, 자기주식 취득 결정 공시", "chunks": []},
+            {"kind": "뉴스", "title": "시황", "chunks": [{"excerpt": "단일판매·공급계약 체결"}]},
+            {"kind": "공시", "title": "주요사항보고서", "chunks": []}]
+    kept, dropped = qa.disclosure_only(docs)
+    assert [d["title"] for d in kept] == ["삼성전자, 자기주식 취득 결정 공시", "시황", "주요사항보고서"] and dropped == 1
+
+
+def test_render_strips_parenthesized_ledger_keys_but_not_unknown_names():     # #80 A
+    led = qa.Ledger()
+    led.items["S1"] = {"label": "x", "text": "5주"}
+    led.docs["D5"] = {"title": "t"}
+    assert qa.render("현금배당결정(D5)이 공시됐고 순매수는 {S1}이다(S1, D5).", led) == "현금배당결정이 공시됐고 순매수는 5주이다."
+    assert qa.render("통화량 (M2) 증가", led) == "통화량 (M2) 증가"
+
+
+def test_render_turns_event_ids_into_numbers():                               # #80 A
+    assert qa.render("사건 E4 평균 감성과 사건 E5·E9 는 다르다.", qa.Ledger()) == "사건 4 평균 감성과 사건 5·9 는 다르다."

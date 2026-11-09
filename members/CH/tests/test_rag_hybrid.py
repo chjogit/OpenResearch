@@ -314,3 +314,27 @@ def test_fetch_hybrid_runs_keyword_query_only_with_terms_and_records_failure():
                  "source": "naver_news", "title": "t", "summary": "", "url": "u", "sim": 0.5}]
     out = rag_hybrid.fetch_hybrid(3, CO, AS_OF, {}, embed=emb, run_sql=bad, terms=["환율"])
     assert out["hits"] and "supplementError" in out and "supplement" not in out
+
+
+# ---- #80 키워드 보충 조이기
+def test_supplement_ok_title_term_passes_regardless_of_similarity():
+    assert rag_hybrid.supplement_ok({"title": "노무라, 현대차 목표가 하향…금리·환율 부담", "content": "x", "sim": 0.1}, ["금리"])
+
+
+def test_supplement_ok_body_only_needs_enough_terms_and_similarity_floor():
+    floor = rag_hybrid.SUPPLEMENT_SIM_FLOOR
+    body = {"title": "현대차, 연말 할인전", "content": "할부 금리 혜택"}
+    assert not rag_hybrid.supplement_ok({**body, "sim": floor - 0.02}, ["금리"])             # 핵심어 1개 질문: 본문에 있어도 유사도 하한 미달이면 제외
+    assert rag_hybrid.supplement_ok({**body, "sim": floor + 0.01}, ["금리"])                 # 하한 이상이면 유지(LG 환율 사례)
+    two = {"title": "순천사업장 준공", "content": "기관 투자", "sim": floor + 0.05}
+    assert not rag_hybrid.supplement_ok(two, ["기관", "순매수"])                              # 핵심어 2개 중 1개만 본문에 있으면 제외
+    assert rag_hybrid.supplement_ok({**two, "content": "기관 순매수"}, ["기관", "순매수"])
+    assert rag_hybrid.supplement_ok({**two, "n_terms": 2}, ["기관", "순매수"])               # SQL 이 센 값을 우선
+    assert rag_hybrid.supplement_ok({**body, "sim": 0.0}, None)                              # 핵심어 정보 없으면(옛 스냅샷) 거르지 않음
+
+
+def test_merge_candidates_drops_weak_supplement_when_terms_given():
+    weak = {**_sup(401, "현대차 연말 할인전 안내"), "content": "할부 금리 혜택", "sim": 0.55}
+    good = {**_sup(402, "원화 약세 환율 급등 영향"), "content": "환율", "sim": 0.3}
+    cands = rag_hybrid.merge_candidates(3, _hybrid_raw(), CO, AS_OF, HITS, supplement=[weak, good], supplement_terms=["환율", "금리"])
+    assert [d["doc_id"] for d in cands if d["origin"] == "키워드 보충"] == [402]

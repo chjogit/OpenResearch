@@ -331,7 +331,7 @@ def tool_node_agent(args: dict, ctx: dict, led: Ledger) -> dict:
               "ledger": [{"key": mp[k], "label": v["label"], "text": v["text"], "asOf": str(v.get("as_of") or "")[:10], "source": v.get("source")}
                          for k, v in list(facts.items.items())[:16]], "ledgerTotal": len(facts.items)}
     return {"summary": f"에이전트 {no}: 노드 {len(nodes)}개, 장부 {len(facts.items)}항목, 충돌 {len(conflicts)}건"
-                       + (f", 예측 생략: {skipped}" if skipped else ""),
+                       + (f", 예측 생략: {gaps_mod.ko_text(str(skipped))}" if skipped else ""),
             "nodes": nodes, "keys": sorted(mp.values()), "tech": "노드 실행(규칙·통계 계산, LLM 없음)", "detail": detail}
 
 
@@ -436,6 +436,17 @@ def tool_disclosures(args: dict, ctx: dict, led: Ledger) -> dict:
 RAG_PRESET = 3
 
 
+# 공시 질문이면 문서 검색 결과는 공시 관련 문서만 근거로 쓴다(#80). 공시 목록은 disclosure_list 가 따로 가져온다.
+DISCLOSURE_DOC_RE = re.compile(r"공시|전자공시|DART|단일판매|공급계약|유상증자|무상증자|감자|자기주식|주주총회|배당|잠정\s*실적|영업\s*실적|풍문|해명|조회공시|합병|분할|사업보고서|분기보고서|정정|지분\s*(취득|처분|변동)|최대주주")
+
+
+def disclosure_only(docs: list[dict]) -> tuple[list[dict], int]:
+    """공시 관련 문서(공시 종류이거나 제목·근거 청크에 공시 핵심어가 있는 문서)만 남긴다. (남긴 문서, 뺀 건수)."""
+    kept = [d for d in docs if d.get("kind") == "공시" or DISCLOSURE_DOC_RE.search(
+        " ".join([str(d.get("title") or "")] + [str(c.get("excerpt") or "") for c in d.get("chunks") or []]))]
+    return kept, len(docs) - len(kept)
+
+
 def retrieve_docs(co: dict, as_of: str, question: str | None = None) -> tuple[list[dict], dict]:
     """문서 검색(관점 6). 벡터 검색이 켜져 있으면(CH_RAG_HYBRID=on) 질의 임베딩 → 정확 벡터 검색 → 키워드와 합산, 실패하면 키워드 검색으로 대체하고 이유를 남긴다.
     두 번째 값은 실행 기록: {mode, modeLabel, embedModel, dim, vectorHits, seconds, fallback}."""
@@ -458,9 +469,13 @@ def retrieve_docs(co: dict, as_of: str, question: str | None = None) -> tuple[li
         return kept
 
     docs, status = rag_hybrid.select_hybrid(RAG_PRESET, raw, co, as_of, keep=keep if question else None)
+    disc_info = None
+    if question and DISCLOSURE_Q_RE.search(question):
+        docs, dropped = disclosure_only(docs)
+        disc_info = {"applied": True, "dropped": dropped}
     hits = len((raw["hybrid"] or {}).get("hits") or [])
     return docs, {"relevance": rel, "mode": status["mode"], "query": (raw["hybrid"] or {}).get("query"), "embedModel": rag_hybrid.QUERY_MODEL, "dim": rag_hybrid.EMBED_DIM, "vectorHits": hits,
-                  "supplemented": sum(1 for d in docs if d.get("origin") == "키워드 보충"),
+                  "supplemented": sum(1 for d in docs if d.get("origin") == "키워드 보충"), "disclosureFilter": disc_info,
                   "seconds": round(time.monotonic() - t, 2), "fallback": status.get("fallback"),
                   "modeLabel": "하이브리드 검색(키워드 + 벡터)" if status["mode"] == "hybrid" else "키워드 검색(벡터 검색 실패로 대체)"}
 
@@ -646,6 +661,7 @@ UNIT_SUFFIX = ("백분위", "배", "%p", "%", "조원", "억원", "원", "주", 
 
 
 from ch_agents.notation import fix_notation, notation_problems  # noqa: E402,F401  값 표기 바로잡기(#60)
+from ch_agents import gaps as gaps_mod  # noqa: E402  내부 코드 한국어화(#80)
 
 
 def render(text: str, led: Ledger) -> str:
@@ -662,7 +678,16 @@ def render(text: str, led: Ledger) -> str:
                 pos += len(u)
                 break
     out.append(text[pos:])
-    return fix_notation("".join(out))
+    return fix_notation(gaps_mod.event_ids_ko(strip_ledger_keys("".join(out), led)))
+
+
+PAREN_KEYS_RE = re.compile(r"\s*[（(]\s*([A-Z]\d{1,5}(?:\s*[·,、/]\s*[A-Z]\d{1,5})*)\s*[)）]")
+
+
+def strip_ledger_keys(text: str, led: Ledger) -> str:
+    """(#80) LLM 이 문장 속에 괄호로 적은 장부·문서 키('...배당결정(D5)')를 지운다. 이 답의 장부·문서에 실제로 있는 키만(M2 같은 지표 이름은 건드리지 않음). 근거는 문장의 근거 필드로 이어진다."""
+    known = set(led.items) | set(led.docs)
+    return PAREN_KEYS_RE.sub(lambda m: "" if all(k.strip() in known for k in re.split(r"[·,、/]", m.group(1))) else m.group(0), text)
 
 
 def fallback_answer(led: Ledger) -> list[dict]:
@@ -888,7 +913,14 @@ def summary_text(r: dict) -> str:
         elif e["kind"] == "답·검사":
             lines.append(f"[{e['t']}s] 답·검사: {e['mode']}, 통과 {e['kept']}문장, 제거 {len(e['removed'])}문장")
     lines.append(f"상태: {r['status']}" + (f" — {r['message']}" if r.get("message") else ""))
-    lines += [f"  ({c['구분']}) {c['문장']}  ← {', '.join(c['근거'])}" for c in r["answer"]]
+    nums: dict[str, int] = {}          # 장부 키(M74·D11)는 문장에 쓰지 않고 근거 번호로(#80)
+    for c in r["answer"]:
+        for k in c["근거"]:
+            nums.setdefault(k, len(nums) + 1)
+    lines += [f"  ({c['구분']}) {c['문장']}" + (f"  ← 근거 {', '.join(str(nums[k]) for k in c['근거'])}" if c["근거"] else "") for c in r["answer"]]
+    ev = r.get("evidence") or {}
+    label_of = lambda k: str((ev.get("장부", {}).get(k) or {}).get("항목") or (ev.get("문서", {}).get(k) or {}).get("title") or "")   # noqa: E731
+    lines += [f"  근거 {n}: {gaps_mod.ko_text(label_of(k))}" for k, n in nums.items() if label_of(k)]
     from ch_agents.outlook import SOURCE_MARK as outlook_mark
 
     lines += [f"  전망[{o['agentName']}] {o['directionLabel']}" + (f"({o['reason']})" if o.get("reason") else "") + f" · {outlook_mark}"

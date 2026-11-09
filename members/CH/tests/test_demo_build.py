@@ -189,7 +189,7 @@ def test_youtube_comments_are_masked_like_blog_cafe():
 def test_ko_text_translates_internal_codes_even_before_korean_particles():
     out = bd.ko_text("사건 E1과 E9는 N05 미충족 항목, E10에서 CAR 와 D1 사후 탐색 등급, 확장 노드 입력 요건 미충족")
     assert "사건 1과 9는" in out and "거시 데이터 점검" in out and "근거 10에서" in out
-    assert "사건 뒤 주가 반응(초과수익)" in out and "사후 탐색 단계(검증 전)" in out and "추가 분석에 필요한 자료 부족" in out
+    assert "사건 뒤 주가 반응(초과수익)" in out and "발표·수정 이력 미보관으로 시점 추정" in out and "추가 분석에 필요한 자료 부족" in out
     assert not bd.RAW_CODE_RE.search(out)
 
 
