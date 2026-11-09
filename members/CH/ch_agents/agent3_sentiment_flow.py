@@ -3,7 +3,7 @@
 근거를 네 계열로 나눠 계산합니다. 같은 계열 안의 지표는 같은 사건을 반영할 수 있으므로 독립 근거로 세지 않습니다.
 - 수급: 외국인·기관·개인 5·20·60일 순매수(수량, 종가 기준 금액 근사), 거래대금 대비 순매수 강도,
         연속 순매수·순매도 일수, 외국인 지분율 변화와 1년 범위 내 위치
-- 논조: 뉴스·블로그·카페 문서 감성(키워드 사전 점수)을 문서에서 직접 집계 (최근 7일 vs 직전 8~30일)
+- 논조: 뉴스·블로그·카페 문서 감성(키워드 사전 점수)을 문서에서 직접 집계 (최근 7일 vs 직전 7일)
 - 관심: 네이버 검색 관심도(최근 7일 ÷ 직전 90일, 1년 내 위치). 문서 수는 수집 범위가 바뀌면 함께 바뀌므로 쓰지 않음
 - 거래: 거래대금 최근 5일 평균 ÷ 직전 60일 평균
 - 가격·시장: 20·60일 수익률, 코스피 대비 초과 수익률, VIX(시장 공포 지표)
@@ -12,7 +12,7 @@
 그리고 수급과 가격이 엇갈리는지(예: 주가 하락 중 외국인 순매수)를 규칙으로 표시합니다.
 
 기초기획서 R4 대응
-- 기준선 비교: 신호마다 '평소'(직전 60일·90일·8~30일)를 규칙 기준선으로 두고 현재 값과 나란히 보여 줍니다.
+- 기준선 비교: 신호마다 '평소'(직전 60일·90일·7일)를 규칙 기준선으로 두고 현재 값과 나란히 보여 줍니다.
   감성은 키워드 사전 기준선이며 학습 모델이 아닙니다 (성능 미검증 상태를 출력에 명시).
 - 중복 신호: 최근 창(5~7일)에 뉴스 논조·검색 관심·거래대금·집중 매매 이상 징후가 둘 이상 함께 나타나면
   같은 사건을 반영할 수 있으므로 하나의 '사건 묶음'(X1)으로 묶고, 독립 근거로 중복 계산하지 않습니다.
@@ -129,6 +129,7 @@ MKT_MIN_SHARE = 0.8    # 시장 합산에 쓴 종목 수가 기간 최대의 이
 SAME, OPPOSITE = "시장과 같은 방향", "시장과 반대 방향"
 MIN_DOCS = 5
 MIN_PRIOR_DOCS = 20
+MIN_PRIOR_DAYS = 5   # 직전 7일 창에서 문서가 있는 날 최소 일수 (#76)
 DEFAULT_PERIOD = 20
 MAX_PERIOD = 120
 Z_ALERT = 2.0          # 최근 5일 순매수 강도가 직전 60일 분포에서 이만큼 벗어나면 '집중 매매'
@@ -317,12 +318,13 @@ def compute(b: dict, co: dict, as_of: str, period: int | None = None, question: 
     # 3) 논조 (문서 감성)
     g = "논조(감성)"
     docs = b.get("docs") or []
-    cut7 = _days_back(as_of, 7)
+    cut7, cut14 = _days_back(as_of, 7), _days_back(as_of, 14)
     by_src: dict[str, dict[str, list]] = {}
     for r in docs:
-        side = "recent" if str(r["d"])[:10] > cut7 else "prior"
-        if not r.get("n") or r.get("score") is None:
-            continue  # 점수가 붙은 문서가 없는 날
+        d = str(r["d"])[:10]
+        side = "recent" if d > cut7 else "prior" if d > cut14 else None     # 직전 7일(8~14일): 블로그·카페·뉴스·댓글은 14일만 보관해 더 긴 창은 영원히 안 찬다(#76)
+        if side is None or not r.get("n") or r.get("score") is None:
+            continue  # 비교 창 밖이거나 점수가 붙은 문서가 없는 날
         by_src.setdefault(r["source"], {"recent": [], "prior": []})[side].append((int(r["n"]), float(r["score"]),
                                                                                str(r["d"])[:10]))
     names = {"naver_news": "뉴스", "naver_blog": "블로그", "naver_cafe": "카페", "finnhub_news": "영문 뉴스",
@@ -338,15 +340,15 @@ def compute(b: dict, co: dict, as_of: str, period: int | None = None, question: 
             rs = sum(n * s for n, s, _ in part["recent"]) / rn
             kr = f.add(f"{name} 감성(최근 7일)", rs, "score", as_of, SRC_DOC, kind="calc", group=g,
                        note=f"문서 {rn}건, -1 부정 ~ +1 긍정, 키워드 사전 기반")
-            if pn >= MIN_PRIOR_DOCS and days_prior >= 7:
+            if pn >= MIN_PRIOR_DOCS and days_prior >= MIN_PRIOR_DAYS:
                 ps = sum(n * s for n, s, _ in part["prior"]) / pn
-                kp = f.add(f"{name} 감성(직전 8~30일, 기준선)", ps, "score", as_of, SRC_DOC, kind="calc", group=g,
+                kp = f.add(f"{name} 감성(직전 7일, 기준선)", ps, "score", as_of, SRC_DOC, kind="calc", group=g,
                            note=f"문서 {pn}건")
-                kd = f.add(f"{name} 감성 변화(최근 7일 − 직전 8~30일)", rs - ps, "score", as_of, SRC_DOC, kind="calc",
+                kd = f.add(f"{name} 감성 변화(최근 7일 − 직전 7일)", rs - ps, "score", as_of, SRC_DOC, kind="calc",
                            group=g)
                 hit = bool(kd and abs(rs - ps) >= SENT_JUMP)
                 if src in ("naver_news", "naver_blog", "naver_cafe"):
-                    baseline.append({"signal": f"{name} 논조", "method": "사전: " + SENT_MODEL + ", 직전 8~30일 대비",
+                    baseline.append({"signal": f"{name} 논조", "method": "사전: " + SENT_MODEL + ", 직전 7일 대비",
                                      "current": kr, "base": kp, "measure": kd,
                                      "status": "기준선 대비 이례적" if hit else "평소 범위",
                                      "rule": f"변화 절댓값 {SENT_JUMP:g} 이상이면 이례적"})
@@ -358,8 +360,8 @@ def compute(b: dict, co: dict, as_of: str, period: int | None = None, question: 
                 elif kd and abs(rs - ps) >= 0.1:
                     f.flag(f"{name} 논조 {'개선' if rs > ps else '악화'} ({{{kd}}})")
             else:
-                f.gap(f"{name} 감성 변화", f"직전 기간 문서 {pn}건·{days_prior}일뿐 (수집 기간 짧음)" if pn and days_prior
-                      else "직전 기간 자료 없음 (수집 기간 짧음)")
+                f.gap(f"{name} 감성 변화", f"직전 7일 문서 {pn}건·{days_prior}일뿐 (최소 {MIN_PRIOR_DOCS}건·{MIN_PRIOR_DAYS}일)" if pn and days_prior
+                      else "직전 7일 자료 없음")
         else:
             f.gap(f"{name} 감성(최근 7일)", f"점수 붙은 문서 {rn}건 (최소 {MIN_DOCS}건)")
     # 문서 수는 관심 지표로 쓰지 않음: 수집 범위·주기가 바뀌면 문서 수가 같이 바뀌어 관심 변화로 착각하기 쉬움
@@ -544,7 +546,7 @@ SUMMARY = (  # (계열, 장부 항목 이름 틀) — 기간 P 는 사용자 입
     ("시장", "시장 외국인 {P}일 순매수 강도(KOSPI 200 합산, 대용치)"),
     ("시장", "외국인 {P}일 순매수 강도의 시장 대비 차이"),
     ("거래", "거래대금 배율(최근 5일 ÷ 직전 60일)"), ("거래", "거래대금 배율의 시장 대비(종목 배율 ÷ 시장 배율)"),
-    ("논조", "뉴스 감성(최근 7일)"), ("논조", "뉴스 감성 변화(최근 7일 − 직전 8~30일)"),
+    ("논조", "뉴스 감성(최근 7일)"), ("논조", "뉴스 감성 변화(최근 7일 − 직전 7일)"),
     ("논조", "블로그 감성(최근 7일)"), ("논조", "카페 감성(최근 7일)"),
     ("관심", "검색 관심도 배율(최근 7일 ÷ 직전 90일)"),
     ("가격·시장", "{P}일 주가 수익률"), ("가격·시장", "{P}일 코스피 대비 초과 수익률"),

@@ -13,9 +13,9 @@ def _day(k):
 
 
 def _blog_rows():
-    """최근 7일 5일치(문서 많음) + 직전 8~30일 12일치. 일자별 (건수, 평균 점수)."""
+    """최근 7일 5일치(문서 많음) + 직전 7일(8~14일) 6일치 + 비교 창 밖(15~20일) 6일치. 일자별 (건수, 평균 점수)."""
     rows = [{"d": _day(k), "source": "naver_blog", "n": 6 + k, "score": 0.3 - 0.01 * k} for k in range(0, 5)]
-    rows += [{"d": _day(k), "source": "naver_blog", "n": 4 + k % 3, "score": -0.1 + 0.02 * (k % 5)} for k in range(9, 21)]
+    rows += [{"d": _day(k), "source": "naver_blog", "n": 4 + k % 3, "score": -0.1 + 0.02 * (k % 5)} for k in range(8, 21)]
     return rows
 
 
@@ -36,7 +36,7 @@ def test_values_same_before_and_after_deletion():
     base = _sent_bundle()
     base["docs"] = [r for r in base["docs"] if r["source"] != "naver_blog"] + rows
     before = _facts(base)
-    live, gone = _split(rows, 14)
+    live, gone = _split(rows, 11)                           # 비교 창(직전 7일: 8~13일) 안쪽에서 잘라 집계가 값에 영향을 주게 함
     assert gone and live                                     # 일부만 지워진 상황
     after_b = {**base, "docs": [r for r in base["docs"] if r["source"] != "naver_blog"] + live, "docs_agg": gone}
     assert _facts(after_b) == before

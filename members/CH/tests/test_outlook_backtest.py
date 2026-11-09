@@ -63,7 +63,7 @@ def test_result_file_matches_reader_format_when_present():
     if not p.exists():
         return
     doc = json.loads(p.read_text(encoding="utf-8"))
-    assert doc["ruleVersion"] == outlook.RULE_VERSION and doc["horizonDays"] == 20
+    assert doc["ruleVersion"] in (outlook.RULE_VERSION, *outlook.MEASURED_COMPATIBLE[4]) and doc["horizonDays"] == 20       # r1.1(#76)은 에이전트 6 창만 바뀜
     for no in ("3", "4"):
         h = outlook.hit_rate(int(no), p)
         e = doc["agents"][no]

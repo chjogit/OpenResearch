@@ -494,7 +494,7 @@ def kst_now() -> str:
     return datetime.now(timezone(timedelta(hours=9))).strftime("%Y-%m-%d %H:%M KST")
 
 
-OUTLOOK_NOTE = ("전망은 정해진 규칙(outlook-r1)이 노드 값만으로 계산한 20거래일 가격 방향입니다. 저장한 LLM 실행 결과는 그대로 두고 전망만 기준일에 맞춰 다시 계산했습니다 "
+OUTLOOK_NOTE = ("전망은 정해진 규칙(outlook-r1.1)이 노드 값만으로 계산한 20거래일 가격 방향입니다. 저장한 LLM 실행 결과는 그대로 두고 전망만 기준일에 맞춰 다시 계산했습니다 "
                 "(에이전트 6 은 원문 14일 보관이라 당시와 다를 수 있음). 세 결론의 종합은 오케스트레이터(SW) 담당이며 여기서는 만들지 않습니다.")
 
 

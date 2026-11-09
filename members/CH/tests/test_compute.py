@@ -241,13 +241,13 @@ def _sent_bundle(**over):
         "docs": [
             {"d": "2026-10-25", "source": "naver_news", "n": 10, "score": 0.5},
             {"d": "2026-10-24", "source": "naver_news", "n": 0, "score": None},  # 점수 없는 날은 제외
-            {"d": "2026-10-10", "source": "naver_news", "n": 30, "score": 0.0},
-            {"d": "2026-10-09", "source": "naver_news", "n": 1, "score": 0.0},
-            {"d": "2026-10-08", "source": "naver_news", "n": 1, "score": 0.0},
-            {"d": "2026-10-07", "source": "naver_news", "n": 1, "score": 0.0},
-            {"d": "2026-10-06", "source": "naver_news", "n": 1, "score": 0.0},
-            {"d": "2026-10-05", "source": "naver_news", "n": 1, "score": 0.0},
-            {"d": "2026-10-04", "source": "naver_news", "n": 1, "score": 0.0},
+            {"d": "2026-10-18", "source": "naver_news", "n": 30, "score": 0.0},
+            {"d": "2026-10-17", "source": "naver_news", "n": 1, "score": 0.0},
+            {"d": "2026-10-16", "source": "naver_news", "n": 1, "score": 0.0},
+            {"d": "2026-10-15", "source": "naver_news", "n": 1, "score": 0.0},
+            {"d": "2026-10-14", "source": "naver_news", "n": 1, "score": 0.0},
+            {"d": "2026-10-13", "source": "naver_news", "n": 1, "score": 0.0},
+            {"d": "2026-10-12", "source": "naver_news", "n": 1, "score": 0.0},
             {"d": "2026-10-25", "source": "naver_blog", "n": 3, "score": -0.5},
         ],
         "search": [{"d": d, "v": 10.0 if i < 393 else 30.0} for i, d in
@@ -272,7 +272,7 @@ def test_sentiment_flows_streak_intensity_and_divergence():
 def test_sentiment_docs_weighting_and_gaps():
     f = sentiment.compute(_sent_bundle(), CO, AS_OF)["facts"]
     assert f.items[f.key_of("뉴스 감성(최근 7일)")]["value"] == 0.5
-    assert f.items[f.key_of("뉴스 감성 변화(최근 7일 − 직전 8~30일)")]["value"] == 0.5
+    assert f.items[f.key_of("뉴스 감성 변화(최근 7일 − 직전 7일)")]["value"] == 0.5
     assert any("이상 징후: 뉴스 논조 급격한 개선" in x for x in f.flags)  # 변화 0.5 ≥ 0.15
     labels = [g["label"] for g in f.gaps]
     assert "블로그 감성(최근 7일)" in labels  # 3건 < 최소 5건

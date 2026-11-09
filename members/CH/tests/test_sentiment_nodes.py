@@ -297,4 +297,4 @@ def test_zero_prior_period_gap_reads_as_no_data_not_zero_counts():
     from ch_agents import agent3_sentiment_flow as a3
     import inspect
     src = inspect.getsource(a3)
-    assert "직전 기간 자료 없음 (수집 기간 짧음)" in src
+    assert "직전 7일 자료 없음" in src and "수집 기간 짧음" not in src          # #76: 보관 14일에 맞춘 창이라 '기간이 짧다'는 말은 더는 맞지 않음
