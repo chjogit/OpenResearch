@@ -451,7 +451,7 @@ ANSWER_SYSTEM = """당신은 한국 상장사 분석 질의응답의 '답 작성
 규칙:
 1. 장부 숫자는 장부 키를 `{S1}` 처럼 중괄호로만 쓰십시오(값을 글자로 옮겨 쓰지 말고 키로). 예: '외국인 5일 순매수는 {S3}'. 장부에 없는 숫자·날짜·비율을 직접 쓰지 마십시오. 단 [문서] 발췌에 **적힌 그대로** 있는 숫자('53억', '12.6%')는 쓸 수 있고, 그 경우 근거에 그 문서 번호(D#)를 반드시 다십시오. 발췌에 없는 숫자, 증권사의 가격 전망·가격 수준은 쓰지 마십시오. 문서 속 숫자의 대상이 질문 종목과 다르면(우선주·다른 종목·합산·시장 전체) 문장에 그 대상을 밝히십시오.
 2. 투자 권유, 매수·매도 의견, 증권사 가격 전망 수치, 미래 주가 예측을 쓰지 마십시오. 순매수·순매도 기록만으로 매수 의도·정보 보유를 추정하지 마십시오.
-3. 근거가 없는 내용은 쓰지 말고 '미확보'에 적으십시오. 블로그·카페·유튜브 내용·주소는 쓰지 마십시오.
+3. 근거가 없는 내용은 쓰지 말고 '미확보'에 적으십시오. 블로그·카페·유튜브 내용·주소는 쓰지 마십시오. 문서 숫자의 방향(순매수/순매도, 증가/감소, 흑자/적자)은 문서에 적힌 그대로만 쓰고, 문서에 방향이 없으면 방향 표현을 붙이지 마십시오. 증권사·기관의 실적 전망 수치는 '전망'임을 밝히고 구분을 예측으로 쓰십시오. 문장 안에 (사실, 부정, [S1]) 같은 구분·방향·키 표기를 쓰지 마십시오.
 4. 문장마다 구분(사실/해석/예측)과 근거 키 목록을 붙이십시오. 문장은 5개 이하.
 출력 JSON 하나: {"답": [{"문장": "...", "구분": "사실|해석|예측", "근거": ["S1","D2"]}], "미확보": ["..."]}"""
 
@@ -476,7 +476,7 @@ JUDGMENT_SYSTEM = """당신은 한국 상장사 '투자 판단 자료 정리기'
 1. 장부 숫자는 장부 키를 `{S1}` 처럼 중괄호로만 쓰십시오(값을 글자로 옮겨 쓰지 말고 키로). 장부에 없는 숫자·날짜·비율을 직접 쓰지 마십시오. 단 [문서] 발췌에 **적힌 그대로** 있는 숫자는 긍정·부정 요인 근거로 쓸 수 있고, 그 경우 근거에 그 문서 번호(D#)를 반드시 다십시오(발췌에 없는 숫자·증권사의 가격 전망·가격 수준은 불허). 문서 속 숫자의 대상이 질문 종목과 다르면 문장에 그 대상을 밝히십시오.
 2. 결론을 쓰지 마십시오: 사라·파라·보유하라, '지금이 적기', 추천, '반드시·무조건' 같은 단정, 가격·수준 전망(얼마까지 오른다/내린다), 증권사 가격 전망 인용. 순매수·순매도만으로 매수 의도·정보 보유를 추정하지 마십시오.
 3. 긍정 요인과 부정·위험 요인을 각각 근거가 있는 만큼 쓰고 '방향'에 긍정|부정|중립을 표시하십시오. 한쪽 근거가 없으면 억지로 만들지 말고 '미확보'에 적으십시오.
-4. 문장마다 구분(사실=관측값, 계산=도구가 계산한 값, 예측=노드가 낸 조건부 추정만, 해석=판정 문장)과 근거 키 목록을 붙이십시오. 문장은 6개 이하. 블로그·카페·유튜브 내용·주소는 쓰지 마십시오.
+4. 문장마다 구분(사실=관측값, 계산=도구가 계산한 값, 예측=노드가 낸 조건부 추정 또는 인용한 증권사·기관 전망, 해석=판정 문장)과 근거 키 목록을 붙이십시오. 문장은 6개 이하. 블로그·카페·유튜브 내용·주소는 쓰지 마십시오. 문서 숫자의 방향(순매수/순매도, 증가/감소, 흑자/적자)은 문서에 적힌 그대로만 쓰고, 문서에 방향이 없으면 방향 표현을 붙이지 마십시오. 증권사·기관의 실적 전망 수치는 '전망'임을 밝히고 구분을 예측으로 쓰십시오. 문장 안에 (사실, 부정, [S1]) 같은 구분·방향·키 표기를 쓰지 마십시오.
 출력 JSON 하나: {"답": [{"문장": "...", "구분": "사실|계산|예측|해석", "방향": "긍정|부정|중립", "근거": ["S1","D2"]}], "미확보": ["..."]}"""
 
 REWRITE_SYSTEM = """아래 문장은 결론·권유·가격 전망으로 읽힐 수 있어 검사에서 빠졌습니다. 같은 근거([숫자 장부]·[판정 문장]·[문서])로, 결론 없이 사실·계산·해석만 담은 중립 문장으로 다시 쓰십시오. 키 표기 `{S1}` 규칙, 근거 키, 방향(긍정|부정|중립)은 그대로 지키십시오. 다시 쓸 수 없으면 해당 문장은 빼십시오.
@@ -512,10 +512,11 @@ def verify_answer(parsed: dict | None, led: Ledger, question: str, interp: dict)
     allowed |= {x.lstrip("+-") for x in allowed}
     ok, removed = [], []
     for c in (parsed or {}).get("답") or []:
-        text = to_keys(str(c.get("문장") or "").strip(), led)
+        text, tidied = citation.strip_residue(to_keys(str(c.get("문장") or "").strip(), led))      # 내부 표기 잔여물 제거(#72)
         refs = [str(r) for r in (c.get("근거") or []) if str(r) in valid]
         probs = llm_mod.sentence_problems(text, valid, allowed)
         cites: list[str] = []
+        forecast = False
         if any(p.startswith("키 밖 숫자") for p in probs):       # 뉴스·공시 인용 숫자 대조(#66): 인용 문서 본문에 단위까지 같은 값이 있으면 허용, 아니면 이유를 구체적으로
             cited = [{"key": r, **led.docs[r], "text": led.doc_text.get(r, "")} for r in refs if r in led.docs]
             good, bad = citation.check_numbers(PH.sub("", text), cited, (interp.get("period") or {}).get("as_of") or date.today().isoformat(), allowed)
@@ -524,6 +525,7 @@ def verify_answer(parsed: dict | None, led: Ledger, question: str, interp: dict)
             if cited and not bad and not stray:
                 probs = [p for p in probs if not p.startswith("키 밖 숫자")]
                 cites = sorted({g["doc"] for g in good})
+                forecast = any(g.get("forecast") for g in good)
             elif cited:
                 probs = [p for p in probs if not p.startswith("키 밖 숫자")] + [f"{b['reason']} {[b['raw']]}" for b in bad] + ([f"해석할 수 없는 숫자 표기 {stray}"] if stray else [])
         if re.search(r"\{[^{}]*\}", PH.sub("", text)):
@@ -544,11 +546,18 @@ def verify_answer(parsed: dict | None, led: Ledger, question: str, interp: dict)
                 if citation.CAUSAL_RE.search(text):            # 인과 주장은 해석 + 근거 문서
                     item["구분"], kind = "해석", "해석"
                 item["태그"] = f"{kind}({citation.citation_kind(d0)} 인용)"
+                if forecast:                                   # 증권사·기관 전망 인용 → 사실이 아니라 예측(전망 인용)
+                    item["구분"] = "예측"
+                    item["태그"] = f"예측(증권사 전망 인용, {', '.join(cites)})"
+                    if "전망" not in text:
+                        item["문장"] = text = f"{text} (증권사 전망)"
                 item["인용"] = [{"문서": k, "날짜": led.docs[k]["published"], "종류": citation.citation_kind(led.docs[k])} for k in cites]
                 note = citation.subject_note(d0, text, str(interp["company"].get("name") or ""),
                                              {a for a, t in aliases().items() if t != interp["company"].get("ticker")})
                 if note:
-                    item["문장"] = f"{text} (인용 기사의 대상: {note})"
+                    item["문장"] = f"{item['문장']} (인용 기사의 대상: {note})"
+            if tidied:
+                item["정리"] = "내부 표기 제거"
             ok.append(item)
         else:
             removed.append({"문장": text[:120], "이유": probs})
