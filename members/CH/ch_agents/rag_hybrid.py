@@ -90,7 +90,7 @@ def embed_query(text: str, session=None) -> list[float]:
 def _doc_from_vector(r: dict) -> dict:
     return {"kind": rag.SOURCE_LABEL.get(r["source"], r["source"]), "source": r["source"],
             "published": str(r.get("published"))[:10], "published_at": str(r.get("published_at") or r.get("published")),
-            "title": rag._clean(r.get("title")), "summary": rag._clean(r.get("summary"), 110), "url": r.get("url"),
+            "title": rag._clean(r.get("title")), "summary": rag._clean(r.get("summary"), 110), "full": rag._clean(r.get("summary"), 400), "url": r.get("url"),
             "terms": [], "score": 0.0, "doc_id": r["doc_id"]}
 
 
@@ -111,7 +111,7 @@ def merge_candidates(agent_id: int, raw: dict, co: dict, as_of: str, hits: list[
             cur["sim"], cur["chunk_id"] = float(h["sim"]), h["chunk_id"]
         if len(cur["chunks"]) < EVIDENCE_PER_DOC:
             cur["chunks"].append({"chunkId": h["chunk_id"], "chunkIdx": h.get("chunk_idx"), "sim": round(float(h["sim"]), 3),
-                                  "excerpt": rag._clean(h.get("content"), 200) if h.get("content") else ""})
+                                  "excerpt": rag._clean(h.get("content"), 400) if h.get("content") else ""})
     for d in pool.values():
         d["origin"] = "둘 다" if d["kw"] and d["sim"] else "벡터" if d["sim"] else "키워드"
     ranked = sorted(pool.values(), key=lambda d: (W_KEYWORD * d["kw"] + W_VECTOR * max(d["sim"], 0.0),

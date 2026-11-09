@@ -307,7 +307,7 @@ def select_docs(rows: list[dict], preset: Preset, co: dict, as_of: str) -> list[
         kept.append({
             "kind": SOURCE_LABEL.get(src, src), "source": src, "published": str(r.get("published"))[:10],
             "published_at": str(r.get("published_at") or r.get("published")),  # 최초 공개시각 (R4 데이터 계약)
-            "title": _clean(r.get("title")), "summary": _clean(r.get("summary"), 110),
+            "title": _clean(r.get("title")), "summary": _clean(r.get("summary"), 110), "full": _clean(r.get("summary"), 400),   # full: 인용 숫자 대조용(#66)
             "url": r.get("url"), "terms": terms[:4], "score": s, "doc_id": r.get("doc_id"),
         })
         if len(kept) >= preset.k_docs:
