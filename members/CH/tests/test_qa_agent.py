@@ -111,7 +111,7 @@ def test_tool_docs_hides_opinion_content(monkeypatch):
     docs = [{"source": "naver_news", "title": "공개 기사", "summary": "요약", "published": "2026-11-01", "url": "https://news.example/1"},
             {"source": "naver_blog", "title": "개인 글", "summary": "내 생각", "published": "2026-11-01", "url": "https://blog.naver.com/a"},
             {"source": "dart_report", "title": "공시", "summary": "https://youtu.be/x 링크", "published": "2026-11-01"}]
-    monkeypatch.setattr(rag, "retrieve", lambda *a, **k: docs)
+    monkeypatch.setattr(qa, "retrieve_docs", lambda *a, **k: (docs, {"mode": "keyword", "modeLabel": "키워드 검색(벡터 검색 꺼짐)", "fallback": None}))
     led = qa.Ledger()
     res = qa.tool_docs({}, {"co": {}, "as_of": "2026-11-04"}, led)
     assert list(led.docs) == ["D1"] and led.docs["D1"]["title"] == "공개 기사"
@@ -364,7 +364,7 @@ def test_tool_docs_reports_query_numbers_scores_and_hides_private_posts(monkeypa
 
     docs = [{"doc_id": 11, "source": "naver_news", "title": "공개 기사", "summary": "s", "published": "2026-11-01", "score": 3.5, "terms": ["수급"]},
             {"doc_id": 12, "source": "naver_blog", "title": "비공개 글 제목", "summary": "블로그 본문", "published": "2026-11-02", "score": 2.0, "terms": ["비밀"]}]
-    monkeypatch.setattr(rag, "retrieve", lambda *a, **k: docs)
+    monkeypatch.setattr(qa, "retrieve_docs", lambda *a, **k: (docs, {"mode": "keyword", "modeLabel": "키워드 검색(벡터 검색 꺼짐)", "fallback": None}))
     monkeypatch.setattr(qa, "rag_tech", lambda: {"임베딩 모델": "m (4차원)"})
     res = qa.tool_docs({}, {"co": {"name": "삼성전자"}, "as_of": "2026-11-04"}, qa.Ledger())
     f = {x["docNo"]: x for x in res["rag"]["found"]}

@@ -46,6 +46,15 @@ th{background:var(--accbg)}
 .step{border-left:4px solid var(--acc)}.step b{display:inline-block;margin-bottom:4px}.step code{font-size:12px;background:var(--bg);padding:0 4px;border-radius:4px}
 .sent{display:inline}.sent .badge{margin-right:3px}.ansbox p{margin:6px 0}.evl{color:var(--acc);cursor:pointer;text-decoration:none;border-bottom:1px dotted var(--acc)}
 tr.flash td{background:var(--warnbg)}.row{display:flex;gap:8px}.row input{flex:1;min-width:0;padding:8px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--ink);font:inherit}
+.pipe svg{width:100%;height:auto;display:block}.pipe .pipeV{display:none;max-width:420px}
+.pn{cursor:pointer}.pn rect.bx{fill:var(--card);stroke:var(--line);stroke-width:1.5}.pn circle{fill:var(--mute)}.pn text{fill:var(--ink);font-size:12px}.pn text.num{fill:#fff;font-weight:700;font-size:12px;text-anchor:middle}
+.pn text.stt{fill:var(--mute);font-size:10.5px}.pn.done rect.bx{stroke:var(--ok)}.pn.done circle{fill:var(--ok)}.pn.active rect.bx{stroke:var(--acc);stroke-width:3;fill:var(--accbg)}.pn.active circle{fill:var(--acc)}
+.pn.skip{opacity:.4}.pn .sub{opacity:1}.pn .sub.off{opacity:.35}.pn .sub rect{fill:var(--bg);stroke:var(--line)}.pn .sub text{font-size:9.5px;fill:var(--mute);text-anchor:middle}
+.pipe .arr{stroke:var(--mute);stroke-width:1.5;fill:none}.pn:focus-visible rect.bx{outline:2px solid var(--acc)}
+.pdesc{margin:10px 0 0;padding-left:0;list-style:none}.pdesc>li{margin:0 0 10px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--card)}
+.pdesc .pt{font-weight:700}.pdesc .ps{display:block;font-size:13px;color:var(--ok);margin-top:2px}.pdesc ul{margin:4px 0 0;padding-left:18px;font-size:13px;color:var(--mute)}
+.pdesc li.on b.ps2{color:var(--ok)}.pdesc li.off{opacity:.65}.pdesc li.off b.ps2{color:var(--mute)}.pnb{display:inline-block;min-width:18px;height:18px;line-height:18px;text-align:center;border-radius:9px;background:var(--acc);color:#fff;font-size:11px;font-weight:700;margin-right:4px}
+@media (max-width:640px){.pipe .pipeH{display:none}.pipe .pipeV{display:block}}
 .go{padding:8px 16px;background:var(--acc);color:#fff;border:0;border-radius:8px;cursor:pointer}.go:disabled{opacity:.5;cursor:default}
 footer{max-width:1040px;margin:0 auto;padding:0 16px 24px;color:var(--mute);font-size:12px}
 </style>
@@ -269,7 +278,81 @@ function docsTable(rows) {
 const QS = (D.questions && D.questions.items) || [];
 const TOOLK = {run_node_agent: "노드 실행", price_summary: "시세 요약(SQL)", doc_search: "문서 검색(RAG)"};
 const TAGC = {"사실": "b-ok", "계산": "b-ok", "예측": "b-warn", "해석": "b-mute", "안내": "b-mute"};
-const A = {live: false, llm: "", busy: false};
+const A = {live: false, llm: "", busy: false, pipe: null};
+// ---- 질문 → 답 파이프라인 그림 + 번호별 설명 (#61): 단계·설명은 서버(qa.pipeline)가 설정·실행 기록에서 만든 D.pipeline / result.pipeline
+const PIPE = {st: {}, stat: {}, seen: new Set()};
+const pipeData = () => A.pipe || D.pipeline || {steps: [], events: {}};
+const short = (t, n) => { t = String(t || ""); return t.length > n ? t.slice(0, n - 1) + "…" : t; };
+function pipeSvgH(P) {
+  const n = P.steps.length, w = 108, g = 8, W = n * (w + g) + 4, H = 170;
+  let s = `<svg class="pipeH" viewBox="0 0 ${W} ${H}" role="img" aria-label="질문에서 답까지 ${n}단계 파이프라인">`;
+  P.steps.forEach((st, i) => {
+    const x = 2 + i * (w + g), cls = PIPE.st[st.no] || "";
+    if (i) s += `<path class="arr" d="M${x - g} 38 H${x - 1}"/>`;
+    s += `<g class="pn ${cls}" data-no="${st.no}" tabindex="0" role="button" aria-label="${st.no}단계 ${esc(st.name)}"><title>${esc(st.no + ". " + st.name + (PIPE.stat[st.no] || st.stat ? " — " + (PIPE.stat[st.no] || st.stat) : ""))}</title>
+      <rect class="bx" x="${x}" y="8" width="${w}" height="${(st.subs || []).length ? 128 : 78}" rx="10"/><circle cx="${x + 16}" cy="24" r="11"/><text class="num" x="${x + 16}" y="28">${st.no}</text>`;
+    const nm = st.name.length > 6 ? [st.name.slice(0, Math.ceil(st.name.length / 2)), st.name.slice(Math.ceil(st.name.length / 2))] : [st.name];
+    nm.forEach((t, k) => { s += `<text x="${x + 32}" y="${nm.length > 1 ? 22 + k * 14 : 28}">${esc(t)}</text>`; });
+    const stt = PIPE.stat[st.no] || st.stat;
+    if (stt) short(String(stt).split(/ [(·] ?/)[0], 18).match(/.{1,9}/g).forEach((ln, k) => { s += `<text class="stt" x="${x + 6}" y="${58 + k * 12}">${esc(ln)}</text>`; });
+    (st.subs || []).forEach((sb, k) => { s += `<g class="sub ${sb.state}"><rect x="${x + 6}" y="${88 + k * 15}" width="${w - 12}" height="13" rx="4"/><text x="${x + w / 2}" y="${98 + k * 15}">${esc(sb.name)}${sb.state === "off" ? " (꺼짐)" : ""}</text></g>`; });
+    s += `</g>`;
+  });
+  return s + "</svg>";
+}
+function pipeSvgV(P) {
+  const n = P.steps.length, rowH = 50, W = 340;
+  let y = 4, s = "";
+  P.steps.forEach((st, i) => {
+    const subs = (st.subs || []).length, h = 40 + subs * 14, cls = PIPE.st[st.no] || "", stt = PIPE.stat[st.no] || st.stat;
+    if (i) s += `<path class="arr" d="M20 ${y - 8} V${y}"/>`;
+    s += `<g class="pn ${cls}" data-no="${st.no}" tabindex="0" role="button" aria-label="${st.no}단계 ${esc(st.name)}"><title>${esc(st.no + ". " + st.name + (stt ? " — " + stt : ""))}</title>
+      <rect class="bx" x="2" y="${y}" width="${W - 4}" height="${h}" rx="10"/><circle cx="20" cy="${y + 20}" r="11"/><text class="num" x="20" y="${y + 24}">${st.no}</text><text x="40" y="${y + 18}">${esc(st.name)}</text>`;
+    if (stt) s += `<text class="stt" x="40" y="${y + 33}">${esc(short(stt, 40))}</text>`;
+    (st.subs || []).forEach((sb, k) => { s += `<g class="sub ${sb.state}"><rect x="40" y="${y + 38 + k * 14}" width="150" height="12" rx="4"/><text x="115" y="${y + 47 + k * 14}">${esc(sb.name)}${sb.state === "off" ? " (꺼짐)" : ""}</text></g>`; });
+    s += "</g>"; y += h + 10;
+  });
+  return `<svg class="pipeV" viewBox="0 0 ${W} ${y}" role="img" aria-label="질문에서 답까지 ${n}단계 파이프라인">${s}</svg>`;
+}
+function pipeList(P) {
+  return '<ol class="pdesc">' + P.steps.map(st => {
+    const stt = PIPE.stat[st.no] || st.stat;
+    return `<li id="pd-${st.no}" data-no="${st.no}"><span class="pt">${st.no}. ${esc(st.name)}</span> — ${esc(st.what)}${stt ? `<span class="ps">이번 실행: ${esc(stt)}</span>` : ""}<ul>`
+      + st.tech.map(t => `<li class="${esc(t.state)}"><b class="ps2">${esc(t.label)}</b>: ${esc(t.value)}${t.env ? ` <code>${esc(t.env)}</code>` : ""}</li>`).join("") + "</ul></li>";
+  }).join("") + "</ol>";
+}
+function pipeHtml() {
+  const P = pipeData();
+  return `<h2>질문 → 답 파이프라인</h2><p class="note">번호를 누르면 아래 실행 추적의 해당 단계로 이동합니다. 실행 중에는 진행 중인 번호가 파란색으로, 끝난 단계는 초록색으로 표시됩니다. 꺼진 기능은 흐리게 보입니다.</p>${pipeSvgH(P)}${pipeSvgV(P)}${pipeList(P)}`;
+}
+function pipeRefresh() { const el = $("#pipe"); if (el) el.innerHTML = pipeHtml(); }
+function pipeReset() { PIPE.st = {1: "done", 2: "active"}; PIPE.stat = {}; PIPE.seen = new Set([1]); pipeRefresh(); }
+function evKey(e) { return e.kind === "도구" ? "도구:" + e.tool : e.kind; }
+function stagesOf(e) { return (pipeData().events || {})[evKey(e)] || []; }
+function pipeEvent(e) {
+  const stages = stagesOf(e);
+  stages.forEach(n => { PIPE.seen.add(n); PIPE.st[n] = "done"; });
+  if (e.kind === "해석") { PIPE.stat[2] = `${e.t}초`; PIPE.st[3] = "active"; }
+  else if (e.kind === "선택") { if (e.action === "답하기") { PIPE.st[3] = "done"; PIPE.st[6] = "active"; } else PIPE.st[3] = "active"; }
+  else if (e.kind === "도구") { PIPE.st[3] = "active"; stages.forEach(n => { PIPE.stat[n] = `${e.seconds}초`; PIPE.st[n] = "done"; }); }
+  else if (e.kind === "답·검사") { PIPE.st[3] = "done"; PIPE.stat[7] = `제거 ${(e.removed || []).length}문장`; PIPE.st[8] = "active"; }
+  pipeRefresh();
+}
+function pipeFinal(r) {
+  const P = r.pipeline || pipeData();
+  if (r.pipeline) A.pipe = {...r.pipeline, steps: r.pipeline.steps.map(s => ({...s, stat: null}))};      // 다음 질문의 처음 그림에는 이번 실행 결과를 남기지 않음
+  P.steps.forEach(st => { PIPE.stat[st.no] = st.stat || PIPE.stat[st.no]; PIPE.st[st.no] = st.no >= 8 || PIPE.seen.has(st.no) ? "done" : "skip"; });
+  PIPE.st[1] = "done"; PIPE.st[2] = PIPE.seen.has(2) ? "done" : "skip";
+  pipeRefresh();
+}
+function stageBadges(e) { return stagesOf(e).map(n => `<span class="pnb" title="파이프라인 ${n}단계">${n}</span>`).join(""); }
+function pipeGo(no) {
+  const t = document.querySelector(`#ask-trace [data-stage~="${no}"], #ask-final [data-stage~="${no}"]`) || document.getElementById("pd-" + no);
+  if (t) { t.scrollIntoView({behavior: "smooth", block: "center"}); t.classList.add("flash"); setTimeout(() => t.classList.remove("flash"), 1800); }
+}
+document.addEventListener("click", e => { const g = e.target.closest && e.target.closest(".pn"); if (g) pipeGo(g.dataset.no); });
+document.addEventListener("keydown", e => { if ((e.key === "Enter" || e.key === " ") && e.target.classList && e.target.classList.contains("pn")) { e.preventDefault(); pipeGo(e.target.dataset.no); } });
+
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const kvs = o => Object.entries(o || {}).map(([k, v]) => `${esc(k)}: ${esc(typeof v === "object" ? JSON.stringify(v) : v)}`).join(" · ");
 function nodeBlock(d) {
@@ -282,20 +365,21 @@ function nodeBlock(d) {
   return nodes + led;
 }
 function ragBlock(g, tech) {
-  return `<p class="note">검색 대상: ${esc(g.query)}<br>${kvs(tech)}</p>` + (g.found.length ? '<div class="tw"><table><tr><th>문서 번호</th><th>출처</th><th>발행일</th><th>점수</th><th>일치 단어</th><th>공개</th></tr>' + g.found.map(f =>
+  const h = g.hybrid, how = h ? `검색 방식: ${esc(h.modeLabel)}` + (h.mode === "hybrid" ? ` · 질의 임베딩 ${esc(h.embedModel)}(${h.dim}차원) → 벡터 검색 ${h.vectorHits}건 · ${h.seconds}초` : "") + (h.fallback ? ` · 대체 사유: ${esc(h.fallback)}` : "") : "";
+  return `<p class="note">검색 대상: ${esc(g.query)}${how ? "<br>" + how : ""}</p>` + (h && h.relevance && h.relevance.checked ? `<p class="note">관련도 점검: 질문 핵심어 ${esc((h.relevance.terms || []).join(", "))} — 제목·근거 청크에 있거나 유사도 ${h.relevance.strongSim} 이상인 문서만 사용, 관련도 낮음 ${h.relevance.dropped}건 제외</p>` : "") + (h && h.relevance && h.relevance.notFound ? '<p class="note"><b>질문과 관련된 문서를 찾지 못함</b> — 관련 없는 일반 기사로 채우지 않았습니다.</p>' : g.found.length ? '<div class="tw"><table><tr><th>문서 번호</th><th>출처</th><th>발행일</th><th>점수</th><th>일치 단어</th><th>공개</th></tr>' + g.found.map(f =>
     `<tr><td>${esc(f.docNo)}</td><td>${esc(f.hidden ? "개인 작성 글(블로그·카페·유튜브)" : f.source)}</td><td>${esc(f.published)}</td><td>${esc(f.score)}</td><td>${esc((f.matched || []).join(", "))}</td><td>${f.hidden ? "번호만(내용 비공개)" : "사용"}</td></tr>`).join("") + "</table></div>" : '<p class="note">찾은 문서 없음</p>');
 }
 function stepHtml(e) {
-  let h = `<div class="card step"><b>[${e.t}초] ${esc(e.kind)}</b> `;
+  let h = `<div class="card step" data-stage="${stagesOf(e).join(" ")}"><b>${stageBadges(e)}[${e.t}초] ${esc(e.kind)}</b> `;
   if (e.kind === "해석") {
     const i = e.result, c = i.company;
     h += `<div>종목 <b>${esc(c.name || c.mention || "-")}</b> (${esc(c.status)}${c.method ? " · " + esc(c.method) : ""}) · 기준일 ${esc(i.period.as_of)}${i.period.days ? " · 최근 " + i.period.days + "일" : ""} · 영역 ${esc(i.domains.join(", ") || "-")} · 의도 ${esc(i.intent)} · 거절 ${i.refuse ? "예" : "아니오"} · 가정 ${esc(i.scenario || "없음")}</div>`
-      + (i.notes.length ? `<div class="note">코드 보정: ${esc(i.notes.join(" / "))}</div>` : "") + `<div class="note">${kvs(e.tech)}</div>`;
+      + (i.notes.length ? `<div class="note">코드 보정: ${esc(i.notes.join(" / "))}</div>` : "");
   } else if (e.kind === "선택") h += `${esc(e.action)} — ${esc(e.reason)} <span class="note">(${esc(e.origin)})</span>`;
   else if (e.kind === "도구") {
     const r = e.result || {};
     h += `<div><b>${esc(TOOLK[e.tool] || e.tool)}</b> <code>${esc(JSON.stringify(e.args))}</code> <span class="note">· ${esc(e.origin)} · ${e.seconds}초</span></div><div class="note">이유: ${esc(e.reason)}</div><div>${esc(r.summary)}</div>`
-      + (r.detail ? nodeBlock(r.detail) : "") + (r.rag ? ragBlock(r.rag, r.tech) : (r.tech ? `<div class="note">기술: ${typeof r.tech === "object" ? kvs(r.tech) : esc(r.tech)}</div>` : ""));
+      + (r.detail ? nodeBlock(r.detail) : "") + (r.rag ? ragBlock(r.rag, r.tech) : (r.tech && typeof r.tech === "string" ? `<div class="note">기술: ${esc(r.tech)}</div>` : ""));
   } else if (e.kind === "시간 초과") h += `<span class="badge b-bad">${esc(e.message)}</span>`;
   else if (e.kind === "답·검사") {
     h += `<div>${esc(e.mode)} · 통과 <b>${e.kept}</b>문장 · 제거 <b>${e.removed.length}</b>문장</div>`
@@ -312,7 +396,7 @@ function answerHtml(r) {
   });
   const paras = [];
   for (let i = 0; i < sents.length; i += 3) paras.push("<p>" + sents.slice(i, i + 3).join(" ") + "</p>");
-  return `<div class="card ansbox"><h2>자연어 답 <span class="badge ${/^완료/.test(r.status) ? "b-ok" : "b-warn"}">${esc(r.status)}</span></h2>${r.message ? `<p>${esc(r.message)}</p>` : ""}${paras.join("")}
+  return `<div class="card ansbox" data-stage="9"><h2>자연어 답 <span class="badge ${/^완료/.test(r.status) ? "b-ok" : "b-warn"}">${esc(r.status)}</span></h2>${r.message ? `<p>${esc(r.message)}</p>` : ""}${paras.join("")}
     <p class="note">문장 앞 표시는 사실·계산·예측·해석 구분, [ ] 안은 근거 키(누르면 아래 근거 표의 해당 줄로 이동). 종합 결론은 오케스트레이터(SW) 담당입니다.</p></div>`;
 }
 function evidenceHtml(r) {
@@ -327,13 +411,15 @@ function genHtml(r) {
   const u = r.usage || {}, t = r.tech || {};
   return `<div class="card step"><b>생성·검사 요약</b><div class="kv"><div><small>LLM</small><b style="font-size:14px">${esc(t.LLM || "-")}</b></div><div><small>LLM 호출</small><b>${u.llm_calls}회</b></div>
     <div><small>토큰 입력/출력</small><b>${fmt(u.input_tokens)}/${fmt(u.output_tokens)}</b></div><div><small>총 시간</small><b>${u.total_seconds}초</b></div></div>
-    <div class="note">${kvs({"도구 호출 방식": t["도구 호출 방식"], "도구 호출 상한": t["도구 호출 상한"], "시간 목표(초)": t["시간 목표(초)"]})}<br>검사: ${esc(t["검사"])}</div></div>`;
+    <div class="note">쓰인 기술은 위 파이프라인의 번호별 설명을 보세요.</div></div>`;
 }
 function showFinal(r) {
-  const ol = r.outlook && r.outlook.cards.length ? `<div class="card"><h2>20거래일 전망 (에이전트별, 규칙 기반)</h2><p class="note">${esc(r.outlook.note)}</p><div class="ol">${r.outlook.cards.map(c => outlookCard(String(c.agent), c)).join("")}</div></div>` : "";
+  pipeFinal(r);
+  const ol = r.outlook && r.outlook.cards.length ? `<div class="card" data-stage="8"><h2>20거래일 전망 (에이전트별, 규칙 기반)</h2><p class="note">${esc(r.outlook.note)}</p><div class="ol">${r.outlook.cards.map(c => outlookCard(String(c.agent), c)).join("")}</div></div>` : "";
   $("#ask-final").innerHTML = briefsHtml(r) + genHtml(r) + ol + answerHtml(r) + evidenceHtml(r);
 }
 function askReset(q) {
+  pipeReset();
   $("#ask-trace").innerHTML = "<h2>에이전트 작동 (단계별)</h2>";
   $("#ask-final").innerHTML = "";
   $("#ask-q").textContent = q;
@@ -355,7 +441,7 @@ async function askLive(q) {
         if (!line.trim()) continue;
         const o = JSON.parse(line), w = $("#ask-wait");
         if (w) w.remove();
-        if (o.event) $("#ask-trace").insertAdjacentHTML("beforeend", stepHtml(o.event));
+        if (o.event) { $("#ask-trace").insertAdjacentHTML("beforeend", stepHtml(o.event)); pipeEvent(o.event); }
         else if (o.result) showFinal(o.result);
         else if (o.error) $("#ask-final").innerHTML = `<div class="card"><span class="badge b-bad">오류</span> ${esc(o.error)}</div>`;
       }
@@ -365,7 +451,7 @@ async function askLive(q) {
 }
 async function askReplay(it) {
   A.busy = true; setBusy(); askReset(it.question);
-  for (const e of it.result.trace) { $("#ask-trace").insertAdjacentHTML("beforeend", stepHtml(e)); await sleep(350); }
+  for (const e of it.result.trace) { $("#ask-trace").insertAdjacentHTML("beforeend", stepHtml(e)); pipeEvent(e); await sleep(350); }
   showFinal(it.result); A.busy = false; setBusy();
 }
 function setBusy() {
@@ -373,12 +459,12 @@ function setBusy() {
   const i = $("#ask-in"); if (i) i.disabled = A.busy || !A.live;
 }
 function renderAsk() {
-  $("#s-ask").innerHTML = `<div class="card"><p>${A.live ? `<span class="badge b-ok">실시간 모드 켜짐</span> 질문이 실제 DB·LLM(${esc(A.llm)})으로 실행됩니다. 읽기 전용이며 이 PC 에서만 접속됩니다.`
+  $("#s-ask").innerHTML = `<div class="card pipe" id="pipe">${pipeHtml()}</div><div class="card"><p>${A.live ? `<span class="badge b-ok">실시간 모드 켜짐</span> 질문이 실제 DB·LLM(${esc(A.llm)})으로 실행됩니다. 읽기 전용이며 이 PC 에서만 접속됩니다.`
       : `<span class="badge b-warn">실시간 모드 꺼짐</span> 서버 없이 열린 화면입니다. 저장된 실행 기록(${esc((D.questions || {}).ranAt || "-")}, ${QS.length}개)을 같은 흐름으로 재생합니다. 직접 질문하려면 <code>python -m qa.server</code> 를 실행하고 http://127.0.0.1:8765 로 여세요.`}</p>
     <div class="row"><input id="ask-in" type="text" maxlength="400" placeholder="${A.live ? "예: 삼성전자 최근 외국인 수급은 어때?" : "실시간 모드 꺼짐 — 아래 예시를 눌러 저장된 기록 재생"}"><button class="go" id="ask-go">묻기</button></div>
     <div class="ctl" style="margin-top:8px"><div><label class="t">예시 질문 (유형별${A.live ? " · 누르면 실제 실행" : " · 저장된 기록 재생"})</label><div class="grp">${QS.map((it, i) => `<button class="chip" data-i="${i}" title="${esc(it.question)}">${esc(it.type)} · ${esc(it.question)}</button>`).join("")}</div></div></div>
     ${A.live && QS.length ? '<label class="note"><input type="checkbox" id="ask-replay"> 예시를 저장된 기록으로 재생(실시간이 느리거나 불안정할 때)</label>' : ""}</div>
-    <div class="card"><b>질문</b> <span id="ask-q" class="note">(아직 없음)</span></div><div id="ask-trace"></div><div id="ask-final"></div>`;
+    <div class="card" data-stage="1"><span class="pnb">1</span><b>질문</b> <span id="ask-q" class="note">(아직 없음)</span></div><div id="ask-trace"></div><div id="ask-final"></div>`;
   setBusy();
 }
 $("#s-ask").addEventListener("click", e => {
@@ -399,7 +485,7 @@ $("#s-ask").addEventListener("click", e => {
 });
 $("#s-ask").addEventListener("keydown", e => { if (e.key === "Enter" && e.target.id === "ask-in") { const q = e.target.value.trim(); if (q && !A.busy) askLive(q); } });
 renderAsk();
-fetch("/api/status").then(r => r.ok ? r.json() : Promise.reject()).then(j => { if (j.live) { A.live = true; A.llm = j.llm || ""; renderAsk(); } }).catch(() => {});
+fetch("/api/status").then(r => r.ok ? r.json() : Promise.reject()).then(j => { if (j.live) { A.live = true; A.llm = j.llm || ""; if (j.pipeline) A.pipe = j.pipeline; renderAsk(); } }).catch(() => {});
 
 // ---- 2 성능 (측정 방법·날짜·다시 재는 명령을 수치 옆에)
 function perfCards() {
@@ -455,9 +541,25 @@ function outlookValid() {
   <ul>${o.limits.map(x => `<li>${esc(x)}</li>`).join("")}</ul>
   <p class="note">계산 방식·도출 과정: ${esc(o.doc)} · 다시 계산: <code>${esc(o.command || "")}</code></p></div>`;
 }
+function ragReportHtml() {
+  const R = D.ragReport;
+  if (!R) return "";
+  const s = R.summary, cov = R.coverage.map(c => `<tr><td>${esc(c.source)}</td><td>${esc(c.db)}</td><td>${fmt(c.docs)}</td><td>${fmt(c.embedded)}</td><td>${c.docs ? Math.round(c.embedded / c.docs * 1000) / 10 : 0}%</td><td>${esc(String(c.first).slice(0, 10))} ~ ${esc(String(c.last).slice(0, 10))}</td></tr>`).join("");
+  const rows = R.items.map(i => {
+    const t = x => !x.top5.length ? '<li class="note">질문과 관련된 문서를 찾지 못함</li>' : x.top5.map(d => `<li>${esc(d.title || "(개인 작성 글 — 번호 " + d.docNo + " · 점수만)")} <span class="note">${esc(d.origin)}${d.sim != null ? " · 유사도 " + d.sim : ""}</span></li>`).join("");
+    return `<tr><td>${esc(i.question)}</td><td>${i.keyword.seconds}초<ol>${t(i.keyword)}</ol></td><td>${i.embedding.seconds}초 · 청크 ${i.embedding.chunks}개 · 벡터 후보 ${i.embedding.vectorHits}건<ol>${t(i.embedding)}</ol></td></tr>`;
+  }).join("");
+  return `<div class="card"><h2>문서 검색 방식 (임베딩 중심 RAG)</h2>
+    <p>질문·종목·영역으로 만든 질의 문장을 <b>${esc(R.model)}</b>(${R.dim}차원)로 임베딩 → ${esc(R.index)} 벡터 검색으로 기준일(${esc(R.asOf)}) 이하 청크를 <b>독립적으로</b> 가져옴 → 키워드 후보와 합침(벡터 유사도 상위 ${Math.round(R.vectorShare * 100)}% 자리를 먼저 보장, 나머지는 키워드·벡터 합산 점수 순) → 근거 청크(문서 번호·청크 번호·유사도) 반환. 임베딩 실패 시 키워드 검색으로 대체하고 화면에 표시합니다.</p>
+    <div class="kv"><div><small>비교 질문</small><b>${s.questions}개</b></div><div><small>검색 시간(키워드만)</small><b>${s.keywordSeconds}초</b></div><div><small>검색 시간(임베딩 중심)</small><b>${s.embeddingSeconds}초</b></div><div><small>근거 청크(질문당)</small><b>${s.embeddingChunks}개</b></div><div><small>키워드와 달라진 문서(질문당)</small><b>${s.changedDocs}건</b></div><div><small>대체(실패) 횟수</small><b>${s.fallbacks}회</b></div>${s.checked != null ? `<div><small>관련도 점검한 질문</small><b>${s.checked}개</b></div><div><small>‘찾지 못함’ 질문</small><b>${s.notFound}개</b></div><div><small>점검 중 제외(질문당)</small><b>${s.droppedAvg}건</b></div>` : ""}</div>
+    ${R.strongSim != null ? `<p class="note">관련도 기준(#70): 질문에서 종목명·일반어를 뺀 핵심어가 문서 제목·근거 청크·요약에 있거나, 벡터 유사도가 <b>${R.strongSim}</b> 이상이면 관련 문서로 봅니다. 그 외는 목록에서 빼고, 하나도 없으면 ‘질문과 관련된 문서를 찾지 못함’으로 표시합니다. 핵심어가 없는 일반 질문(예: 최근 이슈)은 점검하지 않습니다. 유사도 하나만으로는 가를 수 없어(관련 기사가 있는 질문이 오히려 더 낮은 경우가 있음) 핵심어 일치를 함께 씁니다.</p>` : ""}
+    <h3>임베딩 보유율 (문서 대비 임베딩된 청크가 있는 문서)</h3><div class="tw"><table><tr><th>출처</th><th>DB</th><th>문서</th><th>임베딩 보유</th><th>보유율</th><th>기간</th></tr>${cov}</table></div>
+    <p class="note">메인 DB ${esc(R.dbSize)} / 한도 ${esc(R.dbLimit)}. 개인 작성 글(블로그·카페·유튜브 댓글)은 임베딩이 없어 키워드 검색만 씁니다(용량 문제, 티켓 #68).</p>
+    <h3>질문별 상위 5건 비교 (제목으로 관련성을 직접 판단하세요)</h3><div class="tw"><table><tr><th>질문 (${esc(R.ranAt)}, 기준일 ${esc(R.asOf)})</th><th>키워드만</th><th>임베딩 중심</th></tr>${rows}</table></div></div>`;
+}
 (function () {
   const v = D.validation;
-  $("#s-valid").innerHTML = perfCards() + `<div class="card"><h2>제거 문장 추이 (과거 측정 기록, 각 티켓 Comments 의 값)</h2><p class="note">${esc(v.note)}</p><div class="tw"><table><tr><th>단계</th><th>제거 문장 합계</th><th>범위</th><th>설명</th></tr>${v.rows.map(r =>
+  $("#s-valid").innerHTML = perfCards() + ragReportHtml() + `<div class="card"><h2>제거 문장 추이 (과거 측정 기록, 각 티켓 Comments 의 값)</h2><p class="note">${esc(v.note)}</p><div class="tw"><table><tr><th>단계</th><th>제거 문장 합계</th><th>범위</th><th>설명</th></tr>${v.rows.map(r =>
     `<tr><td>${esc(r.stage)}</td><td>${esc(r.removed_total)}</td><td>${esc(r.range)}</td><td>${esc(r.note)}</td></tr>`).join("")}</table></div></div>
   ${outlookValid()}
   ${sentEval()}

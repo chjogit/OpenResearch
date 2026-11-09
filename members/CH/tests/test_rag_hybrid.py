@@ -32,7 +32,19 @@ def test_hybrid_adds_vector_doc_with_chunk_id():
     assert by_id[50]["chunk_id"] == 902 and by_id[1]["chunk_id"] == 901   # 벡터로 찾은 문서·키워드와 겹친 문서
     assert news[0]["doc_id"] in (50, 1)                                   # 유사도가 높은 문서가 앞
     assert st == {"mode": "hybrid", "fallback": None}
-    assert docs[0]["kind"] == "공시"                                        # 공시는 그대로 앞에
+    assert docs[-1]["kind"] == "공시"                                       # 공시는 질문 기반 문서 뒤에(#67 QA)
+
+
+def test_disclosures_follow_question_docs_and_are_capped_unless_question_asks():
+    raw = _hybrid_raw()
+    n_disc = len([d for d in rag.select_disclosures(raw.get("disclosures"), rag.PRESETS[3])])
+    assert n_disc >= 2
+    raw["hybrid"]["query"] = "삼성전자 환율 영향은? | 삼성전자 뉴스 키워드"
+    docs, _ = rag_hybrid.select_hybrid(3, raw, CO, AS_OF)
+    assert [d["kind"] for d in docs].count("공시") == 1 and docs[-1]["kind"] == "공시"
+    raw["hybrid"]["query"] = "삼성전자 풍문 해명 공시 있어? | 삼성전자 뉴스 키워드"
+    docs, _ = rag_hybrid.select_hybrid(3, raw, CO, AS_OF)
+    assert [d["kind"] for d in docs].count("공시") == n_disc
 
 
 def test_no_chunks_or_error_falls_back_to_keyword_result_and_says_so():
@@ -57,19 +69,19 @@ def test_fetch_hybrid_failures_are_recorded_not_raised():
         calls["p"] = p
         return HITS
     out = rag_hybrid.fetch_hybrid(3, CO, AS_OF, _raw(), embed=lambda t: [0.1] * 1024, run_sql=run_sql)
-    assert out == {"hits": HITS}
+    assert out["hits"] == HITS + HITS and "삼성전자" in out["query"]      # 공개 출처 묶음·개인 작성 글 묶음 두 번 검색(같은 모의 행)
     assert calls["p"]["cid"] == CO["company_id"] and calls["p"]["qv"].startswith("[0.100000")  # 종목 필터 + 질의 벡터
     assert "INSERT" not in rag_hybrid.VECTOR_SQL.upper() and "UPDATE" not in rag_hybrid.VECTOR_SQL.upper()  # 읽기 전용
 
 
-def test_fetch_bundle_hybrid_is_off_by_default(monkeypatch):
+def test_fetch_bundle_hybrid_is_on_by_default_and_can_be_turned_off(monkeypatch):
     monkeypatch.setattr(agents.db, "bundle", lambda sql, p: {})
     monkeypatch.setattr(agents.rag, "fetch", lambda a, co, as_of: {"news": [], "disclosures": []})
-    monkeypatch.delenv("CH_RAG_HYBRID", raising=False)
-    assert "hybrid" not in agents.fetch_bundle(3, CO, AS_OF)["rag"]
-    monkeypatch.setenv("CH_RAG_HYBRID", "on")
     monkeypatch.setattr(agents.rag_hybrid, "fetch_hybrid", lambda *a, **k: {"error": "x"})
-    assert agents.fetch_bundle(3, CO, AS_OF)["rag"]["hybrid"] == {"error": "x"}
+    monkeypatch.delenv("CH_RAG_HYBRID", raising=False)
+    assert agents.fetch_bundle(3, CO, AS_OF)["rag"]["hybrid"] == {"error": "x"}          # 기본 켬(#67)
+    monkeypatch.setenv("CH_RAG_HYBRID", "off")
+    assert "hybrid" not in agents.fetch_bundle(3, CO, AS_OF)["rag"]
 
 
 def test_no_hybrid_key_keeps_existing_behaviour():
@@ -144,3 +156,99 @@ def test_embed_query_with_mock_session(monkeypatch):
         raise AssertionError("차원 오류가 나야 함")
     except RuntimeError as e:
         assert "차원" in str(e)
+
+
+def test_question_goes_into_the_query_sentence():
+    a, b = rag_hybrid.query_text(3, CO), rag_hybrid.query_text(3, CO, "외국인 수급 어때?")
+    assert b.startswith("외국인 수급 어때? | ") and b.endswith(a) and "|" not in a
+
+
+W = ["반도체 공급", "환율 변동", "배당 확대", "공장 증설", "노조 협상", "신제품 출시", "미국 관세", "스마트폰 판매", "파운드리 수주", "메모리 가격", "자사주 소각", "로봇 투자"]
+
+
+def test_vector_top_docs_are_guaranteed_ahead_of_keyword_scores_and_carry_evidence():
+    many = [_hit(900 + i, 100 + i, W[i], 0.40 + i * 0.01) for i in range(12)]
+    docs, st = rag_hybrid.select_hybrid(3, {**_raw(), "hybrid": {"hits": many}}, CO, AS_OF)
+    news = [d for d in docs if d["kind"] != "공시"]
+    need = -(-int(rag.PRESETS[3].k_docs * rag_hybrid.VECTOR_SHARE * 100) // 100)
+    top_vec = sorted(many, key=lambda h: -h["sim"])[:need]
+    assert [d["doc_id"] for d in news[:need]] == [h["doc_id"] for h in top_vec]       # 유사도 순으로 먼저
+    assert all(d["origin"] in ("벡터", "둘 다") and d["chunks"] and d["chunks"][0]["chunkId"] == d["chunk_id"] for d in news[:need])
+    assert st["mode"] == "hybrid"
+
+
+def test_origin_marks_keyword_only_and_both():
+    docs, _ = rag_hybrid.select_hybrid(3, _hybrid_raw(), CO, AS_OF)
+    origins = {d["doc_id"]: d["origin"] for d in docs if d["kind"] != "공시"}
+    assert origins[50] == "벡터" and origins[1] == "둘 다" and "키워드" in origins.values()
+
+
+def test_future_and_other_company_chunks_never_reach_the_sql_params():
+    seen = {}
+
+    def run_sql(sql, p):
+        seen.update(p)
+        return HITS
+    rag_hybrid.fetch_hybrid(3, CO, AS_OF, _raw(), embed=lambda t: [0.1] * 1024, run_sql=run_sql, question="수급?")
+    assert seen["as_of"] == AS_OF and seen["cid"] == CO["company_id"] if "company_id" in CO else seen["as_of"] == AS_OF
+    assert "d.company_id = %(cid)s" in rag_hybrid.VECTOR_SQL and "d.published_at <= %(as_of)s::date" in rag_hybrid.VECTOR_SQL
+
+
+# ---------------------------------------------------------------- 질문 관련도 점검 (#70)
+
+def test_topic_terms_drop_company_names_and_generic_words():
+    names = {"현대차", "삼성전자"}
+    assert rag_hybrid.topic_terms("현대차 노조 파업 소식 있어?", names) == ["노조", "파업"]
+    assert rag_hybrid.topic_terms("현대차는 금리 변화에 얼마나 민감해?", names) == ["금리"]
+    assert rag_hybrid.topic_terms("삼성전자 최근 이슈가 뭐야?", names) == []          # 일반 질문
+    assert rag_hybrid.topic_terms("삼성전자 지금 팔아야 할까?", names) == []
+
+
+def _d(title, sim=0.0, excerpt=""):
+    return {"title": title, "summary": "", "sim": sim, "chunks": [{"excerpt": excerpt}] if excerpt else []}
+
+
+def test_relevance_filter_keeps_term_match_or_strong_similarity_and_drops_the_rest():
+    docs = [_d("현대차 노조 파업에 매출 감소", 0.61), _d("현대차 신차 출시", 0.65), _d("현대차 배당 확대", 0.69), _d("현대차 노조 협상", 0.0, "")]
+    kept, info = rag_hybrid.relevance_filter(docs, "현대차 노조 파업 소식 있어?", {"현대차"})
+    assert [d["title"] for d in kept] == ["현대차 노조 파업에 매출 감소", "현대차 배당 확대", "현대차 노조 협상"]   # 파업 일치·유사도 0.69·노조 일치
+    assert info["dropped"] == 1 and info["notFound"] is False and info["terms"] == ["노조", "파업"]
+
+
+def test_relevance_filter_says_not_found_instead_of_filling_with_general_news():
+    docs = [_d("삼성전자 외국인 순매수", 0.64), _d("삼성전자 환율 노출", 0.62)]
+    kept, info = rag_hybrid.relevance_filter(docs, "삼성전자 우주 탐사 계획은?", {"삼성전자"})
+    assert kept == [] and info["notFound"] is True and info["dropped"] == 2
+    same, info2 = rag_hybrid.relevance_filter(docs, "삼성전자 최근 이슈가 뭐야?", {"삼성전자"})    # 핵심어 없는 일반 질문은 점검 안 함
+    assert same == docs and info2["checked"] is False and info2["notFound"] is False
+
+
+def test_chunk_text_counts_as_match():
+    kept, _ = rag_hybrid.relevance_filter([_d("실적 발표", 0.5, "노조 파업으로 생산 차질")], "현대차 노조 파업", {"현대차"})
+    assert len(kept) == 1
+
+
+def test_select_hybrid_applies_keep_before_cutting_to_k():
+    raw = _hybrid_raw()
+    raw["hybrid"]["query"] = "q | base"
+    seen = {}
+
+    def keep(ds):
+        seen["n"] = len(ds)
+        return [d for d in ds if d.get("kind") != "공시"][:1]
+    docs, st = rag_hybrid.select_hybrid(3, raw, CO, AS_OF, keep=keep)
+    assert len(docs) == 1 and st["mode"] == "hybrid" and seen["n"] >= 2
+
+
+def test_fetch_hybrid_searches_public_and_private_sources_separately():
+    calls = []
+
+    def run_sql(sql, p):
+        calls.append((tuple(p["sources"]), p["n"]))
+        return [{"chunk_id": len(calls), "doc_id": len(calls), "content": "x", "published_at": f"{AS_OF}T00:00:00", "published": AS_OF,
+                 "source": p["sources"][0], "title": "t", "summary": "", "url": "u", "sim": 0.5}]
+    out = rag_hybrid.fetch_hybrid(3, CO, AS_OF, {}, embed=lambda q: [0.1, 0.2], run_sql=run_sql)
+    assert len(calls) == 2 and not set(calls[0][0]) & set(rag_hybrid.PRIVATE_SOURCES)
+    assert set(calls[1][0]) <= set(rag_hybrid.PRIVATE_SOURCES) and calls[1][1] == rag_hybrid.PRIVATE_CANDIDATES
+    assert len(out["hits"]) == 2
+

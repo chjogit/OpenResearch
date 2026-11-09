@@ -13,6 +13,7 @@
 from __future__ import annotations
 
 import os
+import re
 from dataclasses import replace
 from difflib import SequenceMatcher
 
@@ -51,16 +52,21 @@ WHERE d.company_id = %(cid)s AND d.source = ANY(%(sources)s::text[]) AND c.doc_i
 ORDER BY c.doc_id, c.chunk_idx
 """
 PER_DOC = 2                  # 문서당 최대 청크 수
+VECTOR_SHARE = 0.5           # 최종 문서 자리 중 벡터 유사도 순으로 먼저 보장하는 몫(#67). 나머지는 키워드·벡터 합산 점수 순
+EVIDENCE_PER_DOC = 2         # 문서마다 근거 청크(번호·유사도·발췌) 최대 개수
 
 
 def enabled() -> bool:
-    return os.getenv("CH_RAG_HYBRID", "off").lower() == "on"
+    return os.getenv("CH_RAG_HYBRID", "on").lower() == "on"      # #67: 기본 켬(에이전트 3·4·6 24회 켬/끔 측정 — 제거 39→26문장, 근거 없는 주장 0→0). 끄려면 CH_RAG_HYBRID=off
 
 
-def query_text(agent_id: int, co: dict) -> str:
+def query_text(agent_id: int, co: dict, question: str | None = None) -> str:
+    """질의 문장 = (질문) + 종목명 + 관점 이름 + 관점 키워드 상위 5개. 질문이 있으면 앞에 붙여 질문마다 다른 청크를 찾게 한다(#67)."""
     p = rag.PRESETS[agent_id]
     top = sorted(p.terms, key=lambda t: -p.terms[t])[:5]
-    return f"{co.get('name') or co.get('ticker')} {p.name} {' '.join(top)}"
+    base = f"{co.get('name') or co.get('ticker')} {p.name} {' '.join(top)}"
+    q = " ".join(str(question or "").split())[:300]
+    return f"{q} | {base}" if q else base
 
 
 def embed_query(text: str, session=None) -> list[float]:
@@ -89,19 +95,30 @@ def _doc_from_vector(r: dict) -> dict:
 
 
 def merge_candidates(agent_id: int, raw: dict, co: dict, as_of: str, hits: list[dict], n: int = N_CANDIDATES) -> list[dict]:
-    """키워드 점수(0~1 로 정규화)와 벡터 유사도를 가중 합산해 상위 n개 문서. 벡터로 찾은 문서에 chunk_id 를 붙임."""
+    """키워드 점수(0~1 로 정규화)와 벡터 유사도를 합쳐 상위 n개 문서 (#67 합치는 규칙):
+    ① 벡터 검색이 독립적으로 찾은 문서 중 유사도 상위 ceil(k_docs × VECTOR_SHARE)개를 **유사도 순으로 먼저** 둔다(키워드 점수에 밀려 빠지지 않게).
+    ② 나머지 자리는 0.5×키워드(0~1) + 0.5×유사도 합산 점수 순. ③ 같은 제목·출처별 개수 제한은 그대로.
+    각 문서에 origin(벡터·키워드·둘 다), sim, 근거 청크(chunks: 번호·유사도·발췌)를 붙인다."""
     p = rag.PRESETS[agent_id]
     kw = rag.select_docs(raw.get("news"), replace(p, k_docs=n * 3), co, as_of)
     top = max((d["score"] for d in kw), default=0.0) or 1.0
-    pool = {d["doc_id"]: {**d, "kw": d["score"] / top, "sim": 0.0} for d in kw}
-    for h in hits:
+    pool = {d["doc_id"]: {**d, "kw": d["score"] / top, "sim": 0.0, "chunks": []} for d in kw}
+    for h in sorted(hits, key=lambda x: -float(x["sim"])):
         if h["source"] not in p.sources:
             continue
-        cur = pool.setdefault(h["doc_id"], {**_doc_from_vector(h), "kw": 0.0, "sim": 0.0})
+        cur = pool.setdefault(h["doc_id"], {**_doc_from_vector(h), "kw": 0.0, "sim": 0.0, "chunks": []})
         if "chunk_id" not in cur or float(h["sim"]) > cur["sim"]:
             cur["sim"], cur["chunk_id"] = float(h["sim"]), h["chunk_id"]
+        if len(cur["chunks"]) < EVIDENCE_PER_DOC:
+            cur["chunks"].append({"chunkId": h["chunk_id"], "chunkIdx": h.get("chunk_idx"), "sim": round(float(h["sim"]), 3),
+                                  "excerpt": rag._clean(h.get("content"), 200) if h.get("content") else ""})
+    for d in pool.values():
+        d["origin"] = "둘 다" if d["kw"] and d["sim"] else "벡터" if d["sim"] else "키워드"
     ranked = sorted(pool.values(), key=lambda d: (W_KEYWORD * d["kw"] + W_VECTOR * max(d["sim"], 0.0),
                                                   d["published"], str(d["doc_id"])), reverse=True)
+    reserve = -(-int(p.k_docs * VECTOR_SHARE * 100) // 100)      # ceil(k_docs × 몫)
+    first = sorted((d for d in pool.values() if d["sim"] > 0), key=lambda d: (-d["sim"], str(d["doc_id"])))[:reserve]
+    ranked = first + [d for d in ranked if d not in first]
     out, norms, per_src = [], [], {}
     for d in ranked:
         nt = rag._norm_title(d["title"])
@@ -113,7 +130,8 @@ def merge_candidates(agent_id: int, raw: dict, co: dict, as_of: str, hits: list[
             continue
         norms.append(nt)
         per_src[src] = per_src.get(src, 0) + 1
-        d["score"] = round(W_KEYWORD * d.pop("kw") + W_VECTOR * max(d.pop("sim"), 0.0), 3)
+        d["score"] = round(W_KEYWORD * d.pop("kw") + W_VECTOR * max(d["sim"], 0.0), 3)
+        d["sim"] = round(d["sim"], 3)
         out.append(d)
         if len(out) >= n:
             break
@@ -122,20 +140,27 @@ def merge_candidates(agent_id: int, raw: dict, co: dict, as_of: str, hits: list[
 
 # ---------------------------------------------------------------- 호출 (네트워크·DB 읽기)
 
-def fetch_hybrid(agent_id: int, co: dict, as_of: str, raw: dict, embed=None, run_sql=None) -> dict:
-    """질의 임베딩 → 벡터 검색. 결과는 bundle['rag']['hybrid'] 에 저장할 dict. 실패는 error 로 기록."""
+def fetch_hybrid(agent_id: int, co: dict, as_of: str, raw: dict, embed=None, run_sql=None, question: str | None = None) -> dict:
+    """질의 임베딩 → 벡터 검색. 결과는 bundle['rag']['hybrid'] 에 저장할 dict. 실패는 error 로 기록. question 이 있으면 질의 문장에 포함(#67)."""
     from .asof import cut_future, require_as_of
 
     as_of = require_as_of(as_of)
     out: dict = {}
     try:
-        qv = (embed or embed_query)(query_text(agent_id, co))
+        out["query"] = query_text(agent_id, co, question)
+        qv = (embed or embed_query)(out["query"])
         if run_sql is None:
             from . import db
             run_sql = db.q
         vec = "[" + ",".join(f"{x:.6f}" for x in qv) + "]"
-        out["hits"], _ = cut_future(run_sql(VECTOR_SQL, {**rag.params(agent_id, co, as_of), "qv": vec,
-                                                         "n": N_CANDIDATES * 2}), as_of)   # E3
+        base = {**rag.params(agent_id, co, as_of), "qv": vec}
+        public = [s for s in base["sources"] if s not in PRIVATE_SOURCES]
+        private = [s for s in base["sources"] if s in PRIVATE_SOURCES]
+        # 개인 작성 글(유튜브 댓글 임베딩, #69)이 후보 40건을 채워 뉴스·공시가 밀리지 않게 출처 묶음별로 따로 검색(#70)
+        rows = run_sql(VECTOR_SQL, {**base, "sources": public, "n": N_CANDIDATES * 2}) if public else []
+        if private:
+            rows = list(rows) + list(run_sql(VECTOR_SQL, {**base, "sources": private, "n": PRIVATE_CANDIDATES}))
+        out["hits"], _ = cut_future(rows, as_of)   # E3
     except Exception as e:  # noqa: BLE001
         return {"error": f"{type(e).__name__}: {e}"}
     if not out["hits"]:
@@ -143,16 +168,75 @@ def fetch_hybrid(agent_id: int, co: dict, as_of: str, raw: dict, embed=None, run
     return out
 
 
-def select_hybrid(agent_id: int, raw: dict, co: dict, as_of: str) -> tuple[list[dict], dict]:
-    """(문서 목록, status). hybrid 결과가 없거나 실패면 rag.select 와 같은 결과 + status['fallback'] 에 이유."""
+def select_hybrid(agent_id: int, raw: dict, co: dict, as_of: str, keep=None) -> tuple[list[dict], dict]:
+    """(문서 목록, status). hybrid 결과가 없거나 실패면 rag.select 와 같은 결과 + status['fallback'] 에 이유.
+    keep(문서 목록) → 남길 문서(관련도 점검, #70)는 후보를 k 개로 자르기 **전에** 적용한다(자른 뒤에 걸면 관련 기사가 밀려난 채 비게 됨)."""
     raw = raw or {}
     h = raw.get("hybrid")
     if not h or h.get("error"):
         why = (h or {}).get("error") or "하이브리드 결과 없음"
         return rag.select(agent_id, raw, co, as_of), {"mode": "keyword", "fallback": why}
     p = rag.PRESETS[agent_id]
-    cands = merge_candidates(agent_id, raw, co, as_of, h["hits"])
-    return rag.select_disclosures(raw.get("disclosures"), p) + cands[: p.k_docs], {"mode": "hybrid", "fallback": None}
+    cands = merge_candidates(agent_id, raw, co, as_of, h["hits"], n=N_CANDIDATES * 3 if keep else N_CANDIDATES)   # 거를 땐 풀을 넓게
+    discs = _disclosures_for(p, raw, h.get("query"))
+    if keep:
+        pool = keep(cands + discs)
+        cands, discs = [d for d in pool if d.get("kind") != "공시"], [d for d in pool if d.get("kind") == "공시"]
+    return cands[: p.k_docs] + discs, {"mode": "hybrid", "fallback": None}
+
+
+# ---------------------------------------------------------------- 질문 관련도 점검 (#70)
+# 유사도 하나로는 가를 수 없음: 질의에 종목명이 섞여 '관련 기사 있는 현대차 노조 파업'(0.611)이 '관련 기사 없는 삼성전자 노조 파업'(0.643)보다 낮다.
+# 그래서 ① 질문 핵심어(종목명·일반어 제외)가 제목·근거 청크·요약에 있거나 ② 유사도가 STRONG_SIM 이상이면 관련 문서로 본다. 핵심어가 없는 질문은 점검하지 않는다.
+STRONG_SIM = 0.68
+PRIVATE_SOURCES = ("naver_blog", "naver_cafe", "youtube_comment")
+PRIVATE_CANDIDATES = 10      # 개인 작성 글 벡터 후보 수(검색 후보 전용, 원문 비공개)
+GENERIC_ROOTS = ("최근", "소식", "뉴스", "기사", "있", "이슈", "분위기", "관련", "얼마", "민감", "어때", "어떤", "알려", "영향", "흐름", "지금", "사도", "될까", "팔아",
+                 "전망", "계획", "가능", "예정", "방향", "할까", "해야", "주가", "투자", "매수", "매도", "현황", "상황", "요즘", "오늘", "동향", "정보", "내용", "대해", "대한", "어떻게", "무엇", "뭐야", "보여", "말해", "변화")
+PARTICLES = "은는이가을를에의도로과와만"
+
+
+def topic_terms(question: str | None, names: set[str] | frozenset = frozenset()) -> list[str]:
+    """질문에서 종목명·일반어를 빼고 남은 핵심어(조사 한 글자 제거). 예: '현대차 노조 파업 소식 있어?' → ['노조', '파업']."""
+    out = []
+    for t in re.findall(r"[0-9A-Za-z가-힣]{2,}", question or ""):
+        tl = t.lower()
+        if t in names or any(n and (tl.startswith(n.lower()) or n.lower().startswith(tl)) for n in names if len(n) >= 2):
+            continue
+        if any(t.startswith(g) for g in GENERIC_ROOTS):
+            continue
+        if len(t) >= 3 and t[-1] in PARTICLES:
+            t = t[:-1]
+        if t not in out:
+            out.append(t)
+    return out
+
+
+def relevance_filter(docs: list[dict], question: str | None, names: set[str] | frozenset = frozenset()) -> tuple[list[dict], dict]:
+    """(남긴 문서, 점검 기록). 핵심어가 없는 질문(일반 질문)이면 그대로 둔다. 기준 미만 문서는 목록에서 뺀다(건수만 기록)."""
+    terms = topic_terms(question, names)
+    info = {"terms": terms, "strongSim": STRONG_SIM, "checked": bool(terms), "dropped": 0, "notFound": False}
+    if not terms:
+        return docs, info
+    kept = []
+    for d in docs:
+        text = " ".join([str(d.get("title") or ""), str(d.get("summary") or "")] + [str(c.get("excerpt") or "") for c in d.get("chunks") or []])
+        if float(d.get("sim") or 0) >= STRONG_SIM or any(t in text for t in terms):
+            kept.append(d)
+    info["dropped"] = len(docs) - len(kept)
+    info["notFound"] = not kept
+    return kept, info
+
+
+DISCLOSURE_WORD_RE = re.compile("공시|풍문|조회|해명|전환|행사|지분|보고서")
+
+
+def _disclosures_for(p, raw: dict, query: str | None) -> list[dict]:
+    """공시는 임베딩이 없고 이벤트 유형으로만 골라져 질문과 무관하게 같은 건이 나온다(#67 QA). 그래서 질문 기반 문서 뒤에 두고,
+    질문에 공시 관련 단어가 없으면 1건만 둔다. 질문이 없으면(질의에 ' | ' 가 없으면) 예전처럼 전부."""
+    disc = rag.select_disclosures(raw.get("disclosures"), p)
+    question = (query or "").split(" | ")[0] if " | " in (query or "") else ""
+    return disc if not question or DISCLOSURE_WORD_RE.search(question) else disc[:1]
 
 
 # ---------------------------------------------------------------- 청크 근거·리랭킹 (R4-2, CH_RAG_RERANK=on 일 때만)
