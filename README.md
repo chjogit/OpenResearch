@@ -33,6 +33,7 @@ members/             팀원별 작업 폴더 (CH, SW, SH, JT)
 docs/
   DB_READONLY.md       팀원 DB 읽기 전용 접속 안내
   DATA_MAP.md          Agent가 쓰는 Neon 테이블·뷰 요약
+  (kic-opinion 연결 방법은 kic-agent-data 저장소 docs/KIC_OPINION_ACCESS.md)
 tests/
 ```
 
