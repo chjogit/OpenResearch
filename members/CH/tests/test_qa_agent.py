@@ -327,7 +327,9 @@ def test_judgment_answer_carries_per_agent_outlook_without_overall_conclusion(mo
 
 def test_demo_html_renders_outlook_cards_with_notice():
     html = (qa.HERE.parent / "demo" / "template.html").read_text(encoding="utf-8")
-    assert "outlookCard" in html and "hitRate.notice" in html and "판정:" in html
+    card = html[html.index("function outlookCard"):html.index("function outlookCard") + 2500]
+    assert "outlookCard" in html and "hitRate.notice" not in card and "판정:" not in card and "verdictLabel" not in card    # #73: 카드에는 판정 없음
+    assert "규칙 기반 20거래일 방향(검증 결과는 성능 탭)" in card and "r.verdictLabel" in html                           # 성능 탭 표에는 유지
 
 
 def test_public_view_masks_removed_conclusion_sentences_only():
@@ -418,6 +420,7 @@ def test_agent_brief_is_within_200_chars_with_outlook_tail_and_no_internal_code(
     b = qa.agent_brief(4, f, ol)
     assert 0 < b["chars"] <= 200 == brief.MAX_CHARS and b["text"].endswith(brief.outlook_tail({"outlook": ol})) and "{" not in b["text"]
     assert "0.50%" in b["text"] and brief.INTERNAL_CODE_RE.search(b["text"]) is None and b["method"] == "node-rule"
+    assert "과거 검증" not in b["text"] and "구별" not in b["text"] and "미검증" not in b["text"]            # #73
 
 
 def test_answer_brief_takes_leading_sentences_within_200_and_skips_notices():

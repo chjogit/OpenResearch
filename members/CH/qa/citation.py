@@ -69,13 +69,13 @@ def _window(text: str, span: tuple[int, int], width: int, clause: bool = True) -
     """숫자 앞뒤 width 글자(같은 문장 안, clause 면 쉼표·세미콜론에서도 끊음)."""
     a, b = max(0, span[0] - width), min(len(text), span[1] + width)
     head = text[a:span[0]]
-    for sep in (". ", ".\n", "\n") + ((", ", "，", "; ") if clause else ()):
+    for sep in (". ", ".\n", "\n", "…") + ((", ", "，", "; ") if clause else ()):
         i = head.rfind(sep)
         if i >= 0:
             a += i + len(sep)
             head = text[a:span[0]]
     tail = text[span[1]:b]
-    cut = re.search(r"\.(?:\s|$)|\n|,\s|，|;\s" if clause else r"\.(?:\s|$)|\n", tail)
+    cut = re.search(r"\.(?:\s|$)|\n|…|,\s|，|;\s" if clause else r"\.(?:\s|$)|\n|…", tail)
     if cut:
         b = span[1] + cut.start()
     return text[a:b]
@@ -143,7 +143,7 @@ def check_numbers(text: str, docs: list[dict], as_of: str, skip: set[str] = froz
                     if direction_conflict(sent_dirs, directions(doc_win)):
                         flipped = True
                         continue
-                    hit, forecast = d, is_forecast(text, _window(d["text"], x["span"], 40, clause=False))
+                    hit, forecast = d, is_forecast(text, _window(d["text"], x["span"], 25))
                     break
                 if hit:
                     break

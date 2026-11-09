@@ -250,7 +250,7 @@ def outlook_block(no: int, facts, ctx: dict) -> dict:
 
 def agent_brief(no: int, facts, ol: dict) -> dict:
     """질의응답 경로의 에이전트별 200자 요약(#64). 이 경로는 노드만 실행해 LLM 요약이 없으므로 코드가 만든다:
-    노드가 낸 판정 문장 1개(장부 값을 채운 것) + 전망·과거 검증 판정. 계약 summary200 과 같은 길이 규칙(공백 포함 200자)."""
+    노드가 낸 판정 문장 1개(장부 값을 채운 것) + 전망 방향. 계약 summary200 과 같은 길이 규칙(공백 포함 200자)."""
     from ch_agents import brief as brief_mod, outlook as outlook_mod
     from ch_agents.notation import fix_notation
 
@@ -550,7 +550,7 @@ def verify_answer(parsed: dict | None, led: Ledger, question: str, interp: dict)
                     item["구분"] = "예측"
                     item["태그"] = f"예측(증권사 전망 인용, {', '.join(cites)})"
                     if "전망" not in text:
-                        item["문장"] = text = f"{text} (증권사 전망)"
+                        item["문장"] = text = f"{text} (전망 인용)"
                 item["인용"] = [{"문서": k, "날짜": led.docs[k]["published"], "종류": citation.citation_kind(led.docs[k])} for k in cites]
                 note = citation.subject_note(d0, text, str(interp["company"].get("name") or ""),
                                              {a for a, t in aliases().items() if t != interp["company"].get("ticker")})
@@ -797,8 +797,10 @@ def summary_text(r: dict) -> str:
             lines.append(f"[{e['t']}s] 답·검사: {e['mode']}, 통과 {e['kept']}문장, 제거 {len(e['removed'])}문장")
     lines.append(f"상태: {r['status']}" + (f" — {r['message']}" if r.get("message") else ""))
     lines += [f"  ({c['구분']}) {c['문장']}  ← {', '.join(c['근거'])}" for c in r["answer"]]
-    lines += [f"  전망[{o['agentName']}] {o['directionLabel']}" + (f"({o['reason']})" if o.get("reason") else "") + f" · {o['hitRate']['verdictLabel']}"
-              + (f" — {o['hitRate']['notice']}" if o["hitRate"].get("notice") else "") for o in (r.get("outlook") or {}).get("cards", [])]
+    from ch_agents.outlook import SOURCE_MARK as outlook_mark
+
+    lines += [f"  전망[{o['agentName']}] {o['directionLabel']}" + (f"({o['reason']})" if o.get("reason") else "") + f" · {outlook_mark}"
+              for o in (r.get("outlook") or {}).get("cards", [])]
     lines += [f"  미확보: {g['label']} — {g['reason']}" for g in r["gaps"][:6]]
     u = r["usage"]
     lines.append(f"LLM {u['llm_calls']}회 · 토큰 입력 {u['input_tokens']}/출력 {u['output_tokens']} · {u['total_seconds']}초")

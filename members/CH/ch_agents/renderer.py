@@ -14,6 +14,7 @@ import re
 
 from .availability import AVAIL_SHORT
 from .glossary import terms_for
+from .outlook import SOURCE_MARK
 from .profile import Level, Stance, UserProfile
 
 RENDER_VERSION = "1.0"
@@ -31,7 +32,7 @@ TAIL = ("glossary", "method", "evidence", "disclaimer")
 
 TITLES = {
     "summary": ("한눈에 보기", "핵심 요약", "핵심 진단"),
-    "outlook": ("앞으로 스무 거래일 전망 (규칙 기반)", "스무 거래일 가격 방향 전망 (규칙 기반)", "스무 거래일 가격 방향 전망 결론 (규칙 버전·신호·적중률)"),
+    "outlook": ("앞으로 스무 거래일 전망 (규칙 기반)", "스무 거래일 가격 방향 전망 (규칙 기반)", "스무 거래일 가격 방향 전망 결론 (규칙 버전·신호)"),
     "scope": ("이 답이 다루는 범위", "답한 것과 보류한 것", "과업 계약 (제작 기준)·상태 코드"),
     "caveats": ("읽기 전에 알아 둘 점", "해석 전 주의", "자료 주의 (시차·기준 시점·규모)"),
     "signals": ("최근 달라진 점", "변화 신호", "변화 신호 (코드 판정·이상 징후)"),
@@ -50,7 +51,7 @@ TITLES = {
 }
 # L2: 보고서를 써 본 적 없는 투자자에게 각 구역을 보고서로 옮기는 법
 HOW_TO = {
-    "outlook": "전망은 정해진 규칙이 낸 방향(긍정·중립·부정)입니다. 보고서에는 방향과 함께 근거 요인, 과거 적중률(또는 '미검증')을 같이 적습니다. 매수·매도 판단이 아닙니다.",
+    "outlook": "전망은 정해진 규칙이 낸 방향(긍정·중립·부정)입니다. 보고서에는 방향과 함께 근거 요인을 적습니다. 매수·매도 판단이 아닙니다.",
     "scope": "보고서 첫머리에 '이 보고서가 답하는 것/답하지 않는 것'으로 옮깁니다. 보류 사유도 그대로 적습니다.",
     "summary": "보고서 첫 문단에 그대로 쓰고, 뒤 구역에서 근거를 붙입니다.",
     "caveats": "결론보다 먼저 적어 독자가 자료의 한계를 알고 읽게 합니다.",
@@ -63,7 +64,7 @@ HOW_TO = {
     "nextChecks": "보고서 끝 '다음에 볼 것'에 날짜와 함께 옮깁니다.",
 }
 L1_HINT = {
-    "outlook": "규칙으로 정한 스무 거래일 방향입니다. 매수·매도 판단이 아니며, 과거 적중률이 '미검증'이면 믿을 근거가 아직 없다는 뜻입니다.",
+    "outlook": "규칙으로 정한 스무 거래일 방향입니다. 매수·매도 판단이 아닙니다.",
     "signals": "최근 평소와 달라진 점입니다. 중요한 것 몇 가지만 펼쳐 두고 나머지는 접어 두었습니다.",
     "scope": "숫자로 답할 수 없는 부분은 '보류'로 표시합니다. 보류는 오류가 아니라 근거가 부족하다는 뜻입니다.",
     "claims": "'확인된 사실'은 숫자로 확인한 것, '해석'과 '전망'은 그 숫자를 읽은 의견입니다.",
@@ -137,17 +138,14 @@ def _sections(c: dict) -> dict[str, list[dict]]:
     for u in c.get("upsideFactors") or []:
         s["upside"].append(_item(u["upsideId"], u["text"], u.get("evidenceIds")))
     ol = c.get("outlook")
-    if ol:     # 20거래일 전망 결론 (r4-1.4): 방향·사유 → 긍정/부정 요인 → 과거 적중률 → 한계·종합 안내
+    if ol:     # 20거래일 전망 결론 (r4-1.4): 방향·사유 → 긍정/부정 요인 → 출처 표시 → 한계·종합 안내
         s["outlook"].append(_item("OUT", f"{ol['horizonDays']}거래일 전망: {ol['directionLabel']}" + (f" (사유: {ol['reason']})" if ol.get("reason") else "")
                                   + f" · 규칙 {ol['ruleVersion']}", [], tag=ol.get("tag")))
         for i, f in enumerate(ol.get("positiveFactors") or [], 1):
             s["outlook"].append(_item(f"OUT-P{i}", "긍정 요인: " + f["text"], f.get("evidenceIds")))
         for i, f in enumerate(ol.get("negativeFactors") or [], 1):
             s["outlook"].append(_item(f"OUT-N{i}", "부정 요인: " + f["text"], f.get("evidenceIds")))
-        hr = ol["hitRate"]
-        s["outlook"].append(_item("OUT-hit", hr["text"] + (f" · 판정: {hr['verdictLabel']}" if hr.get("verdictLabel") else "")))
-        if hr.get("notice"):
-            s["outlook"].append(_item("OUT-verdict", hr["notice"]))
+        s["outlook"].append(_item("OUT-hit", SOURCE_MARK))        # 판정·고정 문구는 화면에 없음(#73), 성능 탭·계약 hitRate 에만
         s["outlook"].append(_item("OUT-note", f"{ol['limit']}. {ol['note']}"))
     for r in c.get("downsideRisks") or []:
         s["risks"].append(_item(r["riskId"], r["text"], r.get("evidenceIds")))

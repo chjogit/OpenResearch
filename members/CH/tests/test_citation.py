@@ -247,7 +247,7 @@ def test_forecast_sentence_is_tagged_prediction_with_doc_number_and_marker():
     led = _ledger_with_docs()
     led.doc_text["D1"] = "증권사들은 삼성전자 올해 영업이익을 123.3조원으로 전망했다"
     ok, removed = qa.verify_answer({"답": [{"문장": "올해 영업이익은 123.3조원이다.", "구분": "사실", "근거": ["D1"]}]}, led, "q", INTERP)
-    assert removed == [] and ok[0]["구분"] == "예측" and ok[0]["태그"] == "예측(증권사 전망 인용, D1)" and "(증권사 전망)" in ok[0]["문장"]
+    assert removed == [] and ok[0]["구분"] == "예측" and ok[0]["태그"] == "예측(증권사 전망 인용, D1)" and "(전망 인용)" in ok[0]["문장"] and not qa.CONCLUSION_RE.search(ok[0]["문장"])
     ok, _ = qa.verify_answer({"답": [{"문장": "자사주 매입은 46조이다.", "구분": "사실", "근거": ["D1"]}]}, _ledger_with_docs(), "q", INTERP)
     assert ok[0]["태그"] == "사실(뉴스 인용)"                                 # 전망 아닌 문서는 그대로
 
