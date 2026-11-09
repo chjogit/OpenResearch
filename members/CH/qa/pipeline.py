@@ -82,10 +82,11 @@ def describe(out: dict | None = None) -> dict:
                   _on(f"{agent.MAX_TOOL_CALLS}회", "도구 호출 상한"), _on(f"{agent.TIME_BUDGET_S:.0f}초", "시간 목표")], "subs": []},
         {"no": 4, "name": "노드·시세 조회", "what": "에이전트 3·4·6 의 노드(점검·해석)를 규칙·통계로 계산하고 읽기 전용 DB 에서 시세를 가져옵니다.",
          "tech": [_on("규칙·통계 계산, LLM 없음", "방식"), _on("읽기 전용", "DB")], "subs": []},
-        {"no": 5, "name": "문서 검색", "what": "질문·종목·영역으로 만든 질의를 임베딩해 벡터 검색으로 기준일 이하 근거 청크를 독립적으로 찾고 키워드 후보와 합칩니다. 개인 작성 글(블로그·카페·유튜브)은 번호·점수만 보이고 원문은 보이지 않습니다.",
+        {"no": 5, "name": "문서 검색", "what": "대상 종목이 있는 질문마다 항상 먼저 1회 실행합니다. 질문·종목·영역으로 만든 질의를 임베딩해 벡터 검색으로 기준일 이하 근거 청크를 독립적으로 찾고 키워드 후보와 합칩니다. 개인 작성 글(블로그·카페·유튜브)은 번호·점수만 보이고 원문은 보이지 않습니다.",
          "tech": [_flag("벡터 검색", hybrid, f"{rag_hybrid.QUERY_MODEL}, {rag_hybrid.EMBED_DIM}차원, 후보 상위 {rag_hybrid.N_CANDIDATES}" if hybrid
                         else f"키워드·규칙 점수만 사용 (임베딩 모델 {rag_hybrid.QUERY_MODEL} {rag_hybrid.EMBED_DIM}차원은 켤 때 사용)", "CH_RAG_HYBRID"),
-                  _flag("리랭커", rr, rerank.model_name() if rr else "", "CH_RAG_RERANK"), _on(f"{rag_hybrid.PER_DOC}개", "문서당 청크"),
+                  _flag("리랭커", rr, rerank.model_name() if rr else "", "CH_RAG_RERANK"), _on(f"{rag_hybrid.PER_DOC}개", "문서당 청크"), _on("대상 종목이 있는 질문마다 항상 1회(LLM 선택과 별개, 도구 호출 상한에 안 셈)", "실행"),
+                  _on("뉴스·공시 본문에 같은 값이 있는 숫자만 출처와 함께 허용(목표가·가격 수준 불허)", "인용 숫자"),
                   _on(f"질문 핵심어가 제목·근거 청크에 있거나 유사도 {rag_hybrid.STRONG_SIM} 이상인 문서만 사용, 없으면 '찾지 못함'", "관련도 점검"),
                   _on(f"벡터 유사도 상위 {int(rag_hybrid.VECTOR_SHARE * 100)}% 자리를 먼저 보장, 나머지는 키워드 {rag_hybrid.W_KEYWORD}·벡터 {rag_hybrid.W_VECTOR} 합산 점수 순", "합치는 규칙")],
          "subs": [{"name": "키워드·규칙 점수", "state": "on"}, {"name": "벡터 검색(정확 거리 정렬)", "state": "on" if hybrid else "off"},

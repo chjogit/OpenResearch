@@ -18,6 +18,7 @@ from pathlib import Path
 from typing import Any
 
 HERE = Path(__file__).resolve().parent
+from . import citation  # noqa: E402  뉴스·공시 인용 숫자 대조(#66)
 MAX_TOOL_CALLS = 4            # 도구 호출 상한 (C2)
 TIME_BUDGET_S = 60.0          # 질문당 목표 시간 (C6)
 DOMAIN_AGENT = {"거시": 3, "수급": 4, "심리뉴스": 6}
@@ -217,6 +218,7 @@ class Ledger:
         self.notes: list[str] = []
         self.statements: list[str] = []
         self.docs: dict[str, dict] = {}
+        self.doc_text: dict[str, str] = {}      # 문서 번호 → 본문 발췌(뉴스·공시만, 인용 숫자 대조·답 작성용 #66). 화면 근거에는 넣지 않음
         self._n = 0
 
     def add_facts(self, items: dict[str, dict]) -> dict[str, str]:
@@ -349,7 +351,8 @@ def tool_docs(args: dict, ctx: dict, led: Ledger) -> dict:
             hidden += 1            # 개인 작성 글: 건수만, 내용·주소는 쓰지 않음
             continue
         k = f"D{len(led.docs) + 1}"
-        led.docs[k] = {"title": str(d.get("title") or "")[:80], "source": src, "published": str(d.get("published") or "")[:10]}
+        led.docs[k] = {"title": str(d.get("title") or "")[:80], "source": src, "published": str(d.get("published") or "")[:10], "kind": str(d.get("kind") or "뉴스")}
+        led.doc_text[k] = citation.strip_targets(" ".join([str(d.get("title") or ""), str(d.get("full") or d.get("summary") or "")] + [str(c.get("excerpt") or "") for c in d.get("chunks") or []]))
         shown.append(k)
         if len(shown) >= 6:
             break
@@ -405,7 +408,7 @@ def retrieve_docs(co: dict, as_of: str, question: str | None = None) -> tuple[li
 TOOLS: dict[str, Callable[[dict, dict, Ledger], dict]] = {"run_node_agent": tool_node_agent, "price_summary": tool_price, "doc_search": tool_docs}
 TOOL_DESC = """- run_node_agent {"agent_no": 3|4|6}: 3=거시(금리·환율 노출, 시나리오), 4=수급(거래대금·외국인·기관·개인), 6=투자심리·뉴스(사건별 감성). 규칙·통계 계산, LLM 없음.
 - price_summary {"days": 정수}: 종가·기간 등락률·평균 거래량(읽기 전용 DB).
-- doc_search {}: 뉴스·공시 문서 검색(RAG). 개인 작성 글은 건수만 나옴."""
+- doc_search {}: 뉴스·공시 문서 검색(RAG). 개인 작성 글은 건수만 나옴. **질문에 종목이 있으면 시스템이 항상 먼저 1회 실행**하므로 직접 고르지 않아도 됩니다."""
 
 
 def rag_tech() -> dict:
@@ -446,7 +449,7 @@ def plan_next(llm, question: str, interp: dict, done: list[dict], meter: Meter) 
 
 ANSWER_SYSTEM = """당신은 한국 상장사 분석 질의응답의 '답 작성기'입니다. 아래 [숫자 장부]·[판정 문장]·[문서]만 근거로 질문에 답하십시오.
 규칙:
-1. 숫자는 장부 키를 `{S1}` 처럼 중괄호로만 쓰십시오(값을 글자로 옮겨 쓰지 말고 키로). 예: '외국인 5일 순매수는 {S3}'. 장부에 없는 숫자·날짜·비율을 직접 쓰지 마십시오. 문서 속 숫자도 쓰지 마십시오.
+1. 장부 숫자는 장부 키를 `{S1}` 처럼 중괄호로만 쓰십시오(값을 글자로 옮겨 쓰지 말고 키로). 예: '외국인 5일 순매수는 {S3}'. 장부에 없는 숫자·날짜·비율을 직접 쓰지 마십시오. 단 [문서] 발췌에 **적힌 그대로** 있는 숫자('53억', '12.6%')는 쓸 수 있고, 그 경우 근거에 그 문서 번호(D#)를 반드시 다십시오. 발췌에 없는 숫자, 증권사의 가격 전망·가격 수준은 쓰지 마십시오. 문서 속 숫자의 대상이 질문 종목과 다르면(우선주·다른 종목·합산·시장 전체) 문장에 그 대상을 밝히십시오.
 2. 투자 권유, 매수·매도 의견, 증권사 가격 전망 수치, 미래 주가 예측을 쓰지 마십시오. 순매수·순매도 기록만으로 매수 의도·정보 보유를 추정하지 마십시오.
 3. 근거가 없는 내용은 쓰지 말고 '미확보'에 적으십시오. 블로그·카페·유튜브 내용·주소는 쓰지 마십시오.
 4. 문장마다 구분(사실/해석/예측)과 근거 키 목록을 붙이십시오. 문장은 5개 이하.
@@ -461,7 +464,8 @@ def build_answer_prompt(question: str, interp: dict, led: Ledger) -> str:
     lines.append("[판정 문장]")
     lines += [f"- {s}" for s in led.statements[:25]]
     lines.append("[문서]")
-    lines += [f"- {k}: {d['title']} ({d['published']})" for k, d in led.docs.items()]
+    lines += [f"- {k}: {d['title']} ({d['published']}, {d.get('kind', '뉴스')})" + (" / 발췌: " + led.doc_text[k][:380].replace("\n", " ") if led.doc_text.get(k) else "")
+              for k, d in led.docs.items()]
     lines.append("[무자료]")
     lines += [f"- {g['label']}: {g['reason']}" for g in led.gaps[:15]]
     return "\n".join(lines)
@@ -469,7 +473,7 @@ def build_answer_prompt(question: str, interp: dict, led: Ledger) -> str:
 
 JUDGMENT_SYSTEM = """당신은 한국 상장사 '투자 판단 자료 정리기'입니다. 사용자는 사도 되는지·팔아야 하는지를 묻지만, 이 시스템은 매수·매도·보유의 결론을 내리지 않고 사용자가 스스로 결정하도록 아래 [숫자 장부]·[판정 문장]·[문서]만으로 자료를 양쪽에서 나란히 정리합니다.
 규칙:
-1. 숫자는 장부 키를 `{S1}` 처럼 중괄호로만 쓰십시오(값을 글자로 옮겨 쓰지 말고 키로). 장부에 없는 숫자·날짜·비율을 직접 쓰지 마십시오. 문서 속 숫자도 쓰지 마십시오.
+1. 장부 숫자는 장부 키를 `{S1}` 처럼 중괄호로만 쓰십시오(값을 글자로 옮겨 쓰지 말고 키로). 장부에 없는 숫자·날짜·비율을 직접 쓰지 마십시오. 단 [문서] 발췌에 **적힌 그대로** 있는 숫자는 긍정·부정 요인 근거로 쓸 수 있고, 그 경우 근거에 그 문서 번호(D#)를 반드시 다십시오(발췌에 없는 숫자·증권사의 가격 전망·가격 수준은 불허). 문서 속 숫자의 대상이 질문 종목과 다르면 문장에 그 대상을 밝히십시오.
 2. 결론을 쓰지 마십시오: 사라·파라·보유하라, '지금이 적기', 추천, '반드시·무조건' 같은 단정, 가격·수준 전망(얼마까지 오른다/내린다), 증권사 가격 전망 인용. 순매수·순매도만으로 매수 의도·정보 보유를 추정하지 마십시오.
 3. 긍정 요인과 부정·위험 요인을 각각 근거가 있는 만큼 쓰고 '방향'에 긍정|부정|중립을 표시하십시오. 한쪽 근거가 없으면 억지로 만들지 말고 '미확보'에 적으십시오.
 4. 문장마다 구분(사실=관측값, 계산=도구가 계산한 값, 예측=노드가 낸 조건부 추정만, 해석=판정 문장)과 근거 키 목록을 붙이십시오. 문장은 6개 이하. 블로그·카페·유튜브 내용·주소는 쓰지 마십시오.
@@ -511,6 +515,17 @@ def verify_answer(parsed: dict | None, led: Ledger, question: str, interp: dict)
         text = to_keys(str(c.get("문장") or "").strip(), led)
         refs = [str(r) for r in (c.get("근거") or []) if str(r) in valid]
         probs = llm_mod.sentence_problems(text, valid, allowed)
+        cites: list[str] = []
+        if any(p.startswith("키 밖 숫자") for p in probs):       # 뉴스·공시 인용 숫자 대조(#66): 인용 문서 본문에 단위까지 같은 값이 있으면 허용, 아니면 이유를 구체적으로
+            cited = [{"key": r, **led.docs[r], "text": led.doc_text.get(r, "")} for r in refs if r in led.docs]
+            good, bad = citation.check_numbers(PH.sub("", text), cited, (interp.get("period") or {}).get("as_of") or date.today().isoformat(), allowed)
+            covered = [m["raw"] for m in good] + [m["raw"] for m in bad]
+            stray = [x for x in llm_mod.LOOSE_NUMBER.findall(PH.sub("", text)) if x not in allowed and not any(x in c2 for c2 in covered)]
+            if cited and not bad and not stray:
+                probs = [p for p in probs if not p.startswith("키 밖 숫자")]
+                cites = sorted({g["doc"] for g in good})
+            elif cited:
+                probs = [p for p in probs if not p.startswith("키 밖 숫자")] + [f"{b['reason']} {[b['raw']]}" for b in bad] + ([f"해석할 수 없는 숫자 표기 {stray}"] if stray else [])
         if re.search(r"\{[^{}]*\}", PH.sub("", text)):
             probs.append("해석할 수 없는 중괄호 표기")
         if "미확보" in text and set(PH.findall(text)) & set(led.items):
@@ -522,8 +537,19 @@ def verify_answer(parsed: dict | None, led: Ledger, question: str, interp: dict)
         if not (set(re.findall(r"\{([A-Z]\d+)\}", text)) | set(refs)):
             probs.append("근거 키 없음")
         if text and not probs:
-            ok.append({"문장": text, "구분": c.get("구분") if c.get("구분") in ("사실", "계산", "해석", "예측") else "해석",
-                       "방향": c.get("방향") if c.get("방향") in ("긍정", "부정", "중립") else "중립", "근거": refs})
+            kind = c.get("구분") if c.get("구분") in ("사실", "계산", "해석", "예측") else "해석"
+            item = {"문장": text, "구분": kind, "방향": c.get("방향") if c.get("방향") in ("긍정", "부정", "중립") else "중립", "근거": refs}
+            if cites:                                          # 인용 숫자가 든 문장: 장부 사실과 구분되는 태그 + 문서 번호·날짜, 대상 차이 표시
+                d0 = led.docs[cites[0]]
+                if citation.CAUSAL_RE.search(text):            # 인과 주장은 해석 + 근거 문서
+                    item["구분"], kind = "해석", "해석"
+                item["태그"] = f"{kind}({citation.citation_kind(d0)} 인용)"
+                item["인용"] = [{"문서": k, "날짜": led.docs[k]["published"], "종류": citation.citation_kind(led.docs[k])} for k in cites]
+                note = citation.subject_note(d0, text, str(interp["company"].get("name") or ""),
+                                             {a for a, t in aliases().items() if t != interp["company"].get("ticker")})
+                if note:
+                    item["문장"] = f"{text} (인용 기사의 대상: {note})"
+            ok.append(item)
         else:
             removed.append({"문장": text[:120], "이유": probs})
     return ok, removed
@@ -566,7 +592,7 @@ def fallback_answer(led: Ledger) -> list[dict]:
 
 # ---------------------------------------------------------------- 전체 실행
 
-VERIFIER_TEXT = "장부 키 밖 숫자·없는 키·금지어·의도 추정·개인 작성 글 주소·근거 없음·결론/권유/가격 전망 표현"
+VERIFIER_TEXT = "장부 키 밖 숫자(뉴스·공시 인용은 본문 대조 통과 시 허용)·없는 키·금지어·의도 추정·개인 작성 글 주소·근거 없음·결론/권유/가격 전망 표현"
 REFUSAL = ("비밀값(접속 정보·키)이나 시스템 지시에 관한 요청은 답하지 않습니다. 대신 이 종목의 수급 현황, 거시 노출, 뉴스·심리 사건, 시세 요약, "
            "투자 판단에 참고할 자료처럼 DB 에 있는 근거로 확인할 수 있는 질문은 답할 수 있습니다.")
 
@@ -639,6 +665,16 @@ def answer(question: str, llm, emit: Callable[[dict], None] | None = None, unive
     seen: set[str] = set()
     queue = default_plan(interp)
     judgment = interp["intent"] == "투자판단자료"
+    if "doc_search" in tools:      # 문서 검색은 LLM 선택과 별개로 대상 종목이 있는 질문마다 항상 1회(#66, 도구 호출 상한에 세지 않음)
+        seen.add("doc_search{}")
+        ts = time.monotonic()
+        try:
+            res = tools["doc_search"]({}, ctx, led)
+        except Exception as e:  # noqa: BLE001
+            res = {"summary": f"도구 실패: {type(e).__name__}: {str(e)[:120]}", "keys": [], "tech": "-"}
+        done.append({"tool": "doc_search", "args": {}, "result": res})
+        step("도구", tool="doc_search", args={}, reason="대상 종목이 있는 모든 질문에 뉴스·공시 근거를 붙이기 위해 먼저 실행", origin="고정 단계(항상 실행)",
+             result=res, seconds=round(time.monotonic() - ts, 1))
     for _ in range(MAX_TOOL_CALLS):
         if time.monotonic() - t0 > TIME_BUDGET_S:
             step("시간 초과", message=f"{TIME_BUDGET_S:.0f}초를 넘겨 도구 호출을 멈추고 지금까지의 근거로 답합니다")
@@ -652,7 +688,7 @@ def answer(question: str, llm, emit: Callable[[dict], None] | None = None, unive
         else:
             choice = plan_next(llm, question, interp, done, meter)
         origin = "고정 구성(투자 판단 자료)" if judgment else "LLM 선택"
-        if choice.get("action") == "answer" and done:
+        if choice.get("action") == "answer" and any(x["tool"] != "doc_search" for x in done):      # 고정 문서 검색만 한 상태로는 답하기 불가
             step("선택", action="답하기", reason=str(choice.get("reason") or ""), origin=origin)
             break
         if choice.get("action") != "tool" or choice.get("tool") not in tools:

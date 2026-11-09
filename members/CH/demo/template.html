@@ -392,7 +392,7 @@ function answerHtml(r) {
   const sents = (r.answer || []).map(c => {
     const dir = c.방향 && c.방향 !== "중립" && c.방향 !== "안내" ? `<span class="badge ${c.방향 === "긍정" ? "b-ok" : "b-bad"}">${esc(c.방향)}</span>` : "";
     const ev = (c.근거 || []).map(k => `<a class="evl" href="#ev-${esc(k)}" data-k="${esc(k)}">${esc(k)}</a>`).join(" ");
-    return `<span class="sent"><span class="badge ${TAGC[c.구분] || "b-mute"}">${esc(c.구분)}</span>${dir}${esc(c.문장)}${ev ? ` <sup>[${ev}]</sup>` : ""}</span>`;
+    return `<span class="sent"><span class="badge ${TAGC[c.구분] || "b-mute"}">${esc(c.태그 || c.구분)}</span>${dir}${esc(c.문장)}${c.인용 ? ` <span class="note">(${c.인용.map(q => esc(q.문서 + " · " + q.날짜)).join(", ")})</span>` : ""}${ev ? ` <sup>[${ev}]</sup>` : ""}</span>`;
   });
   const paras = [];
   for (let i = 0; i < sents.length; i += 3) paras.push("<p>" + sents.slice(i, i + 3).join(" ") + "</p>");
