@@ -394,12 +394,28 @@ function evNums(r) {
   const ev = r.evidence || {}; Object.keys(ev["장부"] || {}).concat(Object.keys(ev["문서"] || {})).forEach(add);
   return m;
 }
+// 문장 속 괄호 없는 키('D3은')도 같은 번호·링크로(#81). 이 답의 키만 바꾸고 조사는 번호 읽기(일·이·삼…)의 받침에 맞춘다.
+function numParticle(p, n) {
+  const pr = {"은": "은는", "는": "은는", "이": "이가", "가": "이가", "을": "을를", "를": "을를", "과": "과와", "와": "과와"}[p], d = n % 10;
+  if (p === "으로" || p === "로") return [0, 3, 6].includes(d) ? "으로" : "로";
+  return pr ? ([0, 1, 3, 6, 7, 8].includes(d) ? pr[0] : pr[1]) : p;
+}
+function sentHtml(text, nums) {
+  const re = /(?<![A-Za-z0-9])([A-Z]\d{1,5})(?![A-Za-z0-9])(으로|은|는|이|가|을|를|과|와|로)?/g;
+  let out = "", pos = 0, m;
+  while ((m = re.exec(text))) {
+    const n = nums[m[1]]; if (n === undefined) continue;
+    out += esc(text.slice(pos, m.index)) + `<a class="evl" href="#ev-${esc(m[1])}" data-k="${esc(m[1])}" title="${esc(m[1])}">근거 ${n}</a>` + esc(numParticle(m[2] || "", n));
+    pos = m.index + m[0].length;
+  }
+  return out + esc(text.slice(pos));
+}
 function answerHtml(r) {
   const nums = evNums(r);
   const sents = (r.answer || []).map(c => {
     const dir = c.방향 && c.방향 !== "중립" && c.방향 !== "안내" ? `<span class="badge ${c.방향 === "긍정" ? "b-ok" : "b-bad"}">${esc(c.방향)}</span>` : "";
     const ev = (c.근거 || []).map(k => `<a class="evl" href="#ev-${esc(k)}" data-k="${esc(k)}" title="${esc(k)}">근거 ${nums[k]}</a>`).join(" ");
-    return `<span class="sent"><span class="badge ${TAGC[c.구분] || "b-mute"}">${esc(c.태그 || c.구분)}</span>${dir}${esc(c.문장)}${c.인용 ? ` <span class="note">(${c.인용.map(q => esc(q.문서 + " · " + q.날짜)).join(", ")})</span>` : ""}${ev ? ` <sup>[${ev}]</sup>` : ""}</span>`;
+    return `<span class="sent"><span class="badge ${TAGC[c.구분] || "b-mute"}">${esc(c.태그 || c.구분)}</span>${dir}${sentHtml(c.문장, nums)}${c.인용 ? ` <span class="note">(${c.인용.map(q => esc(q.문서 + " · " + q.날짜)).join(", ")})</span>` : ""}${ev ? ` <sup>[${ev}]</sup>` : ""}</span>`;
   });
   const paras = [];
   for (let i = 0; i < sents.length; i += 3) paras.push("<p>" + sents.slice(i, i + 3).join(" ") + "</p>");

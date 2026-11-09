@@ -588,3 +588,36 @@ def test_render_strips_parenthesized_ledger_keys_but_not_unknown_names():     # 
 
 def test_render_turns_event_ids_into_numbers():                               # #80 A
     assert qa.render("사건 E4 평균 감성과 사건 E5·E9 는 다르다.", qa.Ledger()) == "사건 4 평균 감성과 사건 5·9 는 다르다."
+
+
+def test_inline_keys_become_evidence_numbers_with_natural_particles():     # #81
+    nums = {"D3": 1, "M12": 2, "S7": 3, "D10": 4}
+    assert qa.inline_keys("D3은 부정적이고 M12의 값이 크다.", nums) == "근거 1은 부정적이고 근거 2의 값이 크다."
+    assert qa.inline_keys("M12가 S7이 D10을 D3로", nums) == "근거 2가 근거 3이 근거 4를 근거 1로"
+    assert qa.inline_keys("S7으로 D10으로 M12로 D3와", nums) == "근거 3으로 근거 4로 근거 2로 근거 1과"
+    # 이 답에 없는 키 모양 문자열·영문 단어 속 조각은 그대로
+    assert qa.inline_keys("M99는 지표 이름, XD3은 그대로, 키 D3.", nums) == "M99는 지표 이름, XD3은 그대로, 키 근거 1."
+
+
+def test_summary_text_replaces_inline_keys_with_same_numbers_as_screen():     # #81
+    r = {"question": "q", "interpretation": {"company": {"name": "삼성전자", "status": "found"}, "period": {"as_of": "2026-11-06", "days": None}, "domains": [], "intent": "x", "refuse": False, "scenario": None},
+         "trace": [], "status": "완료", "answer": [{"구분": "사실", "문장": "S1은 -5만주이고 D11는 기사다.", "근거": ["S1"]}],
+         "evidence": {"장부": {"S1": {"항목": "외국인 순매수"}}, "문서": {"D11": {"title": "기사"}}}, "outlook": {}, "gaps": [],
+         "usage": {"llm_calls": 1, "input_tokens": 1, "output_tokens": 1, "total_seconds": 1}}
+    t = qa.summary_text(r)
+    assert "근거 1은 -5만주이고 근거 2는 기사다." in t and "S1은" not in t
+
+
+def test_template_inline_key_replacement_runs_in_js():                   # #81
+    import shutil, subprocess, re
+    from pathlib import Path
+    node = shutil.which("node")
+    if not node:
+        import pytest
+        pytest.skip("node 없음")
+    t = (Path(__file__).resolve().parents[1] / "demo" / "template.html").read_text(encoding="utf-8")
+    src = re.search(r"function numParticle.*?\nfunction answerHtml", t, re.S).group(0).replace("function answerHtml", "")
+    js = "const esc=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;');\n" + src + \
+         "\nconsole.log(sentHtml('D3은 높고 M12의 값, M99는 그대로, D10을', {D3:1, M12:2, D10:3}));"
+    out = subprocess.run([node, "-e", js], capture_output=True, text=True, encoding="utf-8", timeout=30).stdout
+    assert ">근거 1</a>은 높고 <a" in out and ">근거 2</a>의 값" in out and "M99는 그대로" in out and ">근거 3</a>을" in out

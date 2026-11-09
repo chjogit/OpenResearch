@@ -900,6 +900,30 @@ def public_view(r: dict) -> dict:
 
 # ---------------------------------------------------------------- 사람이 읽는 요약 (콘솔·저장용)
 
+INLINE_KEY_RE = re.compile(r"(?<![A-Za-z0-9])([A-Z]\d{1,5})(?![A-Za-z0-9])(으로|은|는|이|가|을|를|과|와|로)?")
+_PARTICLE_PAIRS = {"은": ("은", "는"), "는": ("은", "는"), "이": ("이", "가"), "가": ("이", "가"), "을": ("을", "를"), "를": ("을", "를"),
+                   "과": ("과", "와"), "와": ("과", "와"), "으로": ("으로", "로"), "로": ("으로", "로")}
+
+
+def number_particle(particle: str, n: int) -> str:
+    """'근거 N' 뒤 조사를 숫자 읽기(일·이·삼…)의 받침에 맞춘다. 받침 있음: 0·1·3·6·7·8, '로'는 1·7·8(ㄹ 받침)이면 '로'."""
+    pair = _PARTICLE_PAIRS.get(particle)
+    if not pair:
+        return particle
+    d = n % 10
+    if pair[0] == "으로":
+        return "으로" if d in (0, 3, 6) else "로"
+    return pair[0] if d in (0, 1, 3, 6, 7, 8) else pair[1]
+
+
+def inline_keys(text: str, nums: dict[str, int]) -> str:
+    """(#81) 문장 속 괄호 없는 장부·문서 키('D3은')를 이 답의 근거 번호('근거 1은')로. 이 답의 키(nums)에 없는 키 모양 문자열은 그대로 둔다."""
+    def sub(m: re.Match) -> str:
+        n = nums.get(m.group(1))
+        return m.group(0) if n is None else f"근거 {n}" + number_particle(m.group(2) or "", n)
+    return INLINE_KEY_RE.sub(sub, text)
+
+
 def summary_text(r: dict) -> str:
     it = r["interpretation"]
     c = it["company"]
@@ -917,8 +941,11 @@ def summary_text(r: dict) -> str:
     for c in r["answer"]:
         for k in c["근거"]:
             nums.setdefault(k, len(nums) + 1)
-    lines += [f"  ({c['구분']}) {c['문장']}" + (f"  ← 근거 {', '.join(str(nums[k]) for k in c['근거'])}" if c["근거"] else "") for c in r["answer"]]
     ev = r.get("evidence") or {}
+    all_nums = dict(nums)              # 화면과 같은 번호: 답의 근거 뒤에 장부·문서 순(#81)
+    for k in list((ev.get("장부") or {}).keys()) + list((ev.get("문서") or {}).keys()):
+        all_nums.setdefault(k, len(all_nums) + 1)
+    lines += [f"  ({c['구분']}) {inline_keys(c['문장'], all_nums)}" + (f"  ← 근거 {', '.join(str(nums[k]) for k in c['근거'])}" if c["근거"] else "") for c in r["answer"]]
     label_of = lambda k: str((ev.get("장부", {}).get(k) or {}).get("항목") or (ev.get("문서", {}).get(k) or {}).get("title") or "")   # noqa: E731
     lines += [f"  근거 {n}: {gaps_mod.ko_text(label_of(k))}" for k, n in nums.items() if label_of(k)]
     from ch_agents.outlook import SOURCE_MARK as outlook_mark
