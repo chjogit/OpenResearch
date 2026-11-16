@@ -1,0 +1,78 @@
+{
+ "items": [
+  {
+   "q": "작년 하이닉스 영업활동으로 번 현금은?",
+   "expect_targets": [
+    "N01"
+   ],
+   "expect_status": "ok"
+  },
+  {
+   "q": "삼성전자 주식 요즘 많이 빠졌던데 얼마나 빠졌어?",
+   "expect_targets": [
+    "N10"
+   ],
+   "expect_status": "ok"
+  },
+  {
+   "q": "달러 강세가 하이닉스에 유리해?",
+   "expect_targets": [
+    "N05"
+   ],
+   "expect_status": "ok"
+  },
+  {
+   "q": "삼성전자 내재가치를 RIM으로",
+   "expect_targets": [
+    "N02"
+   ],
+   "expect_status": "ok"
+  },
+  {
+   "q": "이동평균선 위에 있어?",
+   "expect_targets": [
+    "N09"
+   ],
+   "expect_status": "ok"
+  },
+  {
+   "q": "하이닉스 이사회 구성",
+   "expect_targets": [],
+   "expect_gaps": [
+    "BOARD"
+   ],
+   "expect_status": "gap_only"
+  },
+  {
+   "q": "요즘 반도체 업황이랑 삼성 실적",
+   "expect_targets": [
+    "N01",
+    "N04"
+   ],
+   "expect_gaps": [],
+   "expect_status": "ok"
+  },
+  {
+   "q": "공매도 많이 들어왔어?",
+   "expect_targets": [
+    "N07"
+   ],
+   "expect_status": "ok"
+  },
+  {
+   "q": "하이닉스 지금 들어가도 돼?",
+   "expect_targets": [],
+   "expect_status": "ask"
+  },
+  {
+   "q": "삼성전자 영업이익률 추이랑 변동성",
+   "expect_targets": [
+    "N01",
+    "N10"
+   ],
+   "expect_status": "ok"
+  }
+ ],
+ "about": "규칙을 고치지 않은 상태에서 새로 쓴 질문 10개 (Claude 작성). 첫 측정 9/10 — 놓친 1건(「영업활동으로 번 현금」)을 본 뒤 단어 「영업활동」「번 현금」을 추가했으므로, 이후 이 셋도 미사용 평가가 아님. / v0.11: N07 수급이 실동작이 되어 수급 질문 정답을 「아직 답할 수 없음」→「N07 조립」으로 변경. / v0.12: N03 실동작(재무 비교) — 「경쟁력·점유율·업황」은 사업보고서 문장이 필요한 N04(예정)로 분리하여 정답 갱신. v0.14: N04·N13 실동작, 이사회 구성은 BOARD 빈칸으로 분리 — 2문항 기대값 변경.",
+ "first_result": "9/10 (2026-11-06, v0.10 규칙 수정 전)"
+}

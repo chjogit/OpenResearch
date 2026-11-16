@@ -23,6 +23,8 @@ HERE = Path(__file__).resolve().parent
 ROOT = HERE.parents[1]
 sys.path.insert(0, str(ROOT / 'modu-research-nodes'))
 sys.path.insert(0, str(ROOT / '_tools' / 'price_refresh'))
+sys.path.insert(0, str(Path(os.environ.get('MODU_ENGINE_DIR') or ROOT / 'engine')))   # 공용 저장소 배치(modu-research/engine)
+sys.path.insert(0, str(HERE.parent / 'price_refresh'))
 from mrn import market as M, surge as SG   # noqa: E402
 import price_refresh as PR                 # noqa: E402  (expected_last · sha · line 를 같이 씀)
 
@@ -192,6 +194,8 @@ def main(argv):
     m2 = M.load_manifest(dst)
     for t in add:
         M.read_rows(dst, m2, TABLE, t)
+    if (root.parent / 'LATEST.txt').read_text(encoding='utf-8').strip() != base:   # v0.39.6: 그사이 다른 갱신(가격/수급)이 LATEST 를 바꿨으면 덮지 않음
+        say(f'다른 갱신이 그사이 사본을 바꿨어요(같은 때 두 갱신이 돈 경우). 이번 결과({stamp})는 LATEST 로 바꾸지 않았어요. 이 버튼을 한 번 더 눌러 주세요.'); return 5
     lt = root.parent / 'LATEST.txt'; (root.parent / 'LATEST.txt.part').write_text(stamp + '\n', encoding='utf-8')
     os.replace(root.parent / 'LATEST.txt.part', lt)
     say(f'새 사본 {stamp} 를 만들고 LATEST 를 바꿨어요(예전 사본 {base} 는 그대로). 되돌리기: LATEST.txt 를 {base} 로.')

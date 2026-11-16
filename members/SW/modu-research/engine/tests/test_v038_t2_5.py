@@ -6,6 +6,17 @@ from mrn import filing as FL, tradecal as C
 SNAP = Path(__file__).resolve().parents[2] / '_sources' / 'neon'
 
 
+def _shared_snapshot(nd):
+    """PM·팀 공용(Neon) 사본일 때만 True. 첫 채움(KIS·DART 직접) 사본은 날짜·출처가 달라 이 시험 대상이 아님(v0.39.6)."""
+    import json as _j
+    nd = Path(nd)
+    try:
+        name = (nd / 'LATEST.txt').read_text(encoding='utf-8').strip()
+        return 'first_fill' not in _j.loads((nd / name / 'manifest.json').read_text(encoding='utf-8'))
+    except (OSError, ValueError):
+        return False
+
+
 class TradingDays(unittest.TestCase):
     def test_trading_days_and_note(self):
         self.assertEqual(FL.trading_days('2025-01-20', '2025-02-07'), (11, ''))          # 평일 15 − 설 연휴·임시공휴일 4(1/27~1/30)
@@ -23,7 +34,7 @@ class TradingDays(unittest.TestCase):
         self.assertIn('source_past', d)
 
 
-@unittest.skipUnless((SNAP / 'LATEST.txt').exists(), '시세 사본 없음')
+@unittest.skipUnless(_shared_snapshot(SNAP), '공용(Neon) 시세 사본 없음 — 첫 채움 사본이면 건너뜀')
 class AgainstSnapshot(unittest.TestCase):
     def test_2022_2025_match_snapshot(self):
         import collections
