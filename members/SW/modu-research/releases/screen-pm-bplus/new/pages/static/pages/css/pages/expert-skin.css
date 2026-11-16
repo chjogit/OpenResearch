@@ -1,0 +1,20 @@
+/* 전문가 모드 덧입힘(PM 추가 2026-11-13): 엔진 전문가 모드 화면 안에 씌우는 스타일. 엔진 코드는 바꾸지 않는다.
+   바꾸는 것: 대표색(주황 → 베리), 바탕·글자색, 글꼴, 둥근 모서리 — 이 화면 틀(base.css)과 같게.
+   바꾸지 않는 것: 값 종류 색(--k-*), 관점 색(--p-*), 실행 상태 색(--ok·--part·--held·--fail …) — 뜻을 담은 색이라 그대로 둔다. */
+@import url("../common/fonts-local.css");
+:root {
+  --accent: #B0306E;          /* 이 화면 틀의 --violet(베리) */
+  --bg: #F3F4FA;
+  --panel: #FFFFFF;
+  --ink: #12152B;
+  --mute: #62678A;
+  --line: #E4E6F0;
+}
+body { font-family: "Pretendard", "Wanted Sans Variable", "Malgun Gothic", system-ui, sans-serif; }
+/* 이 화면 틀에 이미 왼쪽 메뉴·상단바가 있으므로 엔진의 모드 막대(쉬운 화면 ↔ 전문가 모드)는 숨긴다 */
+body.in-shell .modebar { display: none; }
+button, input, select, textarea { border-radius: 8px; }
+button.primary { background: #B0306E; border-color: #B0306E; }
+button.primary:hover:not(:disabled) { background: #8E2257; border-color: #8E2257; }
+#top { border-bottom-color: #E4E6F0; }
+a.btnlink { color: #8E2257; }

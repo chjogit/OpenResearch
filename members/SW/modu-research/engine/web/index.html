@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>모두의리서치 · 기업분석 — 전문가 모드</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="/static/app.css">
+</head>
+<body>
+<div class="modebar mb-expert" role="navigation" aria-label="화면 모드">
+  <span class="mb-name">모두의리서치<span class="mb-desc">기업분석</span> <b>노드</b></span>
+  <div class="modes">
+    <a class="mode" id="bEasy" href="/" title="질문 카드로 바로 답을 보는 화면"><span class="mi">←</span>쉬운 화면으로<small>질문하고 답과 근거 읽기</small></a>
+    <a class="mode on" aria-current="page" href="/expert" title="모든 단계를 직접 잇고 고치는 화면"><span class="mi">◆</span>전문가 모드<small>바꿔 보기·자료 넣기·원문 대조</small></a>
+  </div>
+
+  <button class="mb-why" id="mbWhy" aria-expanded="false" aria-controls="mbTip">언제 쉬운 화면으로?</button>
+  <div class="mb-tip" id="mbTip" role="dialog" aria-label="언제 쉬운 화면으로 가면 좋은지">
+    <p class="mt-one"><b>한 줄로 고르기</b> — 단계를 고칠 일이 없고 <b>답과 근거만 빨리</b> 보고 싶다면 쉬운 화면이 더 편해요.</p>
+    <div class="mt-grid">
+      <div class="mt-h x">전문가 모드에서 번거로운 것</div><div class="mt-h e">쉬운 화면에서 바로 되는 것</div>
+      <div>질문마다 단계를 고르고 잇기</div><div>질문 카드 하나로 2초 안에 답</div>
+      <div>결과를 한 문장으로 정리해 읽기</div><div>답 카드: 확인·계산·추정·모르는 것을 나눠 정리, 「작동 원리」 띠</div>
+      <div>다음에 무엇을 볼지 정하기</div><div>「다음 걸음」: 이어 볼 질문 추천</div>
+      <div>남에게 결과를 넘기고 다시 계산받기</div><div>근거 확인서 내려받기 · 근거검증(확인서로 다시 계산)</div>
+      <div>내 실적 가정을 다른 사람들과 견주기</div><div>「모두의 가정」: 증권사·모두·실제를 한 그림에</div>
+    </div>
+    <p class="mt-foot">여기서 실행한 결과가 있으면 쉬운 화면에서 그 답 카드로 열려요.</p>
+  </div>
+  <span class="mb-note">지금은 <b>전문가 모드</b> — 쉬운 화면과 같은 계산을 단계 그대로 보여 줘요</span>
+</div>
+<header id="top">
+  <div class="brand"><span class="xbadge">전문가 모드</span></div>
+  <input id="wfName" aria-label="워크플로 이름" maxlength="100">
+  <label class="cut">기준시점 <input id="cutoff" placeholder="비우면 실행 시각" aria-label="기준시점"></label>
+  <div class="btns">  <!-- v0.30: 세 묶음 + 마우스 올림 설명 -->
+    <div class="bgrp g-file" role="group" aria-label="파일"><span class="bg-l">파일</span>
+      <button id="bNew" data-tip="캔버스를 비우고 처음부터 짜요. 저장하지 않은 변경이 있으면 먼저 물어봐요." aria-description="캔버스를 비우고 처음부터 짜요. 저장하지 않은 변경이 있으면 먼저 물어봐요.">새로</button>
+      <button id="bExample" data-tip="노드가 이미 연결된 완성 예시를 불러와요. 처음이라면 여기부터 — 불러온 뒤 「실행」만 누르면 돼요." aria-description="노드가 이미 연결된 완성 예시를 불러와요. 처음이라면 여기부터 — 불러온 뒤 「실행」만 누르면 돼요.">예시 사례</button>
+      <button id="bOpen" data-tip="전에 저장한 조사 흐름을 불러와요." aria-description="전에 저장한 조사 흐름을 불러와요.">열기</button>
+      <button id="bSave" data-tip="지금 흐름을 저장해요. 저장할 때마다 판(버전)이 쌓여 이전 판을 다시 볼 수 있어요." aria-description="지금 흐름을 저장해요. 저장할 때마다 판(버전)이 쌓여 이전 판을 다시 볼 수 있어요.">저장</button>
+    </div>
+    <div class="bgrp g-data" role="group" aria-label="자료 살피기"><span class="bg-l">자료 살피기</span>
+      <button id="bMap" data-tip="회사마다 어떤 근거 자료(공시·재무·시세·증권사 전망·뉴스)가 있고 없는지 한눈에 봐요." aria-description="회사마다 어떤 근거 자료(공시·재무·시세·증권사 전망·뉴스)가 있고 없는지 한눈에 봐요.">근거 지도</button>
+      <button id="bDocs" data-tip="사업보고서 원문 전체를 검색하고, DART 공시 재무(XBRL) 숫자와 대조해요." aria-description="사업보고서 원문 전체를 검색하고, DART 공시 재무(XBRL) 숫자와 대조해요.">문서·재무</button>
+      <button id="bBroker" data-tip="증권사 보고서에서 뽑은 전망 숫자를 승인하고, 증권사끼리·실제 실적과 비교해요. 승인한 숫자만 계산에 들어가요." aria-description="증권사 보고서에서 뽑은 전망 숫자를 승인하고, 증권사끼리·실제 실적과 비교해요. 승인한 숫자만 계산에 들어가요.">증권사 전망</button>
+      <button id="bCheck" data-tip="붙여 넣은 문장(내 글·다른 AI 답·리포트)의 숫자에 근거가 있는지, 판단 표현이 섞였는지 문장마다 점검해요." aria-description="붙여 넣은 문장(내 글·다른 AI 답·리포트)의 숫자에 근거가 있는지, 판단 표현이 섞였는지 문장마다 점검해요.">표현 검사</button>
+    </div>
+    <div class="bgrp g-run" role="group" aria-label="실행"><span class="bg-l">실행</span>
+      <button id="bValidate" data-tip="실행 전 점검 — 빠진 연결·설정 오류를 찾아 고칠 곳을 알려 줘요. 계산은 하지 않아요." aria-description="실행 전 점검 — 빠진 연결·설정 오류를 찾아 고칠 곳을 알려 줘요. 계산은 하지 않아요.">검증</button>
+      <button id="bAgent" data-tip="실행 → 결과 읽기 → 막힌 곳을 정해진 규칙대로 고쳐 다시 실행을 스스로 반복해요. AI 모델은 쓰지 않아요." aria-description="실행 → 결과 읽기 → 막힌 곳을 정해진 규칙대로 고쳐 다시 실행을 스스로 반복해요. AI 모델은 쓰지 않아요.">에이전트 실행</button>
+      <button id="bRun" class="primary" data-tip="짜 놓은 흐름을 그대로 한 번 계산해요. 막힌 단계가 있으면 그 자리에서 멈춘 채 보여 줘요." aria-description="짜 놓은 흐름을 그대로 한 번 계산해요. 막힌 단계가 있으면 그 자리에서 멈춘 채 보여 줘요.">실행</button>
+      <button id="bCancel" disabled data-tip="실행 중일 때만 켜져요 — 돌고 있는 계산을 멈춰요." aria-description="실행 중일 때만 켜져요 — 돌고 있는 계산을 멈춰요.">취소</button>
+    </div>
+  </div>
+</header>
+<div id="runbar" hidden>
+  <span id="runStatus" class="chip"></span>
+  <span id="runProgress"></span>
+  <span id="runElapsed"></span>
+  <span id="runStep" class="step"></span>
+  <span id="runCounts" class="counts"></span>
+</div>
+<main>
+  <aside id="left">
+    <section class="planbox">
+      <h3>조사 계획 만들기</h3>
+      <p class="plan-lead"><b>6개 관점의 기본 분석은 체크하지 않아도 항상 들어가요.</b><br>체크는 그 관점을 <b>한 단계 더 깊이(심층 분석)</b> 보고 싶을 때만 하세요.</p>
+      <div id="persp"></div>
+      <div class="planrow"><span id="planCount"></span><button id="bPlan">캔버스에 배치</button></div>
+    </section>
+    <h3>노드 라이브러리</h3>
+    <input id="libSearch" placeholder="검색 (예: N02, 거시)" aria-label="노드 검색">
+    <div id="library"></div>
+  </aside>
+  <section id="center">
+    <div class="ctool">
+      <button id="zIn" title="확대">＋</button><button id="zOut" title="축소">－</button>
+      <button id="zFit">화면 맞춤</button><button id="bLayout">자동 배치</button>
+      <button id="bDelEdge" disabled>선택 연결 삭제</button>
+      <span class="legend">연결선 = 자료 전달 (승인·정답 아님) · <b style="color:#2f6f3a">━ 전달됨</b> · <b style="color:#c99700">━ 일부</b> · <b style="color:#adb5bd">┅ 자료 없음/전달 안 됨</b> · 선을 누르면 넘어간 내용 · 연결: 출력(오른쪽 ●) → 입력(왼쪽 ●)</span>
+    </div>
+    <div id="pfocus" class="pfocus" title="관점 하나를 고르면 그 관점의 자료 → 기본 → 확장 노드와 연결선만 진하게 보여요"></div>
+    <div id="canvas" tabindex="0" aria-label="노드 캔버스">
+      <div id="world"><svg id="edges"></svg><div id="nodes"></div></div>
+      <div id="empty"><div style="text-align:center">왼쪽에서 「캔버스에 배치」를 누르거나 노드를 끌어다 놓으세요.<br><button id="bExample2" class="primary" style="margin-top:12px;pointer-events:auto">처음이면: 질문으로 시작 / 예시 사례</button></div></div>
+    </div>
+    <div id="issues" hidden></div>
+  </section>
+  <aside id="right">
+    <div id="panel"></div>
+  </aside>
+</main>
+<dialog id="dlg"><div id="dlgBody"></div><form method="dialog"><button>닫기</button></form></dialog>
+<div id="toast" role="status"></div>
+<script src="/static/app.js"></script>
+<script src="/static/tp_timeline.js"></script>
+<script src="/static/mycards.js"></script>
+</body>
+</html>

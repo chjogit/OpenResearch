@@ -1,0 +1,34 @@
+{% extends "pages/base.html" %}
+{% comment %}
+전문가 모드 (PM 추가 2026-11-13, B+ 방식): 모두의리서치 엔진의 전문가 모드(흐름 캔버스·노드 조립·실행·근거 지도·증권사 전망·표현 검사 …)를
+이 화면 틀(왼쪽 메뉴·상단바) 안에 그대로 보인다. 엔진 화면은 /engine/expert 로 Django가 대신 받아 오고(engine_proxy.expert_page),
+계산·문장은 엔진 그대로다. 엔진 주소(4395)를 브라우저에 직접 열지 않으므로 배포 서버에서도 같은 코드로 돈다.
+{% endcomment %}
+{% load static %}
+
+{% block title %}전문가 모드 | 모두의 리서치{% endblock %}
+
+{# 외부 요청 0(인계 체크리스트 E4): 근거 리서치와 같은 로컬 글꼴·아이콘 #}
+{% block fonts %}
+<link rel="stylesheet" href="{% static 'pages/css/common/fonts-local.css' %}">
+<link rel="stylesheet" href="{% static 'pages/css/common/icons-local.css' %}">
+{% endblock %}
+
+{% block style %}
+<link rel="stylesheet" href="{% static 'pages/css/pages/expert-mode.css' %}">
+{% endblock %}
+
+{% block body_attrs %} data-page="expert" data-title="전문가 모드"{% endblock %}
+
+{% block content %}
+<div class="app" data-ai="closed">
+  <aside class="side" id="side"></aside>
+  <div class="main">
+    <header class="top" id="top"></header>
+    <main class="content xm-content" id="main" tabindex="-1">
+      <p class="xm-note">모든 단계를 직접 잇고 고치는 화면이에요 — 근거 리서치와 <b>같은 계산</b>을 단계 그대로 보여 줘요. 답과 근거만 빨리 보려면 <a href="{% url 'pages:research' %}">근거 리서치</a>가 더 편해요.</p>
+      <iframe class="xm-frame" src="/engine/expert" title="모두의리서치 전문가 모드"></iframe>
+    </main>
+  </div>
+</div>
+{% endblock %}
