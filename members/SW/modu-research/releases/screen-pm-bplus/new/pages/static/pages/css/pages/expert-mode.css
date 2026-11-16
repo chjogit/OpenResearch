@@ -1,0 +1,5 @@
+/* 전문가 모드(PM 추가 2026-11-13): 본문을 넓게 써서 엔진 전문가 모드(캔버스)를 꽉 채운다 */
+.xm-content { max-width: none; padding: 12px 16px 16px; gap: 8px; }
+.xm-note { margin: 0; font-size: var(--fs-sm); color: var(--muted); }
+.xm-note a { color: var(--violet-deep); font-weight: 600; }
+.xm-frame { flex: 1; width: 100%; min-height: calc(100vh - 150px); border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }

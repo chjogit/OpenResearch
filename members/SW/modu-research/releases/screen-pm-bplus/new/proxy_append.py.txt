@@ -1,0 +1,68 @@
+
+
+# ── B+ 전문가 모드 (PM 추가 2026-11-13) ──────────────────────────────────────
+# 엔진의 전문가 모드 화면(/expert)과 그 화면이 쓰는 정적 파일(/static/*.css·js)을 Django가 대신 받아 와서
+# 이 화면 틀 안(iframe)에 보인다. 엔진 계산·문장은 그대로이고, 주소 몇 곳만 이 화면 주소로 바꾼다.
+#   - /static/…            → /engine-static/…   (Django 자기 static과 겹치지 않게)
+#   - 쉬운 화면 링크 "/"     → 근거 리서치(/research/), 답 카드 "/#answer=번호" → /research/#/answer/번호
+#   - 화면 틀에 이미 메뉴가 있으므로 엔진의 모드 막대는 숨기고, 색·글꼴은 expert-skin.css로 덧입힌다.
+# API 호출(/api/…)은 원래 있던 forward()가 그대로 받는다.
+import re as _re
+
+from django.templatetags.static import static as _static
+from django.urls import reverse as _reverse
+from django.views.decorators.clickjacking import xframe_options_sameorigin
+from django.views.decorators.http import require_GET
+
+_ENGINE_STATIC_NAME = _re.compile(r"^[A-Za-z0-9_.-]+\.(css|js)$")
+_ENGINE_DOWN = "엔진에 연결하지 못했어요. 엔진이 켜져 있는지 확인해 주세요."
+
+
+def _engine_get(path):
+    """엔진에서 GET으로 받아 (본문 bytes, Content-Type)을 돌려준다. 실패하면 None."""
+    try:
+        res = urlopen(Request(f"{settings.MRN_ENGINE_URL}{path}", headers={"Origin": _engine_origin()}), timeout=TIMEOUT)
+    except HTTPError as e:
+        return None if e.code >= 500 else (e.read(), e.headers.get("Content-Type", "text/plain"), e.code)
+    except URLError:
+        return None
+    return res.read(), res.headers.get("Content-Type", "text/html; charset=utf-8"), res.status
+
+
+@require_GET
+@xframe_options_sameorigin
+def expert_page(request):
+    got = _engine_get("/expert")
+    if got is None:
+        return HttpResponse(f"<p style='font:14px sans-serif;padding:24px'>{_ENGINE_DOWN}</p>",
+                            status=502, content_type="text/html; charset=utf-8")
+    body, ctype, status = got
+    if status != 200:
+        return HttpResponse(body, status=status, content_type=ctype)
+    html = body.decode("utf-8")
+    research = _reverse("pages:research")
+    html = html.replace('href="/static/', 'href="/engine-static/').replace('src="/static/', 'src="/engine-static/')
+    html = html.replace('href="/expert"', 'href="/engine/expert"')
+    html = html.replace('href="/" ', f'href="{research}" target="_top" ')
+    html = html.replace("</head>", f'<link rel="stylesheet" href="{_static("pages/css/pages/expert-skin.css")}">\n</head>', 1)
+    html = html.replace("<body>", '<body class="in-shell">', 1)
+    return HttpResponse(html, content_type="text/html; charset=utf-8")
+
+
+@require_GET
+def engine_static(request, name):
+    if not _ENGINE_STATIC_NAME.match(name):
+        return HttpResponse(status=404)
+    got = _engine_get(f"/static/{name}")
+    if got is None:
+        return HttpResponse(status=502)
+    body, ctype, status = got
+    if status == 200 and name == "app.js":
+        research = _reverse("pages:research")
+        js = body.decode("utf-8")
+        js = js.replace('href="/#answer=', f'target="_top" href="{research}#/answer/')
+        js = js.replace("'/#answer=' + S.runId : '/'", f"'{research}#/answer/' + S.runId : '{research}'")
+        body = js.encode("utf-8")
+    out = HttpResponse(body, status=status, content_type=ctype)
+    out["Cache-Control"] = "no-cache"
+    return out

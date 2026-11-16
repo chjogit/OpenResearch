@@ -1,0 +1,41 @@
+{
+  "files": [
+    {
+      "file": "000660-financial.html",
+      "hash": "d608a3d52e809fab61897175f5cd42426130d95172c32bec0c3550940d7392e9"
+    },
+    {
+      "file": "000660-financial.live.html",
+      "hash": "d608a3d52e809fab61897175f5cd42426130d95172c32bec0c3550940d7392e9"
+    },
+    {
+      "file": "000660-risk.html",
+      "hash": "912b9a7322951eb7a19fcede3f929b9f1acd1ec76d719d615b848426054e359a"
+    },
+    {
+      "file": "000660-risk.live.html",
+      "hash": "912b9a7322951eb7a19fcede3f929b9f1acd1ec76d719d615b848426054e359a"
+    },
+    {
+      "file": "005930-financial.html",
+      "hash": "57ca62cf01fb81de7b229a61e78324c5f50ee4c7c07e6fa0425313a940d892bd"
+    },
+    {
+      "file": "005930-financial.live.html",
+      "hash": "57ca62cf01fb81de7b229a61e78324c5f50ee4c7c07e6fa0425313a940d892bd"
+    },
+    {
+      "file": "005930-risk.html",
+      "hash": "29a6ae42897b099af7fa589edbb7ed7e004dcfbd9c971824f8554895ce2d0658"
+    },
+    {
+      "file": "005930-risk.live.html",
+      "hash": "29a6ae42897b099af7fa589edbb7ed7e004dcfbd9c971824f8554895ce2d0658"
+    },
+    {
+      "file": "corpus.json",
+      "hash": "4f13c94482c23265434df527c387b61466d2dd35bc88edc958e017ce3679fe4c"
+    }
+  ],
+  "digest": "902f9b28bdb0478619a1232738031ef342f767135b27988694bbe177dca172f9"
+}

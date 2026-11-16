@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>모두의리서치 · 기업분석 — 근거를 확인하고, 판단은 스스로</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="/static/easy.css">
+</head>
+<body>
+<div class="modebar mb-easy" role="navigation" aria-label="화면 모드">
+  <a class="mb-name brand" href="/" aria-label="모두의리서치 기업분석 — 처음 화면으로">모두의리서치<span class="mb-desc">기업분석</span></a>
+  <div class="modes">
+    <a class="mode on" aria-current="page" href="/" title="질문 카드로 바로 답을 보는 화면"><span class="mi">●</span>쉬운 화면<small>질문하고 답과 근거 읽기</small></a>
+    <a class="mode" id="nExpert" href="/expert" title="모든 단계를 직접 잇고 고치는 화면"><span class="mi">◆</span>전문가 모드로 →<small>바꿔 보기·자료 넣기·원문 대조</small></a>
+  </div>
+
+  <button class="mb-why" id="mbWhy" aria-expanded="false" aria-controls="mbTip">언제 전문가 모드로?</button>
+  <div class="mb-tip" id="mbTip" role="dialog" aria-label="언제 전문가 모드로 가면 좋은지">
+    <p class="mt-one"><b>한 줄로 고르기</b> — 숫자를 <b>읽고 출처를 확인</b>하려면 쉬운 화면으로 충분해요. 숫자를 <b>바꿔 보거나, 자료를 넣거나, 원문과 대조</b>하려면 전문가 모드로 가세요.</p>
+    <div class="mt-grid">
+      <div class="mt-h e">쉬운 화면에서는 알기 어려운 것</div><div class="mt-h x">전문가 모드에서 알 수 있는 것</div>
+      <div>답이 몇 단계를 거쳐 나왔는지 전체 모습</div><div>단계가 이어진 그림, 단계마다 결과·근거·오류</div>
+      <div>기간·회사·가정을 바꾸면 결과가 어떻게 달라지는지</div><div>단계 설정(기간, 비교 지표, 자기자본비용·성장률 등)을 바꿔 다시 계산</div>
+      <div>사업보고서의 다른 문단, 원문 표와 공시 재무가 맞는지</div><div>「문서·재무」: 원문 전체 검색, 공시 재무(XBRL) 대조</div>
+      <div>증권사 보고서별 원래 숫자와 승인 기록</div><div>「증권사 전망」: 받은 보고서 등록·승인·비교</div>
+      <div>내가 쓴 글의 숫자·판단 표현에 근거가 있는지</div><div>「표현 검사」: 문장마다 숫자·판단 표현 점검</div>
+      <div>회사마다 어떤 자료가 있고 없는지</div><div>「근거 지도」: 회사별 자료 현황 한눈에</div>
+    </div>
+    <p class="mt-foot">전문가 모드는 결과를 다르게 내는 곳이 아니라, 같은 계산을 단계 그대로 열어 두고 손댈 수 있게 한 곳이에요. 처음이라면 전문가 모드의 「예시 사례」부터 눌러 보세요. 답을 보던 중이면 그 답이 그대로 열려요.</p>
+  </div>
+  <span class="mb-note">지금은 <b>쉬운 화면</b> — 계산은 두 화면이 똑같아요</span>
+</div>
+<header class="top">
+  <a class="brand" href="/" aria-label="처음 화면으로">모두의리서치 · 기업분석</a>
+  <span class="tag">근거를 확인하고, 판단은 스스로</span>
+  <nav>
+    <button id="nWatch" class="ghost" title="관심 있는 회사를 담아 두고, 그 회사의 주요 공시(소각·자기주식·배당·실적·유상증자·감자·전환사채 등)를 숫자로 봐요">관심회사 공시함</button>
+    <button id="nHistory" class="ghost" title="이 브라우저에서 했던 질문과 답을 다시 열어요">지난 질문 다시보기</button>
+    <button id="nJournal" class="ghost" title="내가 적은 실적 가정과 그때의 증권사·모두, 실적 발표 뒤 채점 결과">내 예상 채점표</button>
+    <button id="nLearn" class="ghost" title="기관 리서치의 규율을 손으로 익히는 과제 9개 — 한 일은 저절로 체크돼요">따라하는 사용법</button>
+    <button id="nVerify" class="ghost" title="받은 답이 정말 그 근거에서 나왔는지 다시 계산해 확인해요">근거검증</button>
+    <button id="nAbout" class="ghost open-src" title="이 앱의 답이 만들어지는 다섯 단계, AI 모델을 쓰는 때, 10가지 특징을 숨김없이 보여 드려요">앱의 작동원리</button>
+  </nav>
+</header>
+
+<!-- 지금 어디쯤: 회사 → 질문 → 답 → 근거 -->
+<nav id="path" class="path" aria-label="지금 어디쯤">
+  <ol><li data-p="door">무엇을 할까</li><li data-p="co">회사</li><li data-p="q">질문</li><li data-p="ans">답</li><li data-p="ev">근거</li></ol>
+</nav>
+
+<main id="main">
+  <!-- 1. 질문 홈 -->
+  <section id="home" class="view">
+    <p class="prodline"><span class="pl-name">모두의리서치 · 기업분석</span> 상장기업 한 곳을, 공시와 숫자의 근거로 끝까지 읽어 드려요.</p>
+    <h1>오늘은 무엇을 해 볼까요?</h1>
+    <p class="lead">숫자마다 어디서 왔는지 바로 확인할 수 있어요. 사거나 팔라는 말은 하지 않아요.</p>
+    <div id="doors" class="doors" role="tablist" aria-label="하려는 일"></div>
+    <div id="doorCheck" class="doorcheck" hidden>
+      <div class="dc-grid">
+        <label class="drop" for="hvFile"><b>받은 근거 확인서 넣기</b><span class="hint">확인서(.json)나 공유용 페이지(.html)를 고르면 같은 근거·같은 기준 날짜로 다시 계산해 단계마다 대조해요</span>
+          <input id="hvFile" type="file" accept=".json,.html,application/json,text/html"></label>
+        <div class="recent"><b>지난 질문 다시보기</b><ul id="hvRecent" class="hlist"></ul></div>
+      </div>
+      <p class="hint">회사를 골라 새로 물어본 뒤 답 아래 「작동 원리」를 눌러도 단계마다 무엇을 했는지 볼 수 있어요.</p>
+    </div>
+    <h2 class="step-h" id="coStepH"><span class="num">1</span> 회사 고르기</h2>
+    <div class="pick">
+      <label for="coInput" class="sr">회사</label>
+      <input id="coInput" list="coList" placeholder="회사 이름이나 종목코드 (예: 한미반도체, 000660)" autocomplete="off">
+      <datalist id="coList"></datalist>
+      <div id="coHint" class="hint"></div>
+      <div id="quick" class="quick"></div>
+    </div>
+    <div id="chosen" class="chosen" hidden></div>
+    <div id="meter" class="meter" hidden></div>
+    <div id="cards" class="cards"></div>
+    <div id="free" class="free" hidden>
+      <label for="freeQ">직접 물어보기</label>
+      <div class="row"><input id="freeQ" placeholder="예: 최근 공시 뒤 주가가 어떻게 움직였어?"><button id="freeGo">물어보기</button></div>
+      <div id="freeEx" class="freeex"></div>
+      <p class="hint">질문을 어떻게 이해했는지 먼저 보여 드려요.</p>
+      <div id="freeOut"></div>
+    </div>
+    <details class="when"><summary>기준 날짜 바꾸기 (기본: 지금)</summary>
+      <p>그 날짜 장 마감 때까지 공개된 자료만 써서 답해요. <input id="cutDate" type="date"> <button id="cutClear" class="ghost">지금으로</button></p>
+    </details>
+  </section>
+
+  <!-- 2. 진행 -->
+  <section id="progress" class="view" hidden>
+    <h2 id="pTitle">자료를 모으는 중…</h2>
+    <div id="pPhase" class="pphase" aria-label="지금 하는 일"></div>
+    <ol id="pSteps" class="steps"></ol>
+    <button id="pBack" class="ghost">처음으로</button>
+  </section>
+
+  <!-- 3. 답 카드 -->
+  <section id="answer" class="view" hidden></section>
+
+  <!-- 근거 확인서 검증 -->
+  <section id="verify" class="view" hidden>
+    <h2>근거검증 <span class="h2sub">— 확인서로 다시 계산해 보기</span></h2>
+    <p>다른 사람이 보낸 「근거 확인서」 파일이나 「공유용 페이지」를 넣으면, 같은 근거·같은 기준 날짜로 다시 계산해 결과가 똑같이 나오는지 하나씩 대조해요.</p>
+    <p class="hint">근거 확인서는 「이 근거로 계산하면 이 결과가 나온다」는 것을 확인해 줄 뿐, 결과가 옳다거나 투자해도 된다는 보증이 아니에요.</p>
+    <!-- v0.38 확인서 사용법(vGuide) -->
+    <div class="vguide" id="vGuide">
+      <div class="vwhen"><b>이럴 때 써요</b>
+        <ul><li>누가 보내 준 답이 <b>정말 그 근거에서 나온 건지</b> 확인하고 싶을 때</li>
+          <li>예전에 본 답이 <b>지금 다시 계산해도 똑같이</b> 나오는지 보고 싶을 때</li>
+          <li>팀원·친구와 <b>같은 결과를 보고 있는지</b> 맞춰 보고 싶을 때</li></ul></div>
+      <ol class="vsteps">
+        <li><b>확인서 파일 받기</b><span>답 화면 아래 「근거 확인서 내려받기」(.json) 또는 「공유용 페이지」(.html). 남이 보낸 파일도 돼요.</span></li>
+        <li><b>아래 칸에 넣기</b><span>파일을 끌어다 놓거나, 칸을 눌러 골라요.</span></li>
+        <li><b>결과 읽기</b><span>단계마다 「같음」이면 같은 근거로 같은 결과가 다시 나온 거예요.</span></li>
+      </ol>
+      <label class="vdrop" id="vDrop"><input id="vFile" type="file" accept=".json,.html,application/json,text/html">
+        <b>여기에 파일을 끌어다 놓거나 눌러서 고르기</b><span>근거 확인서(.json) 또는 공유용 페이지(.html)</span></label>
+      <p class="vtry" id="vTry"></p>
+    </div>
+    <div id="vOut"></div>
+    <button id="vBack" class="ghost">처음으로</button>
+  </section>
+
+  <!-- v0.38 T1 내 관심 종목 -->
+  <section id="watch" class="view" hidden>
+    <h2>관심회사 공시함</h2>
+    <p class="lead">관심 있는 회사를 담아 두고, 그 회사의 <b>주식 소각 · 자기주식 취득 · 배당 · 잠정실적 · 손익구조 변경 · 유상증자 · 감자 · 전환사채(신주인수권부·교환사채 포함)</b> 공시를 원문 숫자와 식으로 봐요. 유상증자·전환사채는 주가가 달라지면 값이 어떻게 바뀌는지 시나리오 표와 「추정」 확률도 함께 보여요. 좋다·나쁘다를 판단하지 않아요.</p>
+    <h3>최근 14일 공시 <span class="hint">(자동 확인)</span></h3>
+    <div id="wNew"></div>
+    <h3>담아 둔 회사</h3>
+    <div id="wList"></div>
+    <h3>회사 찾아 담기</h3>
+    <div id="wPick"></div>
+    <button id="wBack" class="ghost">처음으로</button>
+  </section>
+
+  <!-- v0.32 가설 일지 -->
+  <section id="journal" class="view" hidden>
+    <h2>내 예상 채점표</h2>
+    <p class="lead">내가 적은 실적 가정을 한곳에 모았어요. 적은 날의 증권사 집계·모두의 가정과 나란히 두고, 실적이 공시되면 저절로 채점해요. 판단이 아니라 <b>내 생각의 기록</b>이에요.</p>
+    <div id="jBody"></div>
+    <button id="jBack" class="ghost">처음으로</button>
+  </section>
+
+  <!-- v0.32 배우는 길 -->
+  <section id="learn" class="view" hidden>
+    <h2>따라하는 사용법</h2>
+    <p class="lead">기관 리서치의 세 가지 규율 — <b>출처를 대고</b>, <b>그때 알 수 있던 것만 쓰고</b>, <b>사실과 가정을 섞지 않기</b> — 와 <b>다시 계산해 확인하기</b>를 손으로 익히는 과제 9개예요. 해 본 일은 저절로 체크돼요.</p>
+    <div id="lBody"></div>
+    <button id="lBack" class="ghost">처음으로</button>
+  </section>
+
+  <!-- 작동 원리 공개 (v0.31, 옛 이름: 어떻게 일하나요?) -->
+  <section id="about" class="view" hidden>
+    <p class="prodline"><span class="pl-name">모두의리서치 · 기업분석</span> 상장기업 한 곳을, 공시와 숫자의 근거로 끝까지 읽어 드려요. 「모두의리서치」는 근거를 확인하는 리서치의 이름이고, 「기업분석」은 그 첫 번째 분석이에요.</p>
+    <h2>앱의 작동원리 <span class="h2sub">— 질문이 답이 되기까지</span></h2>
+    <p class="lead">모든 답은 같은 다섯 단계를 거쳐요. 답 카드 아래 「작동 원리」 띠에서 이번 답이 각 단계에서 실제로 무엇을 했는지 볼 수 있어요.</p>
+    <ol id="abSteps" class="absteps"></ol>
+    <div id="abAi" class="box ai"></div>
+    <h3>이 앱의 10가지 특징 — 어디서 볼 수 있나요?</h3>
+    <p class="hint">특징마다 실제로 눌러 볼 수 있는 곳을 함께 적었어요. 누르면 그 자리로 가요.</p>
+    <div id="abAttrs" class="attrs"></div>
+    <h3>쉬운 말 풀이</h3>
+    <dl id="abWords" class="words"></dl>
+    <button id="abBack" class="ghost">처음으로</button>
+  </section>
+
+  <!-- 최근 본 답 -->
+  <section id="history" class="view" hidden>
+    <h2>지난 질문 다시보기</h2>
+    <p class="hint">이 브라우저에만 기억해요.</p>
+    <ul id="hList" class="hlist"></ul>
+    <button id="hBack" class="ghost">처음으로</button>
+  </section>
+</main>
+
+<!-- 근거 서랍 -->
+<aside id="drawer" class="drawer" hidden aria-label="근거">
+  <button id="dClose" class="x" aria-label="닫기">×</button>
+  <div id="dBody"></div>
+</aside>
+
+<!-- 처음 안내 -->
+<div id="intro" class="intro" hidden>
+  <div class="box">
+    <div id="iBody"></div>
+    <div class="row end"><button id="iSkip" class="ghost">건너뛰기</button><button id="iNext">다음</button></div>
+  </div>
+</div>
+
+<div id="toast" class="toast" role="status"></div>
+<script src="/static/easy.js"></script>
+<script src="/static/watch.js"></script>
+<!-- v0.38 names -->
+</body>
+</html>

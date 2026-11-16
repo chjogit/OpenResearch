@@ -1,0 +1,13 @@
+# SW 폴더 안전장치: 자료·키·결과물은 올리지 않음
+**/data/
+**/out/
+**/.venv*/
+*.sqlite*
+*.db
+local-env.cmd
+.env
+*.mp3
+*.mp4
+*.webm
+*.zip
+*.pdf
