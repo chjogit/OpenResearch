@@ -19,7 +19,7 @@ ENGINE = SRC / 'modu-research-nodes'
 PLAN = [  # (원본, 대상, 포함할 하위 항목 또는 None=전체)
     (ENGINE, 'engine', ['mrn', 'tests', 'web', 'scripts', 'docs', 'vendor', 'reused', 'README.md', 'pyproject.toml',
                         'setup.cmd', 'start.cmd', 'stop.cmd', 'test.cmd', 'prepare-rag.cmd', 'apply-quarter.cmd', 'local-env.example.cmd']),
-    (SRC / '_tools', 'tools', ['price_refresh', 'flow_refresh', 'backup', 'voice', 'recorder', 'neon_snapshot', 'dart_docs', 'datalab', 'pr_pack']),   # kis(운용실 분봉·모의 결과)는 비공개 원칙이라 뺌
+    (SRC / '_tools', 'tools', ['first_fill', 'price_refresh', 'flow_refresh', 'backup', 'voice', 'recorder', 'neon_snapshot', 'dart_docs', 'datalab', 'pr_pack']),   # kis(운용실 분봉·모의 결과)는 비공개 원칙이라 뺌
     (None, None, None),
     (SRC / '_screen_jt', 'launchers', None),   # 아래 LAUNCH_OK 로 시연 켜기·끄기·갱신 실행 파일만
 ]
@@ -50,7 +50,8 @@ def walk(base, keep):
         if it.is_file():
             yield it; continue
         for dp, dn, fn in os.walk(it):
-            dn[:] = sorted(d for d in dn if d not in SKIP_DIRS and not d.startswith(SKIP_DIR_PREFIX))
+            dn[:] = sorted(d for d in dn if (d not in SKIP_DIRS or (d == 'data' and Path(dp).name == 'tests'))   # v0.39.6: 시험 자료(tests/data)는 담음
+                           and not d.startswith(SKIP_DIR_PREFIX))
             for f in sorted(fn):
                 yield Path(dp) / f
 
@@ -112,7 +113,11 @@ def main():
         total += len(data); lines.append(f'{hashlib.sha256(data).hexdigest()}  {len(data):>9}  {rel.as_posix()}')
     (DST / 'PACK_MANIFEST.txt').write_text('\n'.join(lines) + '\n', encoding='utf-8')
     shutil.copyfile(Path(__file__).resolve().parent / 'SW_README.md', DST.parent / 'README.md')   # members/SW/README.md
-    (DST.parent / '.gitignore').write_text('# SW 폴더 안전장치: 자료·키·결과물은 올리지 않음\n**/data/\n**/out/\n**/.venv*/\n*.sqlite*\n*.db\nlocal-env.cmd\n.env\n*.mp3\n*.mp4\n*.webm\n*.zip\n*.pdf\n', encoding='utf-8')
+    (DST.parent / '.gitignore').write_text('# SW 폴더 안전장치: 자료·키·결과물은 올리지 않음\n**/data/\n!**/tests/data/\n**/_sources/\n**/out/\n**/.venv*/\n'
+                                           '*.sqlite*\n*.db\nlocal-env.cmd\n.env\n**/last-result.txt\n*.mp3\n*.mp4\n*.webm\n*.zip\n*.pdf\n', encoding='utf-8')
+    # v0.39.6: 줄바꿈을 PM PC 원본 그대로 — 실행 파일은 CRLF, 엔진 원문 자료(vendor)는 바이트 그대로(해시 대조가 깨지지 않게)
+    (DST.parent / '.gitattributes').write_text('*.bat text eol=crlf\n*.cmd text eol=crlf\n*.ps1 text eol=crlf\nmodu-research/engine/vendor/** -text\n', encoding='utf-8')
+    shutil.copyfile(Path(__file__).resolve().parent / 'SW_GUIDE.md', DST.parent / '따라하기_안내서.md')   # members/SW/따라하기_안내서.md
     by = {}
     for _, rel, data in keep:
         by[rel.parts[0]] = by.get(rel.parts[0], 0) + len(data)

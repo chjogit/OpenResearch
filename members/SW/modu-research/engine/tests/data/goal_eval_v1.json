@@ -1,0 +1,276 @@
+{
+ "about": "목표 조립 에이전트 평가셋 v1 (Claude 초안). expect_targets = 배치돼야 할 목표 노드 종류, expect_gaps = 「아직 답할 수 없음」으로 표시돼야 할 것, expect_status = ok / ask / gap_only. 박사님이 질문·정답을 고치거나 추가하시면 그 파일로 다시 잽니다. 주의: 개발자가 만든 질문이라 실제 정확도보다 높게 나올 수 있습니다. / v0.11: N07 수급이 실동작이 되어 수급 질문 정답을 「아직 답할 수 없음」→「N07 조립」으로 변경. / v0.12: N03 실동작(재무 비교) — 「경쟁력·점유율·업황」은 사업보고서 문장이 필요한 N04(예정)로 분리하여 정답 갱신. v0.14: N11·N12 실동작으로 뉴스 문항 2개 기대값 변경. v0.14: N04·N13·N14 실동작으로 3문항 기대값 변경.",
+ "items": [
+  {
+   "q": "삼성전자 2025년 매출과 영업이익은 얼마야?",
+   "expect_targets": [
+    "N01"
+   ],
+   "expect_status": "ok"
+  },
+  {
+   "q": "SK하이닉스 재고자산이 얼마나 늘었는지 공시 숫자로 보여줘",
+   "expect_targets": [
+    "N01"
+   ],
+   "expect_status": "ok"
+  },
+  {
+   "q": "두 회사 현금흐름 비교",
+   "expect_targets": [
+    "N01"
+   ],
+   "expect_status": "ok"
+  },
+  {
+   "q": "하이닉스 부채랑 자산 규모 알려줘",
+   "expect_targets": [
+    "N01"
+   ],
+   "expect_status": "ok"
+  },
+  {
+   "q": "삼성전자 설비투자 규모는?",
+   "expect_targets": [
+    "N01"
+   ],
+   "expect_status": "ok"
+  },
+  {
+   "q": "증권사 전망을 넣으면 삼성전자 기업가치가 얼마나 될까",
+   "expect_targets": [
+    "N02"
+   ],
+   "expect_status": "ok"
+  },
+  {
+   "q": "삼성전자 DCF로 주당가치 계산해줘",
+   "expect_targets": [
+    "N02"
+   ],
+   "expect_status": "ok"
+  },
+  {
+   "q": "할인율을 바꾸면 적정 가치가 얼마나 달라져?",
+   "expect_targets": [
+    "N02"
+   ],
+   "expect_status": "ok"
+  },
+  {
+   "q": "정상화 이익 기준으로 말기가치를 보고 싶어",
+   "expect_targets": [
+    "N02"
+   ],
+   "expect_status": "ok"
+  },
+  {
+   "q": "금리와 환율 변화가 삼성전자에 어떤 노출이 있어?",
+   "expect_targets": [
+    "N05"
+   ],
+   "expect_status": "ok"
+  },
+  {
+   "q": "원달러 환율이 5% 오르면 이익에 얼마나 영향이 있나 민감도 보여줘",
+   "expect_targets": [
+    "N06"
+   ],
+   "expect_status": "ok"
+  },
+  {
+   "q": "기준금리 충격 시나리오",
+   "expect_targets": [
+    "N06"
+   ],
+   "expect_status": "ok"
+  },
+  {
+   "q": "SK하이닉스 최근 주가 흐름과 이동평균",
+   "expect_targets": [
+    "N09"
+   ],
+   "expect_status": "ok"
+  },
+  {
+   "q": "삼성전자 52주 고점 대비 얼마나 내려왔어?",
+   "expect_targets": [
+    "N09"
+   ],
+   "expect_status": "ok"
+  },
+  {
+   "q": "하이닉스 거래량이 평소보다 많아?",
+   "expect_targets": [
+    "N09"
+   ],
+   "expect_status": "ok"
+  },
+  {
+   "q": "삼성전자 변동성이 얼마나 커?",
+   "expect_targets": [
+    "N10"
+   ],
+   "expect_status": "ok"
+  },
+  {
+   "q": "SK하이닉스 최근 1년 최대 낙폭은?",
+   "expect_targets": [
+    "N10"
+   ],
+   "expect_status": "ok"
+  },
+  {
+   "q": "SK하이닉스 최근 1년 주가 낙폭이랑 환율 민감도 같이 보고 싶어",
+   "expect_targets": [
+    "N06",
+    "N09",
+    "N10"
+   ],
+   "expect_status": "ok"
+  },
+  {
+   "q": "실적이랑 주가 흐름 한 번에 보여줘",
+   "expect_targets": [
+    "N01",
+    "N09"
+   ],
+   "expect_status": "ok"
+  },
+  {
+   "q": "기업가치 계산하고 금리 노출도 같이",
+   "expect_targets": [
+    "N02",
+    "N05"
+   ],
+   "expect_status": "ok"
+  },
+  {
+   "q": "외국인 수급은 어때?",
+   "expect_targets": [
+    "N07"
+   ],
+   "expect_status": "ok"
+  },
+  {
+   "q": "삼성전자 관련 뉴스 심리가 어때?",
+   "expect_targets": [
+    "N11"
+   ],
+   "expect_gaps": [],
+   "expect_status": "ok"
+  },
+  {
+   "q": "마이크론 대비 경쟁력과 점유율",
+   "expect_targets": [
+    "N03",
+    "N04"
+   ],
+   "expect_gaps": [],
+   "expect_status": "ok"
+  },
+  {
+   "q": "최대주주 지분 변동이 궁금해",
+   "expect_targets": [
+    "N13"
+   ],
+   "expect_gaps": [],
+   "expect_status": "ok"
+  },
+  {
+   "q": "메모리 수출 통계로 실적 발표 전에 매출을 알 수 있어?",
+   "expect_targets": [
+    "N01",
+    "N14"
+   ],
+   "expect_gaps": [],
+   "expect_status": "ok"
+  },
+  {
+   "q": "사업보고서에서 리스크 요인 찾아줘",
+   "expect_targets": [],
+   "expect_gaps": [
+    "DOCS"
+   ],
+   "expect_status": "gap_only"
+  },
+  {
+   "q": "삼성 어때?",
+   "expect_targets": [],
+   "expect_status": "ask"
+  },
+  {
+   "q": "삼성전자 사야 돼?",
+   "expect_targets": [],
+   "expect_status": "ask"
+  },
+  {
+   "q": "하이닉스 영업이익이랑 외국인 순매수 같이 보고 싶어",
+   "expect_targets": [
+    "N01",
+    "N07"
+   ],
+   "expect_status": "ok"
+  },
+  {
+   "q": "삼성전자 주가 추세랑 뉴스 반응",
+   "expect_targets": [
+    "N09",
+    "N11",
+    "N12"
+   ],
+   "expect_gaps": [],
+   "expect_status": "ok"
+  },
+  {
+   "q": "외국인이 팔았는데 주가는 올랐어?",
+   "expect_targets": [
+    "N07",
+    "N08",
+    "N09"
+   ],
+   "expect_status": "ok",
+   "added": "v0.11"
+  },
+  {
+   "q": "하이닉스 지금 상승장이야 하락장이야?",
+   "expect_targets": [
+    "N10"
+   ],
+   "expect_status": "ok",
+   "added": "v0.11"
+  },
+  {
+   "q": "삼성전자 대차잔고 늘었어?",
+   "expect_targets": [
+    "N07"
+   ],
+   "expect_status": "ok",
+   "added": "v0.11"
+  },
+  {
+   "q": "하이닉스를 마이크론이랑 비교해줘",
+   "expect_targets": [
+    "N03"
+   ],
+   "expect_status": "ok",
+   "added": "v0.12"
+  },
+  {
+   "q": "환율 변화 영향 얼마나 돼?",
+   "expect_targets": [
+    "N06"
+   ],
+   "expect_status": "ok",
+   "added": "v0.12"
+  },
+  {
+   "q": "삼성전자 동종업계 대비 이익률 순위",
+   "expect_targets": [
+    "N03"
+   ],
+   "expect_status": "ok",
+   "added": "v0.12"
+  }
+ ]
+}

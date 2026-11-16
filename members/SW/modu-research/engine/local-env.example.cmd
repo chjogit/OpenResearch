@@ -7,6 +7,9 @@ rem set MODU_NODES_LLM_MODEL=qwen3.8:27b
 rem 클라우드 모델을 쓸 때만 키를 넣습니다. 키는 서버에서만 쓰이고 브라우저·로그에 나오지 않습니다.
 rem set MODU_NODES_LLM_KEY=
 rem set MODU_NODES_LLM_TIMEOUT=30
+rem 한국투자증권 Open API (실전투자용 앱키 · 조회만). 첫 채움·가격/수급 갱신·장중 급등 확인에서 사용. 서버에서만 쓰이고 화면·로그·저장 파일에 남지 않습니다.
+rem set KIS_APP_KEY=
+rem set KIS_APP_SECRET=
 rem DART OpenAPI 키 (재무데이터 XBRL 조회용). 서버에서만 쓰이며 화면·로그·저장 파일에 남지 않습니다.
 rem set DART_API_KEY=
 rem 사업보고서 검색용 임베딩 모델 (prepare-rag.cmd 에서 사용)

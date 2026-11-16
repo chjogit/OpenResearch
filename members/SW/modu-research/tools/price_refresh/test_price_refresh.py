@@ -121,5 +121,36 @@ class T(unittest.TestCase):
         self.assertEqual(self.run_main(http, ['--auto']), 0); self.assertEqual(calls, [])   # 이미 최신 → KIS 안 부름
 
 
+    def test_wrong_kis_row_is_corrected_fsc_untouched(self):
+        """v0.39.6: 예전에 KIS로 채운 마지막 날 종가가 지금 KIS와 다르면 바로잡음(금융위 행은 그대로)."""
+        self.assertEqual(self.run_main(self.http_for()), 0)                     # 11-06~11-13 을 KIS로 채움
+        from mrn import market as M
+        root = M.resolve(''); man = M.load_manifest(root)
+        rows, _ = M.read_rows(root, man, 'price_daily', '005930')
+        bad_day = rows[-1]['trade_date']; good_close = rows[-1]['close']
+        # 사본의 마지막 KIS 행 종가를 일부러 틀리게(주말에 받은 값이 달랐던 상황) → 새 사본으로 만들어 둠
+        p = root / man['tables']['price_daily']['parts']['005930']['file']
+        lines = p.read_text(encoding='utf-8').splitlines()
+        r = json.loads(lines[-1]); r['close'] = str(int(r['close']) + 3000); lines[-1] = json.dumps(r, sort_keys=True)
+        p.write_text('\n'.join(lines) + '\n', encoding='utf-8')
+        man2 = json.loads((root / 'manifest.json').read_text(encoding='utf-8'))
+        man2['tables']['price_daily']['parts']['005930']['sha256'] = _h(p)
+        (root / 'manifest.json').write_text(json.dumps(man2, ensure_ascii=False), encoding='utf-8')
+        (root / 'manifest.sha256').write_text(_h(root / 'manifest.json') + '  manifest.json\n', encoding='utf-8')
+        self.now = datetime(2026, 11, 16, 17, 0, tzinfo=KST)                     # 다음 거래일 장 마감 뒤 → 다시 대조
+        self.assertEqual(self.run_main(self.http_for()), 0)
+        root = M.resolve(''); man = M.load_manifest(root)
+        rows, _ = M.read_rows(root, man, 'price_daily', '005930')
+        fixed = [x for x in rows if x['trade_date'] == bad_day]
+        self.assertEqual([x['close'] for x in fixed], [good_close])              # 바로잡힘(줄 수는 그대로)
+        self.assertEqual(len([x for x in rows if x['source'] == 'fsc']), 10)     # 금융위 행 그대로
+        self.assertEqual(man['refresh'][-1]['corrected_kis_rows'], {'005930': [bad_day]})
+
+    def test_fsc_mismatch_still_stops(self):
+        """금융위 원본 행이 다르면 바로잡지 않고 예전처럼 멈춤"""
+        self.assertEqual(self.run_main(self.http_for(mism='000660')), 3)
+        self.assertEqual(Path(self.root, 'LATEST.txt').read_text().strip(), '20261107T005213+0900')
+
+
 if __name__ == '__main__':
     unittest.main()

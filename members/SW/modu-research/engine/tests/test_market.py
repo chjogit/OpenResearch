@@ -171,7 +171,19 @@ class N09N10Math(MarketBase):
             N.n09({'id': 'n09', 'config': {}}, {'prices': [pkt]}, None)
 
 
-@unittest.skipUnless(os.path.exists(os.path.join(os.path.dirname(__file__), '..', '..', '_sources', 'neon', 'LATEST.txt')), 'real snapshot not present')
+def _shared_snapshot(nd):
+    """PM·팀 공용(Neon) 사본일 때만 True. 첫 채움(KIS·DART 직접) 사본은 날짜·출처가 달라 이 시험 대상이 아님(v0.39.6)."""
+    import json as _j
+    from pathlib import Path
+    nd = Path(nd)
+    try:
+        name = (nd / 'LATEST.txt').read_text(encoding='utf-8').strip()
+        return 'first_fill' not in _j.loads((nd / name / 'manifest.json').read_text(encoding='utf-8'))
+    except (OSError, ValueError):
+        return False
+
+
+@unittest.skipUnless(_shared_snapshot(os.path.join(os.path.dirname(__file__), '..', '..', '_sources', 'neon')), 'real snapshot not present (or first-fill snapshot)')
 class RealSnapshot(unittest.TestCase):
     def test_real_snapshot_both_companies(self):
         os.environ.pop('MODU_NODES_NEON_DIR', None)

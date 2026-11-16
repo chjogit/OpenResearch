@@ -3,6 +3,12 @@ rem members/SW ·Î ¿Ã¸± ¹­À½ ¸¸µé±â(ÄÚµå¸¸). ÀÌ PCÀÇ ½ÇÁ¦ Å° °ªÀ¸·Î ºñ¹Ğ °Ë»çµµ Ç
 set "R=D:\AI\Projects\2Â÷_¸ğµÎÀÇ¸®¼­Ä¡_cluade"
 set "G=D:\AI\Projects\OpenResearch"
 chcp 65001 >nul
+cd /d "%G%" || (pause & exit /b 1)
+echo [ì¤€ë¹„] ê³µìš© ë³´ê´€í•¨ ìµœì‹  ë°›ê¸° + sw ì—°ìŠµì¥ì„ ë³¸ ê³µì±… main ì— ë§ì¶”ê¸°
+git fetch origin
+git checkout sw
+git merge --no-edit origin/main
+if errorlevel 1 (echo. & echo main ê³¼ í•©ì¹˜ì§€ ëª»í–ˆì–´ìš”. ìœ„ ê¸€ì„ Claude ì—ê²Œ ë³´ì—¬ ì£¼ì„¸ìš”. & pause & exit /b 1)
 cd /d "%R%\modu-research-nodes"
 if exist local-env.cmd call local-env.cmd
 ".venv\Scripts\python.exe" -X utf8 "%R%\_tools\pr_pack\pr_pack.py" "%G%"
